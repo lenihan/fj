@@ -102,53 +102,28 @@ function setup_dependencies {
         echo_command "cmd /c $configure -prefix $qt_install_dir -debug-and-release -static -static-runtime -- -Wno-dev -S $qt_source_dir -B $qt_build_dir"
         echo_command "Pop-Location"
     }
-        
-        # echo_command "cmake -S $qt_source_dir --build $qt_build_dir --parallel"
-        # echo_command "ninja install"  # Qt will be installed into 'C:/Users/david/git/qt_v6.8.3/build
-        
-        # echo_command "Pop-Location"
-
-        # Push-Location $qt_source_dir
-        # $config_options =
-        #     # "-init-submodules",
-        #     "-submodules qtbase",
-        #     "-prefix $qt_build_dir", 
-        #     "-debug-and-release",
-        #     "-static",
-        #     "-static-runtime" 
-        #     -join " "
-        # $cmake_options = "-Wno-dev"
-
-        
-        # Write-Host -ForegroundColor Green "        Run '.\configure.bat $config_options -- $cmake_options'"
-        # & ".\configure.bat" $config_options
-        # # & ".\configure.bat" $config_options -- $cmake_options 
-        # Write-Host -ForegroundColor Green "        Return to previous directory"
-        # Pop-Location 
-
-    # }
 
     # Build Qt
-    # Write-Host -ForegroundColor Green "    Build Qt..."
-    # $qt_install_exists = Test-Path $qt_install_dir
-    # if ($qt_install_exists) {
-    #    Write-Host -ForegroundColor Green "        Skipping building Qt, directory already exists: $qt_install_dir" 
-    # }
-    # else {
-    #     # TODO
-    #     cmake --build . --parallel
-    # }
-
+    Write-Host -ForegroundColor Green "    Build Qt..."
+    $qt6widgetsd_library = Join-Path $qt_build_dir qtbase lib Qt6Widgetsd.lib
+    $qt6widgetsd_library_exists = Test-Path $qt6widgetsd_library
+    if ($qt6widgetsd_library_exists) {
+         Write-Host -ForegroundColor Green "        Skipping build Qt, Qt6widgetsd library exists: $qt6widgetsd_library" 
+    }
+    else {
+        echo_command "cmake --build $qt_build_dir --parallel"
+    }
+    
     # Install Qt
-    # Write-Host -ForegroundColor Green "    Install Qt..."
-    # $qt_install_exists = Test-Path $qt_install_dir
-    # if ($qt_install_exists) {
-    #    Write-Host -ForegroundColor Green "        Skipping building Qt, directory already exists: $qt_install_dir"
-    # }
-    # else {
-    #     # TODO
-    #     cmake --install .
-    # }
+    Write-Host -ForegroundColor Green "    Install Qt..."
+    $qt_install_dir_exists = Test-Path $qt_install_dir
+    if ($qt_install_dir_exists) {
+         Write-Host -ForegroundColor Green "        Skipping install Qt, install directory exists: $qt_install_dir" 
+    }
+    else {
+        echo_command "ninja -C $qt_build_dir install"  # Qt will be installed into 'C:/Users/david/git/qt_v6.8.3/install'
+
+    }
 }
 
 check_prerequisites
