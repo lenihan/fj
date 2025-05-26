@@ -4,7 +4,7 @@
 
 # Inputs
 $QT_TAG = "v6.8.3" # LTS - Long-Term Support
-$ARCH = "arm64"
+$ARCH = "arm64" # ~20 min
 if ($IsWindows) {
     $VS_ENV_SCRIPT = Get-ChildItem -Recurse "$env:ProgramFiles\Microsoft Visual Studio\2022\*\Common7\Tools\Launch-VsDevShell.ps1"
 }
