@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # C:\Users\david\git\qt_v6.8.3\install\lib\cmake\Qt6BundledZLIB\Qt6BundledZLIBConfig.cmake
 
 # Set CMAKE_PREFIX_PATH to the Qt6 installation prefix
-set(CMAKE_PREFIX_PATH "C:/Users/david/git/qt_v6.8.3/install")
+set(CMAKE_PREFIX_PATH "../qt_v6.8.3/install")
 
 # Find Qt6
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
@@ -44,6 +44,8 @@ add_executable(fj
     src/main.cpp
     src/mainwindow.cpp
     src/mainwindow.h
+    src/animatedgraphicsitem.cpp
+    src/animatedgraphicsitem.h
 )
 
 # Link Qt libraries

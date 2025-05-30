@@ -11,14 +11,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     scene->setSceneRect(-200, -200, 400, 400); // Set scene size
 
     // Add a rectangle
-    QGraphicsRectItem *rect = new QGraphicsRectItem(-50, -50, 100, 50);
-    rect->setBrush(Qt::blue);
-    scene->addItem(rect);
+    rectItem = new AnimatedGraphicsItem(AnimatedGraphicsItem::ShapeType::Rectangle, QRectF(-50, -50, 100, 50), Qt::blue);
+    scene->addItem(rectItem);
 
     // Add a circle
-    QGraphicsEllipseItem *circle = new QGraphicsEllipseItem(0, 0, 50, 50);
-    circle->setBrush(Qt::red);
-    scene->addItem(circle);
+    circleItem = new AnimatedGraphicsItem(AnimatedGraphicsItem::ShapeType::Circle, QRectF(0, 0, 50, 50), Qt::red);
+    scene->addItem(circleItem);
 
     // Create and configure the view
     view = new QGraphicsView(scene, this);
@@ -28,7 +26,31 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
     // Set window properties
     setWindowTitle("fj");
-    resize(1000, 1000);
+    resize(500, 500);
+
+    // Animate the rectangle (move horizontally)
+    rectAnimation = new QPropertyAnimation(rectItem, "pos");
+    rectAnimation->setDuration(2000); // 2 seconds
+    rectAnimation->setStartValue(QPointF(-150, -50));
+    rectAnimation->setEndValue(QPointF(150, -50));
+    rectAnimation->setLoopCount(-1); // Loop indefinitely
+    rectAnimation->setEasingCurve(QEasingCurve::InOutSine); // Smooth motion
+    rectAnimation->start();
+
+    // Animate the circle (move vertically)
+    circleAnimation = new QPropertyAnimation(circleItem, "pos");
+    circleAnimation->setDuration(2000); // 2 seconds
+    circleAnimation->setStartValue(QPointF(0, -150));
+    circleAnimation->setEndValue(QPointF(0, 150));
+    circleAnimation->setLoopCount(-1); // Loop indefinitely
+    circleAnimation->setEasingCurve(QEasingCurve::InOutSine); // Smooth motion
+    circleAnimation->start();
+}
+
+MainWindow::~MainWindow()
+{
+    delete rectAnimation;
+    delete circleAnimation;
 }
 
 void MainWindow::wheelEvent(QWheelEvent *event)
