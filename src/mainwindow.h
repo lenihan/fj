@@ -17,7 +17,16 @@ class MainWindow : public QMainWindow
   protected:
     void wheelEvent(QWheelEvent *event) override;
 
+private slots:
+    void connectScreenChanged();
+    void onScreenChanged(QScreen *newScreen);
+    void onDpiChanged(qreal dpi);
+    
   private:
+    void updateWindowSize();
+    
+    double desiredInches; // Desired window size in inches
+    bool screenChangeConnected = false; // Track if screenChanged is connected
     QGraphicsView *view;
     QGraphicsScene *scene;
     AnimatedGraphicsItem *rectItem;
