@@ -37,16 +37,22 @@ set(CMAKE_AUTORCC ON)
 # MSVC: Static runtime libraries
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-
-
-# Add the executable
-add_executable(fj 
+# Source files
+set(SOURCES
     src/main.cpp
     src/mainwindow.cpp
     src/mainwindow.h
     src/animatedgraphicsitem.cpp
     src/animatedgraphicsitem.h
 )
+
+# Add the resource file
+set(RESOURCES resources/resources.qrc)
+
+# Qt resource compilation
+qt6_add_resources(RESOURCE_FILES ${RESOURCES})
+
+add_executable(${PROJECT_NAME} ${SOURCES} ${RESOURCE_FILES})
 
 # Link Qt libraries
 target_link_libraries(fj PRIVATE Qt6::Widgets)

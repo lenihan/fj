@@ -1,11 +1,14 @@
 #include "mainwindow.h"
 #include <QApplication>
+#include <QFontDatabase>
 #include <QGraphicsEllipseItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QTimer>
 #include <QWheelEvent>
 #include <QWindow>
+
+#include <QFile>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -43,6 +46,38 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
     // Defer connection to screenChanged until windowHandle is available
     QTimer::singleShot(0, this, &MainWindow::connectScreenChanged);
+
+    // Load the font from the file
+    QFontDatabase fontDatabase;
+    int fontIdBold = fontDatabase.addApplicationFont(":/fonts/Monoid-Bold-Dollar.ttf");
+    if (fontIdBold == -1) {
+        qDebug() << "Failed to load font!";
+    } 
+    int fontIdItalic = fontDatabase.addApplicationFont(":/fonts/Monoid-Italic-Dollar.ttf");
+    if (fontIdItalic == -1) {
+        qDebug() << "Failed to load font!";
+    }
+    int fontIdRegular = fontDatabase.addApplicationFont(":/fonts/Monoid-Regular-Dollar.ttf");
+    if (fontIdRegular == -1) {
+        qDebug() << "Failed to load font!";
+    }
+    else {
+        qDebug() << "Font loaded successfully, ID:" << fontIdRegular;
+        qDebug() << "Loaded font families:" << fontDatabase.families();
+    }
+    int fontIdRetina = fontDatabase.addApplicationFont(":/fonts/Monoid-Retina-Dollar.ttf");
+    if (fontIdRetina == -1) {
+        qDebug() << "Failed to load font!";
+    }
+
+    // Create a QGraphicsTextItem
+    QGraphicsTextItem *textItem = new QGraphicsTextItem("Hello, QGraphicsView! 0123456789 ABC");
+    scene->addItem(textItem);
+    textItem->setPos(-100, 0);
+    QString fontFamily = "Monoid";
+    QFont font(fontFamily, 12);
+    textItem->setFont(font);
+
 
     // Animate the rectangle (move horizontally)
     rectAnimation = new QPropertyAnimation(rectItem, "pos");
@@ -123,7 +158,7 @@ void MainWindow::updateWindowSize()
     // Get the current screen's PPI
     double ppi = screen()->physicalDotsPerInch();
 
-    // Calculate pixel size (5 inches * PPI)
+    // Calculate pixel size
     int pixelSize = static_cast<int>(desiredInches * ppi);
 
     // Set window size
