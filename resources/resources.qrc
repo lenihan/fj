@@ -1,9 +1,9 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="/">
-        <file>fonts/Monoid-Bold-Dollar.ttf</file>
-        <file>fonts/Monoid-Italic-Dollar.ttf</file>
-        <file>fonts/Monoid-Regular-Dollar.ttf</file>
-        <file>fonts/Monoid-Retina-Dollar.ttf</file>
+        <file>fonts/Hack-Bold.ttf</file>
+        <file>fonts/Hack-BoldItalic.ttf</file>
+        <file>fonts/Hack-Italic.ttf</file>
+        <file>fonts/Hack-Regular.ttf</file>
     </qresource>
 </RCC>
