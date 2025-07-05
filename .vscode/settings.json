@@ -4,6 +4,7 @@
         "endfunction",
         "libgcc",
         "libstdc",
-        "MSVC"
+        "MSVC",
+        "qreal"
     ]
 }

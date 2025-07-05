@@ -42,8 +42,8 @@ set(SOURCES
     src/main.cpp
     src/mainwindow.cpp
     src/mainwindow.h
-    src/animatedgraphicsitem.cpp
-    src/animatedgraphicsitem.h
+    src/squareGraphicsView.cpp
+    src/squareGraphicsView.h
 )
 
 # Add the resource file
