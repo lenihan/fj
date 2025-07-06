@@ -3,7 +3,7 @@
 class SquareGraphicsView : public QGraphicsView
 {
   public:
-    SquareGraphicsView(QWidget* parent = nullptr);
+    SquareGraphicsView(QGraphicsScene* scene, QWidget* parent);
 
   protected:
     void resizeEvent(QResizeEvent* event) override;

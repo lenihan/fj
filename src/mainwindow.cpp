@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 
 #include "squareGraphicsView.h"
+
+#include <QGraphicsScale>
 #include <QWheelEvent>
 
 
@@ -9,11 +11,11 @@ MainWindow::MainWindow() : QMainWindow()
     // Desired size in inches
     m_desiredInches = 8.0;
 
-    // Set window properties
     setWindowTitle("fj");
 
-    // Create and configure the view
-    m_view = new SquareGraphicsView(this);
+    m_scene = new QGraphicsScene(this);
+    m_view = new SquareGraphicsView(m_scene, this);
+    m_view->setScene(m_scene);
 
     setCentralWidget(m_view);
 }

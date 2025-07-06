@@ -2,16 +2,15 @@
 
 #include <QGraphicsRectItem>
 
-SquareGraphicsView::SquareGraphicsView(QWidget* parent) : QGraphicsView(parent)
+SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
+    : QGraphicsView(parent), m_scene(scene)
 {
-    // Create a scene
-    m_scene = new QGraphicsScene(this);
-    setScene(m_scene);
+    Q_ASSERT(m_scene);
 
     setRenderHint(QPainter::Antialiasing);
     setAlignment(Qt::AlignCenter);
 
-    // Optional: Disable scrollbars
+    // Want view to always show, no scroll bars needed
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 
+class QGraphicsScene;
 class SquareGraphicsView;
 
 class MainWindow : public QMainWindow
@@ -17,6 +18,7 @@ class MainWindow : public QMainWindow
 
   private:
     double m_desiredInches;               // Desired window size in inches
+    QGraphicsScene* m_scene;
     SquareGraphicsView* m_view;
 };
 
