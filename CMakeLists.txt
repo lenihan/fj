@@ -41,12 +41,12 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 project(fj)
 set(SOURCES
+    resources/resources.qrc
     src/main.cpp
     src/mainwindow.cpp
     src/mainwindow.h
     src/squareGraphicsView.cpp
     src/squareGraphicsView.h
-    resources/resources.qrc
 )
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(fj Qt6::Widgets)
