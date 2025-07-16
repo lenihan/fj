@@ -49,4 +49,4 @@ set(SOURCES
     resources/resources.qrc
 )
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(fj PRIVATE Qt6::Widgets)
+target_link_libraries(fj Qt6::Widgets)
