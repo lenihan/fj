@@ -49,4 +49,4 @@ set(SOURCES
     src/squareGraphicsView.h
 )
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(fj Qt6::Widgets)
+target_link_libraries(${PROJECT_NAME} Qt6::Widgets)
