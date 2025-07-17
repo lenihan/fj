@@ -59,45 +59,11 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     Q_ASSERT(mainWindow);
     const qreal desired_in = 8.0;
     const int percent = smallerSide_in / desired_in * 100.0;
-    const QString title = QString("fj - %1%").arg(percent);
+    const QString title = QString("FJ - %1\"x%1\" %2%").arg(desired_in).arg(percent);
     mainWindow->setWindowTitle(title);
 
     QGraphicsView::resizeEvent(event);
 }
-
-
-#if 0
-    QScreen *screen = m_view->screen();
-    Q_ASSERT(screen);
-    qreal dpiX = screen->physicalDotsPerInchX();
-    qreal dpiY = screen->physicalDotsPerInchY();
-    QSize sizePx = screen->availableSize();
-    int minSidePx = qMin(sizePx.width(), sizePx.height());
-    int sidePx = minSidePx;
-
-void MainWindow::resizeEvent(QResizeEvent* event)
-{
-    QScreen *screen = m_view->screen();
-    Q_ASSERT(screen);
-    QSize sizePx = screen->availableSize();
-    int minSidePx = qMin(size.width(), size.height());
-    int sidePx = minSidePx;
-
-
-    auto a = screen->physicalDotsPerInch();
-    auto b = screen->physicalDotsPerInchX();
-    auto c = screen->physicalDotsPerInchY();
-    auto d = m_view->physicalDpiX();
-    auto e = m_view->physicalDpiY();
-
-
-    double value = 0;
-    QString title = QString("fj - 8\" square represented by %1\" square").arg(value, 0, 'f', 1);
-    setWindowTitle(title);
-}
-
-#endif
-
 
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
 {
