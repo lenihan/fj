@@ -16,20 +16,59 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    // Add a QGraphicsRectItem to outline the scene rectangle
-    m_sceneBorder = new QGraphicsRectItem(m_scene->sceneRect());
-    QPen pen(Qt::green, 2); // Green pen with 2-pixel width
-    m_sceneBorder->setPen(pen);
-    m_sceneBorder->setBrush(Qt::NoBrush); // No fill, just the outline
-    m_scene->addItem(m_sceneBorder);
+    auto blueRect = new QGraphicsRectItem();
+    QPen bluePen = QPen(Qt::blue);
+    blueRect->setPen(bluePen);
+    blueRect->setBrush(Qt::blue);
+    blueRect->setRect(10, 10, 10, 10);
+    m_scene->addItem(blueRect);
+
+    m_text = new QGraphicsTextItem("FJ: Keep your hands on the keyboard!\n0O 1l 5S");
+    QFont font("Hack", 12);
+    m_text->setFont(font);
+
+    m_scene->addItem(m_text);
 }
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
+#if 1
     QScreen *screen = QApplication::primaryScreen();
     Q_ASSERT(screen);
     const qreal dpiX = screen->physicalDotsPerInchX();
     const qreal dpiY = screen->physicalDotsPerInchY();
+    
+    // qreal dpiX = 1.0;
+    // qreal dpiY = 2.0;
+    resetTransform();
+    scale(dpiX/dpiX, dpiY/dpiX);
+    // TODO: Need to update items in scene for new scene settings
+
+    // Get the view's size
+    int width = viewport()->width();
+    int height = viewport()->height();
+
+    // Use the smaller dimension to keep the scene square
+    int side = qMin(width, height);
+
+    // Set the scene's rectangle to be square and centered
+    qreal offsetX = (width - side) / 2.0;
+    qreal offsetY = (height - side) / 2.0;
+    m_scene->setSceneRect(offsetX, offsetY, side, side);
+#else
+    {
+        auto vw = viewport()->width();
+        auto vh = viewport()->height();
+        auto w = width();
+        auto h = height();
+        // int i;
+        // i++;
+    }
+    QScreen *screen = QApplication::primaryScreen();
+    Q_ASSERT(screen);
+    const qreal dpiX = screen->physicalDotsPerInchX();
+    const qreal dpiY = screen->physicalDotsPerInchY();
+    scale(dpiX/dpiX, dpiY/dpiX);
 
     // Get the view's size
     const int width_px = viewport()->width();
@@ -53,6 +92,10 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     
     m_scene->setSceneRect(offsetX_px, offsetY_px, sceneWidth_px, sceneHeight_px);
     m_sceneBorder->setRect(m_scene->sceneRect());
+
+    // Scale view based on dpi\
+
+    // scale(2.0, 1.0);
     
     // Set title
     QWidget* mainWindow = window();
@@ -61,7 +104,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     const int percent = smallerSide_in / desired_in * 100.0;
     const QString title = QString("FJ - %1\"x%1\" %2%").arg(desired_in).arg(percent);
     mainWindow->setWindowTitle(title);
-
+#endif
     QGraphicsView::resizeEvent(event);
 }
 
@@ -70,10 +113,18 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
     // Call the base class implementation to draw the view's content
     QGraphicsView::paintEvent(event);
 
-    // Draw a red border around the viewport
     QPainter painter(viewport());
-    QPen pen(Qt::red, 1); // Red pen with 2-pixel width
-    painter.setPen(pen);
-    painter.drawRect(viewport()->rect().adjusted(
-        1, 1, -1, -1)); // Slightly inset to avoid clipping
+    
+    // Draw a red border around the viewport
+    {
+        painter.setPen(Qt::red);
+        painter.drawRect(viewport()->rect());
+    }
+
+    // Draw a green border around the scene
+    {
+        painter.setPen(Qt::green);
+        Q_ASSERT(m_scene);
+        painter.drawRect(m_scene->sceneRect());
+    }
 }

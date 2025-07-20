@@ -11,5 +11,5 @@ class SquareGraphicsView : public QGraphicsView
 
   private:
     QGraphicsScene* m_scene;
-    QGraphicsRectItem* m_sceneBorder;
+    QGraphicsTextItem* m_text;
 };
