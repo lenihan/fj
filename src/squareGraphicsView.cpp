@@ -20,10 +20,11 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     QPen bluePen = QPen(Qt::blue);
     blueRect->setPen(bluePen);
     blueRect->setBrush(Qt::blue);
-    blueRect->setRect(10, 10, 10, 10);
+    blueRect->setRect(100, 100, 100, 100);
     m_scene->addItem(blueRect);
 
-    m_text = new QGraphicsTextItem("FJ: Keep your hands on the keyboard!\n0O 1l 5S");
+    m_text =
+        new QGraphicsTextItem("FJ: Keep your hands on the keyboard!\n0O 1l 5S");
     QFont font("Hack", 12);
     m_text->setFont(font);
 
@@ -32,16 +33,15 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
-    QScreen *screen = QApplication::primaryScreen();
+    QScreen* screen = QApplication::primaryScreen();
     Q_ASSERT(screen);
     const qreal dpiX = screen->physicalDotsPerInchX();
     const qreal dpiY = screen->physicalDotsPerInchY();
-    
-    // qreal dpiX = 1.0;
+
     // qreal dpiY = 2.0;
+    // qreal dpiX = 1.0;
     resetTransform();
-    scale(dpiX/dpiX, dpiY/dpiX);
-    // TODO: Need to update items in scene for new scene settings
+    scale(dpiX / dpiX, dpiY / dpiX);
 
     // Get the view's size
     const int width_px = viewport()->width();
@@ -56,6 +56,16 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     const qreal offsetY_px = (height_px - side_px) / 2.0;
     m_scene->setSceneRect(offsetX_px, offsetY_px, side_px, side_px);
 
+    // TODO: Need to update items in scene for new scene settings
+    // Translate all items by the negative offset (-dx, -dy)
+    {
+        const QRectF sceneRect = m_scene->sceneRect();
+        for (QGraphicsItem* item : m_scene->items())
+        {
+            item->setPos(sceneRect.topLeft());
+        }
+    }
+
     // Set title
     {
         QWidget* mainWindow = window();
@@ -63,7 +73,8 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
         const qreal desired_in = 8.0;
         const qreal side_in = side_px / dpi;
         const int percent = side_in / desired_in * 100.0;
-        const QString title = QString("FJ - %1\"x%1\" %2%").arg(desired_in).arg(percent);
+        const QString title =
+            QString("FJ - %1\"x%1\" %2%").arg(desired_in).arg(percent);
         mainWindow->setWindowTitle(title);
     }
     QGraphicsView::resizeEvent(event);
@@ -75,7 +86,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
     QGraphicsView::paintEvent(event);
 
     QPainter painter(viewport());
-    
+
     // Draw a red border around the viewport
     {
         painter.setPen(Qt::red);
