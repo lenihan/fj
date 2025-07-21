@@ -4,6 +4,11 @@
 #include <QGraphicsRectItem>
 #include <QScreen>
 
+namespace
+{
+const qreal PHYSICAL_SIDE_IN = 8.0;
+}
+
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     : QGraphicsView(parent), m_scene(scene)
 {
@@ -37,9 +42,8 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     Q_ASSERT(screen);
     const qreal dpiX = screen->physicalDotsPerInchX();
     const qreal dpiY = screen->physicalDotsPerInchY();
-
-    // qreal dpiY = 2.0;
-    // qreal dpiX = 1.0;
+    
+    // Scale view so that a square is actually a square
     resetTransform();
     scale(dpiX / dpiX, dpiY / dpiX);
 
@@ -50,19 +54,21 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     // Use the smaller dimension to keep the scene square
     const int side_px = width_px <= height_px ? width_px : height_px;
     const qreal dpi = width_px <= height_px ? dpiX : dpiY;
+    const qreal side_in = side_px / dpi;
 
     // Set the scene's rectangle to be square and centered
     const qreal offsetX_px = (width_px - side_px) / 2.0;
     const qreal offsetY_px = (height_px - side_px) / 2.0;
     m_scene->setSceneRect(offsetX_px, offsetY_px, side_px, side_px);
 
-    // TODO: Need to update items in scene for new scene settings
-    // Translate all items by the negative offset (-dx, -dy)
+    // Update items for change to scene's position and scale
     {
         const QRectF sceneRect = m_scene->sceneRect();
+        const qreal scale = side_in / PHYSICAL_SIDE_IN;
         for (QGraphicsItem* item : m_scene->items())
         {
             item->setPos(sceneRect.topLeft());
+            item->setScale(scale);
         }
     }
 
@@ -70,11 +76,10 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     {
         QWidget* mainWindow = window();
         Q_ASSERT(mainWindow);
-        const qreal desired_in = 8.0;
-        const qreal side_in = side_px / dpi;
-        const int percent = side_in / desired_in * 100.0;
+
+        const int percent = side_in / PHYSICAL_SIDE_IN * 100.0;
         const QString title =
-            QString("FJ - %1\"x%1\" %2%").arg(desired_in).arg(percent);
+            QString("FJ - %1\"x%1\" %2%").arg(PHYSICAL_SIDE_IN).arg(percent);
         mainWindow->setWindowTitle(title);
     }
     QGraphicsView::resizeEvent(event);
