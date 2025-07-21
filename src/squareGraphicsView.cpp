@@ -30,7 +30,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
 
     m_text =
         new QGraphicsTextItem("FJ: Keep your hands on the keyboard!\n0O 1l 5S");
-    QFont font("Hack", 12);
+    QFont font("Hack", 6);
     m_text->setFont(font);
 
     m_scene->addItem(m_text);
@@ -40,10 +40,10 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
     QScreen* screen = QApplication::primaryScreen();
     Q_ASSERT(screen);
-    const qreal dpiX = screen->physicalDotsPerInchX();
-    const qreal dpiY = screen->physicalDotsPerInchY();
+    const qreal dpiX = screen->physicalDotsPerInchX(); // 132 on Surface Pro 11
+    const qreal dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11
     
-    // Scale view so that a square is actually a square
+    // Scale view so that a monitor square is perceived as an actual square
     resetTransform();
     scale(dpiX / dpiX, dpiY / dpiX);
 
