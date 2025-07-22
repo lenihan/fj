@@ -4,7 +4,6 @@
 
 # Inputs
 $QT_TAG = "v6.8.3" # LTS - Long-Term Support
-$ARCH = "arm64" # ~20 min
 if ($IsWindows) {
     $VS_ENV_SCRIPT = Get-ChildItem -Recurse "$env:ProgramFiles\Microsoft Visual Studio\2022\*\Common7\Tools\Launch-VsDevShell.ps1"
 }
@@ -13,6 +12,14 @@ if ($IsWindows) {
 # Globals
 $ROOT_DIR = Resolve-Path $PSScriptRoot/..
 $REPO_DIR = Resolve-Path $ROOT_DIR/..
+$PROCESSOR = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+
+switch ($PROCESSOR) {
+    "X64"   {$ARCH = 'amd64'}
+    "Arm64" {$ARCH = 'arm64'}  # ~20 min
+    "Arm"   {$ARCH = 'arm'}
+    "X86"   {$ARCH = 'x86'}
+}
 
 # $VCPKG_DIR = Join-Path $REPO_DIR "vcpkg_$VCPKG_TAG"
 
