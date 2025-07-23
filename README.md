@@ -27,8 +27,13 @@ Build dependencies. ~20 minutes
 ## Build FJ
 
 ```pwsh
-> cd <GIT REPOSITORY DIR>
-> cd fj
+> cd <GIT REPOSITORY DIR>/fj
 > cmake -S . -B build  # Create build files
 > cmake --build build  # Build build files
 ```
+
+## Run
+
+```pwsh
+> ./<GIT REPOSITORY DIR>/fj/build/Debug/fj
+````
