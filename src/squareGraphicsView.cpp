@@ -97,7 +97,9 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
-    QScreen* screen = QApplication::primaryScreen();
+    QWidget* mainWindow = window();
+    Q_ASSERT(mainWindow);
+    QScreen* screen = mainWindow->screen();
     Q_ASSERT(screen);
     const qreal dpiX = screen->physicalDotsPerInchX(); // 132 on Surface Pro 11
     const qreal dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11
@@ -133,9 +135,6 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 
     // Set title
     {
-        QWidget* mainWindow = window();
-        Q_ASSERT(mainWindow);
-
         const int percent = side_in / PHYSICAL_SIDE_IN * 100.0;
         const QString title =
             QString("FJ - %1\"x%1\" %2%").arg(PHYSICAL_SIDE_IN).arg(percent);
