@@ -158,7 +158,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
     {
         painter.setPen(Qt::red);
         QRect viewportRect = viewport()->rect();
-        viewportRect.adjust(0, 0, -1, -1);
+        viewportRect.adjust(0, 0, -1, -1);      // Fixes issue with left/bottom not drawing on some monitors
         painter.drawRect(viewportRect);
     }
 
@@ -167,7 +167,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         painter.setPen(Qt::green);
         Q_ASSERT(m_scene);
         QRectF sceneRect = m_scene->sceneRect();
-        sceneRect.adjust(0.0, 0.0, -1.0, -1.0);
+        sceneRect.adjust(0.0, 0.0, -1.0, -1.0); // Fixes issue with left/bottom not drawing on some monitors
         painter.drawRect(sceneRect);
     }
 }
