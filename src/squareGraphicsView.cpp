@@ -151,16 +151,23 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
 
     QPainter painter(viewport());
 
+    // Disable anti-aliasing for crisp lines
+    painter.setRenderHint(QPainter::Antialiasing, false);
+
     // Draw a red border around the viewport
     {
         painter.setPen(Qt::red);
-        painter.drawRect(viewport()->rect());
+        QRect viewportRect = viewport()->rect();
+        viewportRect.adjust(0, 0, -1, -1);
+        painter.drawRect(viewportRect);
     }
 
     // Draw a green border around the scene
     {
         painter.setPen(Qt::green);
         Q_ASSERT(m_scene);
-        painter.drawRect(m_scene->sceneRect());
+        QRectF sceneRect = m_scene->sceneRect();
+        sceneRect.adjust(0.0, 0.0, -1.0, -1.0);
+        painter.drawRect(sceneRect);
     }
 }
