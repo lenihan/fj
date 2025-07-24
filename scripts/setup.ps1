@@ -32,7 +32,7 @@ function check_prerequisites {
     Write-Host -ForegroundColor Green "Checking prerequisites..."
 
     if ($IsWindows) {
-        $required = "git", "cmake", "code", $VS_ENV_SCRIPT
+        $required = "git", "cmake", $VS_ENV_SCRIPT
         $all_found = $true
         foreach($r in $required) {
             $found = Get-Command $r -ErrorAction SilentlyContinue

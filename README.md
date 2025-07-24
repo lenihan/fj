@@ -13,9 +13,9 @@
     * `winget install --id Microsoft.VisualStudio.2022.Community -e --source winget`
     * Choose workload "Desktop development with C++"
 
-## Setup
+## Build Dependencies
 
-Build dependencies. ~20 minutes
+~20 minutes
 
 ```pwsh
 > cd <GIT REPOSITORY DIR>
