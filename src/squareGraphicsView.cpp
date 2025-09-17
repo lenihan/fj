@@ -1,6 +1,7 @@
 #include "squareGraphicsView.h"
 
 #include <QApplication>
+#include <QFontDatabase>
 #include <QGraphicsRectItem>
 #include <QScreen>
 #include <QTextCursor>
@@ -8,6 +9,36 @@
 namespace
 {
 const qreal PHYSICAL_SIDE_IN = 8.0;
+
+qreal findSmallestK(qreal desiredWidth_in, QString fontFamily, qreal dpiY)
+{
+    QFont font(fontFamily);
+
+    // Lambda
+    auto getDeltaWidth_in = [desiredWidth_in, &font, dpiY](qreal k) {
+        qreal pointSize = desiredWidth_in * 72.0 / k;    
+        font.setPointSizeF(pointSize);
+        QFontMetricsF metrics(font);
+        const qreal actualWidth_in = metrics.averageCharWidth() / dpiY;
+        const qreal delta_in = desiredWidth_in - actualWidth_in;
+        return delta_in;
+    };
+
+    qreal k = 10.0;
+    qreal lastValidK = k;
+    qreal steps[] = {1.0, 0.1, 0.01, 0.001};
+    for (qreal step : steps)
+    {
+        while (k > 0.0 && getDeltaWidth_in(k) >= 0)
+        {
+            lastValidK = k;
+            k -= step;
+        }
+        k = lastValidK; // Revert to last non-negative k
+    }
+    return k;
+}
+
 }
 
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
@@ -15,12 +46,112 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
 {
     Q_ASSERT(m_scene);
 
-    setRenderHint(QPainter::Antialiasing);
-    setAlignment(Qt::AlignCenter);
-
     // Want view to always show, no scroll bars needed
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+
+    //////////////////////////////////////////////////////////
+    // Load font
+
+    QFontDatabase fontDatabase;
+
+    // Load the font from the resource
+    int fontId = fontDatabase.addApplicationFont(":/fonts/Hack-Regular.ttf");
+    Q_ASSERT(fontId != -1);
+
+    // Get the font family name
+    QStringList fontFamilies = fontDatabase.applicationFontFamilies(fontId);
+    Q_ASSERT(!fontFamilies.isEmpty());
+
+    m_fontFamily = fontFamilies.at(0); // e.g., "Hack"
+    QFont font(m_fontFamily);
+
+    // Verify the font is loaded correctly
+    Q_ASSERT(QFontInfo(font).exactMatch());
+
+    //////////////////////////////////////////////////////////
+    // Calculate font size in points
+    
+    // Goal: Match Word's Hack 10 Point: 95 chars in 8in
+    const qreal desiredWidth_in = PHYSICAL_SIDE_IN/95.0;
+
+    // DPI
+    QWidget* mainWindow = window();
+    Q_ASSERT(mainWindow);
+    QScreen* screen = mainWindow->screen();
+    Q_ASSERT(screen);
+    const qreal dpiX = screen->physicalDotsPerInchX(); // 132 on Surface Pro 11, 109.22 34" Dell
+    const qreal dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11, 109.18 34" Dell
+  
+    {
+        const qreal k = findSmallestK(desiredWidth_in, m_fontFamily, dpiY);
+        const qreal points_per_inch = 1.0/72.0;
+        //const qreal pointSize = desiredWidth_in * points_per_inch / k;
+        {
+            //  const qreal pointSize = 13.15; // at line
+            //  const qreal pointSize = 13.14; // at line
+            //  const qreal pointSize = 13.13; // at line
+             const qreal pointSize = 13.12; // too small by 5 chars
+             // font.setPointSizeF(pointSize);
+        }
+
+        {
+            // font.setPixelSize(18); // at line
+            font.setPixelSize(17); // too small by 5 chars
+        }
+        // font.setLetterSpacing(QFont::AbsoluteSpacing, 1);
+        
+
+
+
+        auto *textItem = new QGraphicsTextItem;
+        const QString text =
+            "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345\n"
+            "         10        20        30        40        50        60        70        80        90";
+
+
+        textItem->setPlainText(text);
+        textItem->setFont(font);
+        textItem->setDefaultTextColor(Qt::red); 
+        textItem->setPos(100, 100);
+        textItem->setScale(2.0);
+        m_scene->addItem(textItem);
+    }
+/*
+    desiredWidth_in    k      actualWidth_in    Delta (desired - actual)
+    0.08421            1.0    0.037             0.047
+    0.08421            0.5    0.088            -0.00379
+    0.08421            0.25   0.149            -0.06479 
+    0.08421            0.45   0.08392           0.00029
+    0.08421            0.43   0.08865          -0.0044488
+    0.08421            0.44   0.08392           0.00028
+
+
+    y = mx + b
+
+    m = (k1 - k2)/(d1 - d2)
+      = (1.0 - 0.5)/(0.047 - -0.00379)
+      = 0.5/0.05079
+      = 9.84445
+
+    0.047 = 9.84445 * 1.0 + b
+    b = 0.047 - 9.84445
+    b = -9.8914
+
+    0 = 13.231*x -9.8914
+    x = 9.8914/13.231
+    x = 0.747
+
+    Start at 1,
+    Try 0.9-0.0, stop at first number that has positive delta, if zero then use 0.1
+    Try 0.X9-0.X0, stop at first number 
+
+
+*/
+    
+    setRenderHint(QPainter::Antialiasing);
+    setAlignment(Qt::AlignCenter);
 
     {
         auto blueRect = new QGraphicsRectItem();
@@ -29,70 +160,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
         blueRect->setBrush(Qt::blue);
         blueRect->setRect(500, 500, 100, 100);
         m_scene->addItem(blueRect);
-    }
-
-    m_text = new QGraphicsTextItem();
-    QFont font("Hack", 6);
-    m_text->setFont(font);
-    {
-        // Get the underlying QTextDocument
-        QTextDocument* doc = m_text->document();
-
-        // Insert text segments with different font sizes
-        QTextCursor cursor(doc);
-
-        // CSS XX-Small
-        QTextCharFormat xxSmallFormat;
-        xxSmallFormat.setFontPointSize(6.75);
-        cursor.insertText("CSS XX-Small (9px, 6.75pt)\n", xxSmallFormat);
-        
-        // CSS X-Small, Markdown Heading 6
-        QTextCharFormat xSmallFormat;
-        xSmallFormat.setFontPointSize(7.5);
-        cursor.insertText("CSS X-Small, Markdown Heading 6 (10px, 7.5pt)\n", xSmallFormat);
-        
-        // CSS Small, Markdown Heading 5
-        QTextCharFormat smallFormat;
-        smallFormat.setFontPointSize(9.75);
-        cursor.insertText("CSS Small, Markdown Heading 5 (13px, 9.75pt)\n", smallFormat);
-
-        // CSS Medium, Markdown Body Text, Markdown Heading 4
-        QTextCharFormat mediumFormat;
-        mediumFormat.setFontPointSize(12);
-        cursor.insertText("CSS Medium, Markdown Body Text, Markdown Heading 4 (16px, 12pt)\n", mediumFormat);
-
-        // CSS Large, Markdown Heading 3
-        QTextCharFormat largeFormat;
-        largeFormat.setFontPointSize(13.5);
-        cursor.insertText("CSS Large, Markdown Heading 3 (18px, 13.5pt)\n", largeFormat);
-
-        // CSS X-Large, Markdown Heading 2
-        QTextCharFormat xLargeFormat;
-        xLargeFormat.setFontPointSize(18);
-        cursor.insertText("CSS X-Large, Markdown Heading 2 (24px, 18pt)\n", xLargeFormat);
-        
-        // CSS XX-Large, Markdown Heading 1
-        QTextCharFormat xxLargeFormat;
-        xxLargeFormat.setFontPointSize(24);
-        cursor.insertText("CSS XX-Large, Markdown Heading 1 (32px, 24pt)\n", xxLargeFormat);
-
-        // CSS XXX-Large
-        QTextCharFormat xxxLargeFormat;
-        xxxLargeFormat.setFontPointSize(36);
-        cursor.insertText("CSS XXX-Large (48px, 36pt)\n", xxxLargeFormat);
-
-        // Maximum characters
-        cursor.insertText("\nXX-Small Max chars: 190\n1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\n", xxSmallFormat);
-        cursor.insertText("X-Small Max chars: 170\n12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\n", xSmallFormat);
-        cursor.insertText("Small Max chars: 131\n12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901\n", smallFormat);
-        cursor.insertText("Medium Max chars: 106\n1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456\n", mediumFormat);
-
-        // All Characters
-        cursor.insertText("\nAll Characters in Medium\nABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`1234567890-=~!@#$%^&*()_+[]\\{}|;':\",./<>?\n", mediumFormat);
-
-    }
-
-    m_scene->addItem(m_text);
+    } 
 }
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
@@ -125,11 +193,13 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     // Update items for change to scene's position and scale
     {
         const QRectF sceneRect = m_scene->sceneRect();
-        const qreal scale = side_in / PHYSICAL_SIDE_IN;
+        // const qreal fudge = 1.34;
+        const qreal fudge = 1.00;
+        const qreal scale = side_in / PHYSICAL_SIDE_IN * fudge;
         for (QGraphicsItem* item : m_scene->items())
         {
             item->setPos(sceneRect.topLeft());
-            item->setScale(scale);
+            item->setScale(scale * 1.05);
         }
     }
 
@@ -140,6 +210,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
             QString("FJ - %1\"x%1\" %2%").arg(PHYSICAL_SIDE_IN).arg(percent);
         mainWindow->setWindowTitle(title);
     }
+
     QGraphicsView::resizeEvent(event);
 }
 
@@ -157,7 +228,9 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
     {
         painter.setPen(Qt::red);
         QRect viewportRect = viewport()->rect();
-        viewportRect.adjust(0, 0, -1, -1);      // Fixes issue with left/bottom not drawing on some monitors
+        viewportRect.adjust(
+            0, 0, -1,
+            -1); // Fixes issue with left/bottom not drawing on some monitors
         painter.drawRect(viewportRect);
     }
 
@@ -166,7 +239,9 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         painter.setPen(Qt::green);
         Q_ASSERT(m_scene);
         QRectF sceneRect = m_scene->sceneRect();
-        sceneRect.adjust(0.0, 0.0, -1.0, -1.0); // Fixes issue with left/bottom not drawing on some monitors
+        sceneRect.adjust(
+            0.0, 0.0, -1.0,
+            -1.0); // Fixes issue with left/bottom not drawing on some monitors
         painter.drawRect(sceneRect);
     }
 }

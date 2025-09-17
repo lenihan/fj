@@ -12,4 +12,5 @@ class SquareGraphicsView : public QGraphicsView
   private:
     QGraphicsScene* m_scene;
     QGraphicsTextItem* m_text;
+    QString m_fontFamily;
 };
