@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QFontDatabase>
 #include <QGraphicsRectItem>
+#include <QResizeEvent>
 #include <QScreen>
 #include <QTextCursor>
 
@@ -50,25 +51,31 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
+    // Set a minimum size to avoid collapsing
+    setMinimumSize(50, 50);
 
-    //////////////////////////////////////////////////////////
+    // Set size policy to expand in both directions
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
     // Load font
-
-    QFontDatabase fontDatabase;
-
-    // Load the font from the resource
-    int fontId = fontDatabase.addApplicationFont(":/fonts/Hack-Regular.ttf");
-    Q_ASSERT(fontId != -1);
-
-    // Get the font family name
-    QStringList fontFamilies = fontDatabase.applicationFontFamilies(fontId);
-    Q_ASSERT(!fontFamilies.isEmpty());
-
-    m_fontFamily = fontFamilies.at(0); // e.g., "Hack"
-    QFont font(m_fontFamily);
-
-    // Verify the font is loaded correctly
-    Q_ASSERT(QFontInfo(font).exactMatch());
+    QFont font;
+    {
+        QFontDatabase fontDatabase;
+    
+        // Load the font from the resource
+        const int fontId = fontDatabase.addApplicationFont(":/fonts/Hack-Regular.ttf");
+        Q_ASSERT(fontId != -1);
+    
+        // Get the font family name
+        QStringList fontFamilies = fontDatabase.applicationFontFamilies(fontId);
+        Q_ASSERT(!fontFamilies.isEmpty());
+    
+        m_fontFamily = fontFamilies.at(0); // e.g., "Hack"
+        font.setFamily(m_fontFamily);
+    
+        // Verify the font is loaded correctly
+        Q_ASSERT(QFontInfo(font).exactMatch());
+    }
 
     //////////////////////////////////////////////////////////
     // Calculate font size in points
@@ -165,6 +172,13 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
+    // Ensure the widget remains a square
+    const int size = qMin(event->size().width(), event->size().height());
+    if (size > 0) {
+        resize(size, size);
+    }
+
+#if 0
     QWidget* mainWindow = window();
     Q_ASSERT(mainWindow);
     QScreen* screen = mainWindow->screen();
@@ -174,7 +188,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 
     // Scale view so that a monitor square is perceived as an actual square
     resetTransform();
-    scale(dpiX / dpiX, dpiY / dpiX);
+    //scale(dpiX / dpiX, dpiY / dpiX);
 
     // Get the view's size
     const int width_px = viewport()->width();
@@ -190,21 +204,41 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     const qreal offsetY_px = (height_px - side_px) / 2.0;
     m_scene->setSceneRect(offsetX_px, offsetY_px, side_px, side_px);
 
+    setAlignment(Qt::AlignLeft | Qt::AlignTop);
+
+    const qreal sx = width_px / PHYSICAL_SIDE_IN * dpiX;
+    const qreal sy = height_px / PHYSICAL_SIDE_IN * dpiY;
+    //scale(sx, sy);
+
     // Update items for change to scene's position and scale
     {
         const QRectF sceneRect = m_scene->sceneRect();
         // const qreal fudge = 1.34;
-        const qreal fudge = 1.00;
-        const qreal scale = side_in / PHYSICAL_SIDE_IN * fudge;
-        for (QGraphicsItem* item : m_scene->items())
-        {
-            item->setPos(sceneRect.topLeft());
-            item->setScale(scale * 1.05);
-        }
+        // for (QGraphicsItem* item : m_scene->items())
+        // {
+        //     item->setPos(sceneRect.topLeft());
+        //     item->setScale(scale * 1.05);
+        // }
     }
-
+#endif
     // Set title
     {
+        QWidget* mainWindow = window();
+        Q_ASSERT(mainWindow);
+        QScreen* screen = mainWindow->screen();
+        Q_ASSERT(screen);
+        const qreal dpiX = screen->physicalDotsPerInchX(); // 132 on Surface Pro 11
+        const qreal dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11
+
+        // Get the view's size
+        const int width_px = viewport()->width();
+        const int height_px = viewport()->height();
+
+        // Use the smaller dimension to keep the scene square
+        const int side_px = qMin(width_px, height_px);
+        const qreal dpi = side_px == width_px ? dpiX : dpiY;
+        const qreal side_in = side_px / dpi;
+
         const int percent = side_in / PHYSICAL_SIDE_IN * 100.0;
         const QString title =
             QString("FJ - %1\"x%1\" %2%").arg(PHYSICAL_SIDE_IN).arg(percent);
