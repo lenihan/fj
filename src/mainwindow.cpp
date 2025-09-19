@@ -1,26 +1,37 @@
 #include "mainwindow.h"
-
 #include "squareGraphicsView.h"
-
-#include <QGraphicsScale>
-#include <QGridLayout>
-#include <QScreen>
+#include <QResizeEvent>
 
 MainWindow::MainWindow() : QMainWindow()
 {
-    // Create central widget and layout
-    QWidget* centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
-    QGridLayout* layout = new QGridLayout(centralWidget);
-
-    // Create square widget with scene
     m_scene = new QGraphicsScene(this);
     m_view = new SquareGraphicsView(m_scene, this);
+}
 
-    // Add the square widget to the layout
-    layout->addWidget(m_view, 0, 0, 1, 1, Qt::AlignCenter);
+void MainWindow::resizeEvent(QResizeEvent* event)
+{
+    const int width = event->size().width();
+    const int height = event->size().height();
 
-    // Allow the layout to stretch and fill available space
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+    if (width < height)
+    {
+        // Fill width
+        x = 0;
+        y = (height - width) / 2.0;
+        w = width;
+        h = width;
+    }
+    else
+    {
+        // Fill height
+        x = (width - height) / 2.0;
+        y = 0;
+        w = height;
+        h = height;
+    }
+    m_view->setGeometry(x, y, w, h);
 }

@@ -13,6 +13,9 @@ class MainWindow : public QMainWindow
   public:
     MainWindow();
 
+  protected:
+    void resizeEvent(QResizeEvent* event) override;
+
   private:
     QGraphicsScene* m_scene;
     SquareGraphicsView* m_view;
