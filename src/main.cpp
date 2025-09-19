@@ -1,18 +1,12 @@
 #include "mainwindow.h"
 #include "squareGraphicsView.h"
 #include <QApplication>
+#include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QGraphicsView>
-#include <QGraphicsRectItem>
 
 int main(int argc, char* argv[])
 {
-#if 0
-    QApplication app(argc, argv);
-    MainWindow window;
-    window.show();
-    return app.exec();
-#endif
     QApplication app(argc, argv);
 
     // Create the scene

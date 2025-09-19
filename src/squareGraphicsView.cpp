@@ -41,15 +41,6 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     }
 #endif    
 
-//     // Rect item
-//     {
-//         auto blueRect = new QGraphicsRectItem();
-//         QPen bluePen = QPen(Qt::blue);
-//         blueRect->setPen(bluePen);
-//         blueRect->setBrush(Qt::blue);
-//         blueRect->setRect(10, 10, 20, 20);
-//         m_scene->addItem(blueRect);
-//     }
 }
 
 QFont SquareGraphicsView::getFont(const QString& fontFilename)
@@ -77,45 +68,37 @@ QFont SquareGraphicsView::getFont(const QString& fontFilename)
 
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
 {
-    // {
-    //     QRectF br = m_scene->itemsBoundingRect(); // -0.5, -0.5, w=13876, h=720 - both
-    //                                               // -0.5, -0.5, w=51, h=51 - blue rect
-    //     QRectF sr = m_scene->sceneRect();         // 0, 0, w=100, h=100
-        
-
-    //     int i=0;
-    //     i++;
-    // }
 
     // Call the base class implementation to draw the view's content
     QGraphicsView::paintEvent(event);
-#if 0
-    QPainter painter(viewport());
 
-    // Disable anti-aliasing for crisp lines
-    painter.setRenderHint(QPainter::Antialiasing, false);
-
-    // Draw a red border around the viewport
+    // Draw viewport, scene borders
     {
-        QPen pen(Qt::red);
-        int penWidth = 5;
-        pen.setWidth(penWidth); 
-        painter.setPen(pen);
-        QRect rect = viewport()->rect();
-        rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
-        painter.drawRect(rect);
+        QPainter painter(viewport());
+    
+        // Disable anti-aliasing for crisp lines
+        painter.setRenderHint(QPainter::Antialiasing, false);
+    
+        // Draw a red border around the viewport
+        {
+            QPen pen(Qt::red);
+            const int penWidth = 5;
+            pen.setWidth(penWidth); 
+            painter.setPen(pen);
+            QRect rect = viewport()->rect();
+            rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
+            painter.drawRect(rect);
+        }
+    
+        // Draw a green border around the scene
+        {
+            QPen pen(Qt::green);
+            const int penWidth = 2;
+            pen.setWidth(penWidth); 
+            painter.setPen(pen);
+            QRectF rect = scene()->sceneRect();
+            rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
+            painter.drawRect(rect);
+        }
     }
-
-    // Draw a green border around the scene
-    {
-        QPen pen(Qt::green);
-        int penWidth = 2;
-        pen.setWidth(penWidth); 
-        painter.setPen(pen);
-        Q_ASSERT(m_scene);
-        QRectF rect = m_scene->sceneRect();
-        rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
-        painter.drawRect(rect);
-    }
-#endif
 }
