@@ -18,7 +18,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     // Create a blue square (50x50 pixels)
-    QGraphicsRectItem *square = scene->addRect(0, 0, 100, 100);
+    QGraphicsRectItem *square = scene->addRect(0, 0, 500, 500);
     square->setBrush(Qt::blue); // Set fill color to blue
 
 #if 0

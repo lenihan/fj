@@ -13,6 +13,7 @@ MainWindow::MainWindow() : QMainWindow()
 {
     m_scene = new QGraphicsScene(this);
     m_view = new SquareGraphicsView(m_scene, this);
+    m_view->setResizeAnchor(QGraphicsView::AnchorViewCenter);
     m_view->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
 }
 
@@ -46,40 +47,47 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         m_view->setGeometry(x, y, w, h);
     }
 
-    // Get dpi
-    qreal dpiX = 0.0;
-    qreal dpiY = 0.0;
-    {
-        QWidget* mainWindow = window();
-        Q_ASSERT(mainWindow);
-        QScreen* screen = mainWindow->screen();
-        Q_ASSERT(screen);
-        dpiX = screen->physicalDotsPerInchX(); // 132 on Surface Pro 11,
-                                               // 109.22 34" Dell
-        dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11,
-                                               // 109.18 34" Dell
-    }
 
     // Calculate square side in inches
-    int side_px = 0;
-    qreal dpi = 0;
-    if (width < height)
+    qreal side_in;
     {
-        side_px = width;
-        dpi = dpiX;
-    }
-    else
-    {
-        side_px = height;
-        dpi = dpiY;
-    }
-    const qreal side_in = side_px / dpi;
+        // Get dpi
+        qreal dpiX = 0.0;
+        qreal dpiY = 0.0;
+        {
+            QWidget* mainWindow = window();
+            Q_ASSERT(mainWindow);
+            QScreen* screen = mainWindow->screen();
+            Q_ASSERT(screen);
+            dpiX = screen->physicalDotsPerInchX(); // 132 on Surface Pro 11,
+                                                   // 109.22 34" Dell
+            dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11,
+                                                   // 109.18 34" Dell
+        }
+        
+        // Set side in pixels, dpi based on shorter width/height
+        int side_px = 0;
+        qreal dpi = 0;
+        if (width < height)
+        {
+            side_px = width;
+            dpi = dpiX;
+        }
+        else
+        {
+            side_px = height;
+            dpi = dpiY;
+        }
 
+        // Calculate side in inches
+        side_in = side_px / dpi;
+    }
+    
     // Scale
     {
         const qreal s = side_in / PHYSICAL_SIDE_IN;
-        // m_view->resetTransform();
-        // m_view->scale(s, s);
+        m_view->resetTransform();
+        m_view->scale(s, s);
     }
 
     // Set title with percent of actual size
