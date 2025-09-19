@@ -4,14 +4,22 @@
 #include <QGraphicsRectItem>
 #include <QTextCursor>
 
-SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
-    : QGraphicsView(parent), m_scene(scene)
+SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
+    : QGraphicsView(scene)
 {
-    Q_ASSERT(m_scene);
+    Q_ASSERT(scene);
 
     // Want view to always show, no scroll bars needed
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+        // Create a blue square (50x50 pixels)
+    QGraphicsRectItem *square = scene->addRect(0, 0, 50, 50);
+    square->setBrush(Qt::blue); // Set fill color to blue
+
+    // Center the square in the scene
+    square->setPos((scene->width() - square->rect().width()) / 2,
+                   (scene->height() - square->rect().height()) / 2);
 #if 0
     // Load font
     m_font = getFont("Hack-Regular.ttf");
@@ -33,15 +41,15 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     }
 #endif    
 
-    // Rect item
-    {
-        auto blueRect = new QGraphicsRectItem();
-        QPen bluePen = QPen(Qt::blue);
-        blueRect->setPen(bluePen);
-        blueRect->setBrush(Qt::blue);
-        blueRect->setRect(10, 10, 20, 20);
-        m_scene->addItem(blueRect);
-    }
+//     // Rect item
+//     {
+//         auto blueRect = new QGraphicsRectItem();
+//         QPen bluePen = QPen(Qt::blue);
+//         blueRect->setPen(bluePen);
+//         blueRect->setBrush(Qt::blue);
+//         blueRect->setRect(10, 10, 20, 20);
+//         m_scene->addItem(blueRect);
+//     }
 }
 
 QFont SquareGraphicsView::getFont(const QString& fontFilename)
@@ -69,15 +77,15 @@ QFont SquareGraphicsView::getFont(const QString& fontFilename)
 
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
 {
-    {
-        QRectF br = m_scene->itemsBoundingRect(); // -0.5, -0.5, w=13876, h=720 - both
-                                                  // -0.5, -0.5, w=51, h=51 - blue rect
-        QRectF sr = m_scene->sceneRect();         // 0, 0, w=100, h=100
+    // {
+    //     QRectF br = m_scene->itemsBoundingRect(); // -0.5, -0.5, w=13876, h=720 - both
+    //                                               // -0.5, -0.5, w=51, h=51 - blue rect
+    //     QRectF sr = m_scene->sceneRect();         // 0, 0, w=100, h=100
         
 
-        int i=0;
-        i++;
-    }
+    //     int i=0;
+    //     i++;
+    // }
 
     // Call the base class implementation to draw the view's content
     QGraphicsView::paintEvent(event);
