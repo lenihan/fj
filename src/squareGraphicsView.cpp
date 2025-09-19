@@ -12,11 +12,12 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     // Want view to always show, no scroll bars needed
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
+#if 0
     // Load font
     m_font = getFont("Hack-Regular.ttf");
 
     // Text item
+    if(0)
     {
         auto* textItem = new QGraphicsTextItem;
         const QString text = "1234567890123456789012345678901234567890123456789"
@@ -26,10 +27,11 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
         textItem->setPlainText(text);
         textItem->setFont(m_font);
         textItem->setDefaultTextColor(Qt::red);
-        textItem->setPos(100, 100);
-        textItem->setScale(2.0);
+        textItem->setPos(0, 0);
+        textItem->setScale(20.0);
         m_scene->addItem(textItem);
     }
+#endif    
 
     // Rect item
     {
@@ -37,7 +39,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
         QPen bluePen = QPen(Qt::blue);
         blueRect->setPen(bluePen);
         blueRect->setBrush(Qt::blue);
-        blueRect->setRect(500, 500, 100, 100);
+        blueRect->setRect(10, 10, 20, 20);
         m_scene->addItem(blueRect);
     }
 }
@@ -67,9 +69,19 @@ QFont SquareGraphicsView::getFont(const QString& fontFilename)
 
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
 {
+    {
+        QRectF br = m_scene->itemsBoundingRect(); // -0.5, -0.5, w=13876, h=720 - both
+                                                  // -0.5, -0.5, w=51, h=51 - blue rect
+        QRectF sr = m_scene->sceneRect();         // 0, 0, w=100, h=100
+        
+
+        int i=0;
+        i++;
+    }
+
     // Call the base class implementation to draw the view's content
     QGraphicsView::paintEvent(event);
-
+#if 0
     QPainter painter(viewport());
 
     // Disable anti-aliasing for crisp lines
@@ -97,4 +109,5 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
         painter.drawRect(rect);
     }
+#endif
 }

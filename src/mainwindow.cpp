@@ -2,6 +2,9 @@
 #include "squareGraphicsView.h"
 #include <QResizeEvent>
 
+#include <QGraphicsRectItem>
+
+
 namespace
 {
 const qreal PHYSICAL_SIDE_IN = 8.0;
@@ -9,12 +12,32 @@ const qreal PHYSICAL_SIDE_IN = 8.0;
 
 MainWindow::MainWindow() : QMainWindow()
 {
+    // Create the scene
+    QGraphicsScene scene;
+    scene.setSceneRect(0, 0, 400, 300); // Set scene size
+
+    // Create a blue square (50x50 pixels)
+    QGraphicsRectItem *square = scene.addRect(0, 0, 50, 50);
+    square->setBrush(Qt::blue); // Set fill color to blue
+
+    // Center the square in the scene
+    square->setPos((scene.width() - square->rect().width()) / 2,
+                   (scene.height() - square->rect().height()) / 2);
+
+    // Create and set up the view
+    QGraphicsView view(&scene);
+    view.setWindowTitle("Blue Square Example");
+    view.resize(420, 320); // Slightly larger than scene for borders
+    view.show();
+#if 0    
     m_scene = new QGraphicsScene(this);
     m_view = new SquareGraphicsView(m_scene, this);
+#endif
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event)
 {
+#if 0    
     const int width = event->size().width();
     const int height = event->size().height();
 
@@ -40,7 +63,7 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         h = height;
     }
     m_view->setGeometry(x, y, w, h);
-    m_scene->setSceneRect(0, 0, w, h);
+    m_scene->setSceneRect(0, 0, 100, 100);
 
     // Get dpi
     qreal dpiX = 0.0;
@@ -76,4 +99,5 @@ void MainWindow::resizeEvent(QResizeEvent* event)
     const QString title =
         QString("FJ - %1\"x%1\" %2%").arg(PHYSICAL_SIDE_IN).arg(percent);
     setWindowTitle(title);
+#endif
 }
