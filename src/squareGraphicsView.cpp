@@ -1,5 +1,4 @@
 #include "squareGraphicsView.h"
-
 #include <QFontDatabase>
 #include <QGraphicsRectItem>
 #include <QTextCursor>
@@ -18,13 +17,10 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-        // Create a blue square (50x50 pixels)
-    QGraphicsRectItem *square = scene->addRect(0, 0, 50, 50);
+    // Create a blue square (50x50 pixels)
+    QGraphicsRectItem *square = scene->addRect(0, 0, 100, 100);
     square->setBrush(Qt::blue); // Set fill color to blue
 
-    // Center the square in the scene
-    square->setPos((scene->width() - square->rect().width()) / 2,
-                   (scene->height() - square->rect().height()) / 2);
 #if 0
     // Load font
     QFont font = getFont("Hack-Regular.ttf");
@@ -72,11 +68,10 @@ QFont SquareGraphicsView::getFont(const QString& fontFilename)
 
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
 {
-
     // Call the base class implementation to draw the view's content
     QGraphicsView::paintEvent(event);
 
-    // Draw viewport, scene borders
+    // Draw viewport border
     {
         QPainter painter(viewport());
     
@@ -90,17 +85,6 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
             pen.setWidth(penWidth); 
             painter.setPen(pen);
             QRect rect = viewport()->rect();
-            rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
-            painter.drawRect(rect);
-        }
-    
-        // Draw a green border around the scene
-        {
-            QPen pen(Qt::green);
-            const int penWidth = 2;
-            pen.setWidth(penWidth); 
-            painter.setPen(pen);
-            QRectF rect = scene()->sceneRect();
             rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
             painter.drawRect(rect);
         }
