@@ -4,8 +4,13 @@
 #include <QGraphicsRectItem>
 #include <QTextCursor>
 
-SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
-    : QGraphicsView(scene)
+namespace
+{
+const qreal PHYSICAL_SIDE_IN = 8.0;
+}
+
+SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
+    : QGraphicsView(scene, parent)
 {
     Q_ASSERT(scene);
 
@@ -22,7 +27,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
                    (scene->height() - square->rect().height()) / 2);
 #if 0
     // Load font
-    m_font = getFont("Hack-Regular.ttf");
+    QFont font = getFont("Hack-Regular.ttf");
 
     // Text item
     if(0)
@@ -33,14 +38,13 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
                              "         10        20        30        40        "
                              "50        60        70        80        90";
         textItem->setPlainText(text);
-        textItem->setFont(m_font);
+        textItem->setFont(font);
         textItem->setDefaultTextColor(Qt::red);
         textItem->setPos(0, 0);
         textItem->setScale(20.0);
         m_scene->addItem(textItem);
     }
 #endif    
-
 }
 
 QFont SquareGraphicsView::getFont(const QString& fontFilename)
