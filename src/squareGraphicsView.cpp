@@ -77,22 +77,24 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
 
     // Draw a red border around the viewport
     {
-        painter.setPen(Qt::red);
-        QRect viewportRect = viewport()->rect();
-        viewportRect.adjust(
-            0, 0, -1,
-            -1); // Fixes issue with left/bottom not drawing on some monitors
-        painter.drawRect(viewportRect);
+        QPen pen(Qt::red);
+        int penWidth = 5;
+        pen.setWidth(penWidth); 
+        painter.setPen(pen);
+        QRect rect = viewport()->rect();
+        rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
+        painter.drawRect(rect);
     }
 
     // Draw a green border around the scene
     {
-        painter.setPen(Qt::green);
+        QPen pen(Qt::green);
+        int penWidth = 2;
+        pen.setWidth(penWidth); 
+        painter.setPen(pen);
         Q_ASSERT(m_scene);
-        QRectF sceneRect = m_scene->sceneRect();
-        sceneRect.adjust(
-            0.0, 0.0, -1.0,
-            -1.0); // Fixes issue with left/bottom not drawing on some monitors
-        painter.drawRect(sceneRect);
+        QRectF rect = m_scene->sceneRect();
+        rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
+        painter.drawRect(rect);
     }
 }

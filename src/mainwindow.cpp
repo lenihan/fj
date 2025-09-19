@@ -40,6 +40,7 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         h = height;
     }
     m_view->setGeometry(x, y, w, h);
+    m_scene->setSceneRect(0, 0, w, h);
 
     // Get dpi
     qreal dpiX = 0.0;
