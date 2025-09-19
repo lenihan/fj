@@ -6,5 +6,10 @@
         "libstdc",
         "MSVC",
         "qreal"
-    ]
+    ],
+    "files.associations": {
+        "qresizeevent": "cpp",
+        "qscreen": "cpp",
+        "qapplication": "cpp"
+    }
 }
