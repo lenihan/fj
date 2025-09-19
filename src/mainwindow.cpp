@@ -54,7 +54,6 @@ void MainWindow::resizeEvent(QResizeEvent* event)
     }
     m_view->setGeometry(x, y, w, h);
     m_scene->setSceneRect(0, 0, w, h);
-    // TODO: Scale scene
 
     // Get dpi
     qreal dpiX = 0.0;
@@ -84,6 +83,13 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         dpi = dpiY;
     }
     const qreal side_in = side_px / dpi;
+
+    // Scale
+    {
+        const qreal s = side_in / PHYSICAL_SIDE_IN;
+        m_view->resetTransform();
+        m_view->scale(s, s);
+    }
 
     // Set title with percent of actual size
     const int percent = side_in / PHYSICAL_SIDE_IN * 100.0;
