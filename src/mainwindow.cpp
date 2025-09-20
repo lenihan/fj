@@ -13,14 +13,22 @@ MainWindow::MainWindow() : QMainWindow()
 {
     m_scene = new QGraphicsScene(this);
     m_view = new SquareGraphicsView(m_scene, this);
-    m_view->setResizeAnchor(QGraphicsView::AnchorViewCenter);
-    m_view->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+    // m_view->setResizeAnchor(QGraphicsView::AnchorViewCenter);
+    // m_view->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+
+    // Set transformation anchor to NoAnchor to manually control transformations
+    m_view->setTransformationAnchor(QGraphicsView::NoAnchor);
+
+    resize(500, 500);
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event)
 {
-    const int width = event->size().width();
-    const int height = event->size().height();
+    // QRect rect_px = m_view->viewport()->rect();
+    // const QPoint sceneCenter_px = m_view->viewport()->rect().center();
+
+    const int width_px = event->size().width();
+    const int height_px = event->size().height();
 
     // Set view geometry
     {
@@ -28,21 +36,21 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         int y = 0;
         int w = 0;
         int h = 0;
-        if (width < height)
+        if (width_px < height_px)
         {
             // Fill width
             x = 0;
-            y = (height - width) / 2.0;
-            w = width;
-            h = width;
+            y = (height_px - width_px) / 2.0;
+            w = width_px;
+            h = width_px;
         }
         else
         {
             // Fill height
-            x = (width - height) / 2.0;
+            x = (width_px - height_px) / 2.0;
             y = 0;
-            w = height;
-            h = height;
+            w = height_px;
+            h = height_px;
         }
         m_view->setGeometry(x, y, w, h);
     }
@@ -68,14 +76,14 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         // Set side in pixels, dpi based on shorter width/height
         int side_px = 0;
         qreal dpi = 0;
-        if (width < height)
+        if (width_px < height_px)
         {
-            side_px = width;
+            side_px = width_px;
             dpi = dpiX;
         }
         else
         {
-            side_px = height;
+            side_px = height_px;
             dpi = dpiY;
         }
 
@@ -86,9 +94,25 @@ void MainWindow::resizeEvent(QResizeEvent* event)
     // Scale
     {
         const qreal s = side_in / PHYSICAL_SIDE_IN;
-        m_view->resetTransform();
-        m_view->scale(s, s);
+        // m_view->resetTransform();
+        // m_view->scale(s, s);
     }
+
+    // Re-align top-left to (0, 0)
+    {
+        // Get the current top-left scene point
+        const QPointF currentTopLeft_scene = m_view->mapToScene(0, 0);
+
+        // Calculate translation needed to move top-left to (0, 0)
+        const QPointF delta_scene = QPointF(0, 0) - currentTopLeft_scene;
+
+        // Apply translation
+        m_view->translate(delta_scene.x(), delta_scene.y());
+    }
+    
+    QRect r_px = m_view->viewport()->rect();
+    QPointF topLeft_in = m_view->mapToScene(r_px.topLeft());
+    QPointF bottomRight_in = m_view->mapToScene(r_px.bottomRight());
 
     // Set title with percent of actual size
     {
