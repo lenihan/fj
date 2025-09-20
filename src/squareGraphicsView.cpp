@@ -17,8 +17,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    // Create a blue square (50x50 pixels)
-    QGraphicsRectItem *square = scene->addRect(0, 0, 500, 500);
+    // Create a blue square
+    QGraphicsRectItem *square = scene->addRect(0, 0, 4, 4);
     square->setBrush(Qt::blue); // Set fill color to blue
 
 #if 0
@@ -87,6 +87,23 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
             QRect rect = viewport()->rect();
             rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
             painter.drawRect(rect);
+        }
+
+        // Draw a green border around the scene
+        {
+            QPen pen(Qt::green);
+            const int penWidth = 2;
+            pen.setWidth(penWidth); 
+            painter.setPen(pen);
+            const QRectF rect_scene = scene()->sceneRect();
+            const QPointF topLeft_scene = rect_scene.topLeft();
+            const QPointF bottomRight_scene = rect_scene.bottomRight();
+            const QPoint topLeft_view = mapFromScene(topLeft_scene);
+            const QPoint bottomRight_view = mapFromScene(bottomRight_scene);
+            QRect rect_view(topLeft_view, bottomRight_view);
+
+            rect_view.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
+            painter.drawRect(rect_view);
         }
     }
 }

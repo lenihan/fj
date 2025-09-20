@@ -12,6 +12,12 @@ const qreal PHYSICAL_SIDE_IN = 8.0;
 MainWindow::MainWindow() : QMainWindow()
 {
     m_scene = new QGraphicsScene(this);
+    const qreal x = 0.0;
+    const qreal y = 0.0;
+    const qreal w = 8.0;
+    const qreal h = 8.0;
+    m_scene->setSceneRect(x, y, w, h);
+
     m_view = new SquareGraphicsView(m_scene, this);
     // m_view->setResizeAnchor(QGraphicsView::AnchorViewCenter);
     // m_view->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
@@ -94,25 +100,25 @@ void MainWindow::resizeEvent(QResizeEvent* event)
     // Scale
     {
         const qreal s = side_in / PHYSICAL_SIDE_IN;
-        // m_view->resetTransform();
-        // m_view->scale(s, s);
+        m_view->resetTransform();
+        m_view->scale(s, s);
     }
 
-    // Re-align top-left to (0, 0)
-    {
-        // Get the current top-left scene point
-        const QPointF currentTopLeft_scene = m_view->mapToScene(0, 0);
+    // // Re-align top-left to (0, 0)
+    // {
+    //     // Get the current top-left scene point
+    //     const QPointF currentTopLeft_scene = m_view->mapToScene(0, 0);
 
-        // Calculate translation needed to move top-left to (0, 0)
-        const QPointF delta_scene = QPointF(0, 0) - currentTopLeft_scene;
+    //     // Calculate translation needed to move top-left to (0, 0)
+    //     const QPointF delta_scene = QPointF(0, 0) - currentTopLeft_scene;
 
-        // Apply translation
-        m_view->translate(delta_scene.x(), delta_scene.y());
-    }
+    //     // Apply translation
+    //     m_view->translate(delta_scene.x(), delta_scene.y());
+    // }
     
-    QRect r_px = m_view->viewport()->rect();
-    QPointF topLeft_in = m_view->mapToScene(r_px.topLeft());
-    QPointF bottomRight_in = m_view->mapToScene(r_px.bottomRight());
+    // QRect r_px = m_view->viewport()->rect();
+    // QPointF topLeft_in = m_view->mapToScene(r_px.topLeft());
+    // QPointF bottomRight_in = m_view->mapToScene(r_px.bottomRight());
 
     // Set title with percent of actual size
     {
