@@ -8,6 +8,7 @@ class SquareGraphicsView : public QGraphicsView
 
   protected:
     void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
   private:
     QFont getFont(const QString& fontFilename);

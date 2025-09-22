@@ -14,18 +14,17 @@ MainWindow::MainWindow() : QMainWindow()
     m_scene = new QGraphicsScene(this);
     const qreal x = 0.0;
     const qreal y = 0.0;
-    const qreal w = 8.0;
-    const qreal h = 8.0;
+    const qreal w = PHYSICAL_SIDE_IN;
+    const qreal h = PHYSICAL_SIDE_IN;
     m_scene->setSceneRect(x, y, w, h);
+    const QBrush blackBrush(Qt::black);
+    m_scene->setBackgroundBrush(blackBrush);
+    resize(1000, 1000);
 
     m_view = new SquareGraphicsView(m_scene, this);
-    // m_view->setResizeAnchor(QGraphicsView::AnchorViewCenter);
-    // m_view->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
-
-    // Set transformation anchor to NoAnchor to manually control transformations
-    m_view->setTransformationAnchor(QGraphicsView::NoAnchor);
-
-    resize(500, 500);
+    m_view->setSceneRect(x, y, w, h);
+    m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+    m_view->show();
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event)
@@ -97,12 +96,12 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         side_in = side_px / dpi;
     }
     
-    // Scale
-    {
-        const qreal s = side_in / PHYSICAL_SIDE_IN;
-        m_view->resetTransform();
-        m_view->scale(s, s);
-    }
+    // // Scale
+    // {
+    //     const qreal s = side_in / PHYSICAL_SIDE_IN;
+    //     m_view->resetTransform();
+    //     m_view->scale(s, s);
+    // }
 
     // // Re-align top-left to (0, 0)
     // {

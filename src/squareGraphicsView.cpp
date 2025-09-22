@@ -12,13 +12,13 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     : QGraphicsView(scene, parent)
 {
     Q_ASSERT(scene);
-
-    // Want view to always show, no scroll bars needed
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setTransformationAnchor(AnchorViewCenter);
+    setRenderHint(QPainter::Antialiasing);
 
     // Create a blue square
-    QGraphicsRectItem *square = scene->addRect(0, 0, 4, 4);
+    QGraphicsRectItem *square = scene->addRect(0.0, 0.0, 4.0, 4.0);
     square->setBrush(Qt::blue); // Set fill color to blue
 
 #if 0
@@ -41,6 +41,12 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
         m_scene->addItem(textItem);
     }
 #endif    
+}
+
+void SquareGraphicsView::resizeEvent(QResizeEvent* event)
+{
+    fitInView(scene()->sceneRect(), Qt::KeepAspectRatio);
+    QGraphicsView::resizeEvent(event);
 }
 
 QFont SquareGraphicsView::getFont(const QString& fontFilename)
