@@ -53,59 +53,15 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
+    // Get latest view size
     QGraphicsView::resizeEvent(event);
 
-    // resetTransform();
-    // const QRect vr = rect();
-    // // const QRect vr = viewport()->rect();
-    // const QRectF sr = sceneRect();  // 0,0 to 8,8
-    // // scale
-    // const qreal sx = (vr.width() - 1) / sr.width();
-    // const qreal sy = (vr.height() - 1) / sr.height();
-    // // translate
-    // const qreal dx = vr.topLeft().x() - sr.topLeft().x();
-    // const qreal dy = vr.topLeft().y() - sr.topLeft().y();
-    // Q_ASSERT(dx == 0.0);
-    // Q_ASSERT(dy == 0.0);
-    // translate(vr.width()/2.0, vr.height()/2.0);
-    // scale(sx, sy);
-    fitInView(sceneRect());
-    // translate(-vr.width()/2.0, -vr.height()/2.0);
-    // translate(dx, dy);
-    // Q_ASSERT(g_square->rect().topLeft() == QPointF(0.0, 0.0));
-    // Q_ASSERT(g_square->rect().bottomRight() == QPointF(4.0, 4.0));
-
-    // Q_ASSERT(viewport()->map mapFromScene(0.0, 0.0) == QPoint(0, 0));  // ASSERTS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Q_ASSERT(mapFromScene(0.0, 0.0) == viewport()->rect().topLeft());
-    // Q_ASSERT(mapFromScene(8.0, 8.0) == viewport()->rect().bottomRight());
-
-#if 0
-    QRectF ssr = scene()->sceneRect();
+    // Map view to scene
     Q_ASSERT(sceneRect() == scene()->sceneRect());
-    resetTransform();
-    QPoint s = mapFromScene(0.0, 0.0);
-    resetTransform();
-    fitInView(scene()->sceneRect(), Qt::KeepAspectRatio);
-
-    // Ensure scene (0,0) maps to viewport (0,0)
-    QPointF sceneTopLeft = mapFromScene(0.0, 0.0);
-    if (sceneTopLeft != QPointF(0.0, 0.0)) {
-        // Apply a translation to align scene (0,0) with viewport (0,0)
-        translate(-sceneTopLeft.x(), -sceneTopLeft.y());
-    }
-
-    QRect afterRect = rect();
-    QRect afterViewportRect = viewport()->rect();
-
-    Q_ASSERT(g_square->rect().topLeft() == QPointF(0.0, 0.0));
-    Q_ASSERT(g_square->rect().bottomRight() == QPointF(4.0, 4.0));
-    QPoint t = mapFromScene(0.0, 0.0);
-    Q_ASSERT(mapFromScene(0.0, 0.0) == QPoint(0, 0));  // ASSERTS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Q_ASSERT(mapFromScene(0.0, 0.0) == viewport()->rect().topLeft());
-    Q_ASSERT(mapFromScene(8.0, 8.0) == viewport()->rect().bottomRight());
-
-    // QGraphicsView::resizeEvent(event);
-#endif
+    Q_ASSERT(sceneRect().topLeft() == QPointF(0.0, 0.0));
+    Q_ASSERT(sceneRect().width() == sceneRect().height());
+    Q_ASSERT(width() == height());
+    fitInView(sceneRect());
 }
 
 QFont SquareGraphicsView::getFont(const QString& fontFilename)
