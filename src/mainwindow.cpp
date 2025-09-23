@@ -17,20 +17,45 @@ MainWindow::MainWindow() : QMainWindow()
     const qreal w = PHYSICAL_SIDE_IN;
     const qreal h = PHYSICAL_SIDE_IN;
     m_scene->setSceneRect(x, y, w, h);
+    
+    Q_ASSERT(m_scene->sceneRect().topLeft() == QPointF(0.0, 0.0));
+    Q_ASSERT(m_scene->sceneRect().bottomRight() == QPointF(8.0, 8.0));
     const QBrush blackBrush(Qt::black);
     m_scene->setBackgroundBrush(blackBrush);
-    resize(1000, 1000);
-
+    
     m_view = new SquareGraphicsView(m_scene, this);
+    QRect viewRect = m_view->rect();
+    QRect viwportRect = m_view->viewport()->rect();
+    QPoint zero = m_view->mapFromScene(0.0, 0.0);
+    
     m_view->setSceneRect(x, y, w, h);
-    m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+    Q_ASSERT(m_scene->sceneRect() == m_view->sceneRect());
+    
+    QPoint before = m_view->mapFromScene(0.0, 0.0);
+
+    // m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+    
+    QPoint after = m_view->mapFromScene(0.0, 0.0);
+    // Q_ASSERT(m_view->mapFromScene(0.0, 0.0) == QPoint(0, 0));   // ASSERTS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Q_ASSERT(m_view->mapFromScene(0.0, 0.0) == m_view->viewport()->rect().topLeft());
+    // Q_ASSERT(m_view->mapFromScene(8.0, 8.0) == m_view->viewport()->rect().bottomRight());
+    
+    resize(1000, 1000);
     m_view->show();
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event)
 {
-    // QRect rect_px = m_view->viewport()->rect();
-    // const QPoint sceneCenter_px = m_view->viewport()->rect().center();
+    Q_ASSERT(m_scene->sceneRect() == m_view->sceneRect());
+
+    // view's scene rect is 0,0 to 8,8
+    Q_ASSERT(m_view->sceneRect().topLeft() == QPointF(0.0, 0.0));
+    Q_ASSERT(m_view->sceneRect().bottomRight() == QPointF(8.0, 8.0));
+
+    // scene's scene rect is 0,0 to 8,8
+    Q_ASSERT(m_scene->sceneRect().topLeft() == QPointF(0.0, 0.0));
+    Q_ASSERT(m_scene->sceneRect().bottomRight() == QPointF(8.0, 8.0));
+
 
     const int width_px = event->size().width();
     const int height_px = event->size().height();
@@ -59,7 +84,6 @@ void MainWindow::resizeEvent(QResizeEvent* event)
         }
         m_view->setGeometry(x, y, w, h);
     }
-
 
     // Calculate square side in inches
     qreal side_in;

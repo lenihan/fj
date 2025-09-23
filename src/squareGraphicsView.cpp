@@ -3,6 +3,8 @@
 #include <QGraphicsRectItem>
 #include <QTextCursor>
 
+QGraphicsRectItem* g_blueSquare = nullptr;
+QGraphicsRectItem* g_yellowSquare = nullptr;
 namespace
 {
 const qreal PHYSICAL_SIDE_IN = 8.0;
@@ -18,8 +20,14 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
     setRenderHint(QPainter::Antialiasing);
 
     // Create a blue square
-    QGraphicsRectItem *square = scene->addRect(0.0, 0.0, 4.0, 4.0);
-    square->setBrush(Qt::blue); // Set fill color to blue
+    g_blueSquare = scene->addRect(0.0, 0.0, 4.0, 4.0);
+    g_blueSquare->setBrush(Qt::blue); // Set fill color to blue    
+    g_blueSquare->setPen(QPen(QBrush(Qt::white), 0.0));
+    
+    // Create a yellow square
+    g_yellowSquare = scene->addRect(4.0, 4.0, 4.0, 4.0);
+    g_yellowSquare->setBrush(Qt::yellow); // Set fill color to blue
+    g_yellowSquare->setPen(QPen(QBrush(Qt::gray), 0.0));
 
 #if 0
     // Load font
@@ -45,8 +53,59 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene, QWidget* parent)
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
-    fitInView(scene()->sceneRect(), Qt::KeepAspectRatio);
     QGraphicsView::resizeEvent(event);
+
+    // resetTransform();
+    // const QRect vr = rect();
+    // // const QRect vr = viewport()->rect();
+    // const QRectF sr = sceneRect();  // 0,0 to 8,8
+    // // scale
+    // const qreal sx = (vr.width() - 1) / sr.width();
+    // const qreal sy = (vr.height() - 1) / sr.height();
+    // // translate
+    // const qreal dx = vr.topLeft().x() - sr.topLeft().x();
+    // const qreal dy = vr.topLeft().y() - sr.topLeft().y();
+    // Q_ASSERT(dx == 0.0);
+    // Q_ASSERT(dy == 0.0);
+    // translate(vr.width()/2.0, vr.height()/2.0);
+    // scale(sx, sy);
+    fitInView(sceneRect());
+    // translate(-vr.width()/2.0, -vr.height()/2.0);
+    // translate(dx, dy);
+    // Q_ASSERT(g_square->rect().topLeft() == QPointF(0.0, 0.0));
+    // Q_ASSERT(g_square->rect().bottomRight() == QPointF(4.0, 4.0));
+
+    // Q_ASSERT(viewport()->map mapFromScene(0.0, 0.0) == QPoint(0, 0));  // ASSERTS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Q_ASSERT(mapFromScene(0.0, 0.0) == viewport()->rect().topLeft());
+    // Q_ASSERT(mapFromScene(8.0, 8.0) == viewport()->rect().bottomRight());
+
+#if 0
+    QRectF ssr = scene()->sceneRect();
+    Q_ASSERT(sceneRect() == scene()->sceneRect());
+    resetTransform();
+    QPoint s = mapFromScene(0.0, 0.0);
+    resetTransform();
+    fitInView(scene()->sceneRect(), Qt::KeepAspectRatio);
+
+    // Ensure scene (0,0) maps to viewport (0,0)
+    QPointF sceneTopLeft = mapFromScene(0.0, 0.0);
+    if (sceneTopLeft != QPointF(0.0, 0.0)) {
+        // Apply a translation to align scene (0,0) with viewport (0,0)
+        translate(-sceneTopLeft.x(), -sceneTopLeft.y());
+    }
+
+    QRect afterRect = rect();
+    QRect afterViewportRect = viewport()->rect();
+
+    Q_ASSERT(g_square->rect().topLeft() == QPointF(0.0, 0.0));
+    Q_ASSERT(g_square->rect().bottomRight() == QPointF(4.0, 4.0));
+    QPoint t = mapFromScene(0.0, 0.0);
+    Q_ASSERT(mapFromScene(0.0, 0.0) == QPoint(0, 0));  // ASSERTS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    Q_ASSERT(mapFromScene(0.0, 0.0) == viewport()->rect().topLeft());
+    Q_ASSERT(mapFromScene(8.0, 8.0) == viewport()->rect().bottomRight());
+
+    // QGraphicsView::resizeEvent(event);
+#endif
 }
 
 QFont SquareGraphicsView::getFont(const QString& fontFilename)
@@ -87,12 +146,23 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         // Draw a red border around the viewport
         {
             QPen pen(Qt::red);
-            const int penWidth = 5;
+            const int penWidth = 10;
             pen.setWidth(penWidth); 
             painter.setPen(pen);
             QRect rect = viewport()->rect();
             rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
             painter.drawRect(rect);
+        }
+
+        // Draw a red border around the view
+        {
+            QPen pen(Qt::magenta);
+            const int penWidth = 6;
+            pen.setWidth(penWidth); 
+            painter.setPen(pen);
+            QRect r = rect();
+            r.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
+            painter.drawRect(r);
         }
 
         // Draw a green border around the scene
