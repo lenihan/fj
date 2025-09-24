@@ -6,10 +6,6 @@
 
 QGraphicsRectItem* g_blueSquare = nullptr;
 QGraphicsRectItem* g_yellowSquare = nullptr;
-namespace
-{
-const qreal PHYSICAL_SIDE_IN = 8.0;
-}
 
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     : QGraphicsView(scene)
@@ -57,13 +53,16 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     const int width_px = viewport()->width();
     const int height_px = viewport()->height();
 
+    Q_ASSERT(sceneRect().width() == sceneRect().height());
+    const qreal scene_side_in = sceneRect().width();
+
     // Use the smaller dimension to maintain square aspect ratio
-    const qreal scale = qMin(width_px, height_px) / PHYSICAL_SIDE_IN;
+    const qreal scale = qMin(width_px, height_px) / scene_side_in;
     const auto transform = QTransform::fromScale(scale, scale);
     setTransform(transform);
 
     // Calculate square side in inches
-    qreal side_in;
+    qreal view_side_in;
     {
         // Get dpi
         qreal dpiX = 0.0;
@@ -80,28 +79,28 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
         }
         
         // Set side in pixels, dpi based on shorter width/height
-        int side_px = 0;
+        int view_side_px = 0;
         qreal dpi = 0;
         if (width_px < height_px)
         {
-            side_px = width_px;
+            view_side_px = width_px;
             dpi = dpiX;
         }
         else
         {
-            side_px = height_px;
+            view_side_px = height_px;
             dpi = dpiY;
         }
 
         // Calculate side in inches
-        side_in = side_px / dpi;
+        view_side_in = view_side_px / dpi;
     }
 
     // Set title with percent of actual size
     {
-        const int percent = side_in / PHYSICAL_SIDE_IN * 100.0;
+        const int percent = view_side_in / scene_side_in * 100.0;
         const auto title =
-            QString("FJ - %1\"x%1\" %2%").arg(PHYSICAL_SIDE_IN).arg(percent);
+            QString("FJ - %1\"x%1\" %2%").arg(scene_side_in).arg(percent);
         setWindowTitle(title);
     }
 
