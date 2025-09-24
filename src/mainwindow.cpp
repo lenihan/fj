@@ -19,7 +19,7 @@ MainWindow::MainWindow() : QMainWindow()
     m_scene->setSceneRect(x, y, w, h);
     m_scene->setBackgroundBrush(QBrush(Qt::black));
     
-    m_view = new SquareGraphicsView(m_scene, this);
+    m_view = new SquareGraphicsView(m_scene);
     m_view->setSceneRect(x, y, w, h);
     Q_ASSERT(m_scene->sceneRect() == m_view->sceneRect());
     

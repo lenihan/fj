@@ -4,7 +4,7 @@
 class SquareGraphicsView : public QGraphicsView
 {
   public:
-    SquareGraphicsView(QGraphicsScene* scene, QWidget* parent);
+    SquareGraphicsView(QGraphicsScene* scene);
 
   protected:
     void paintEvent(QPaintEvent* event) override;
