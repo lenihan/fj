@@ -43,8 +43,6 @@ project(fj)
 set(SOURCES
     resources/resources.qrc
     src/main.cpp
-    src/mainwindow.cpp
-    src/mainwindow.h
     src/squareGraphicsView.cpp
     src/squareGraphicsView.h
 )

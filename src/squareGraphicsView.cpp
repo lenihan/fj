@@ -22,9 +22,9 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
     // Create a blue square
     g_blueSquare = scene->addRect(0.0, 0.0, 4.0, 4.0);
-    g_blueSquare->setBrush(Qt::blue); // Set fill color to blue    
+    g_blueSquare->setBrush(Qt::blue); // Set fill color to blue
     g_blueSquare->setPen(QPen(QBrush(Qt::white), 0.0));
-    
+
     // Create a yellow square
     g_yellowSquare = scene->addRect(4.0, 4.0, 4.0, 4.0);
     g_yellowSquare->setBrush(Qt::yellow); // Set fill color to blue
@@ -46,58 +46,21 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         textItem->setFont(font);
         textItem->setDefaultTextColor(Qt::red);
         textItem->setPos(0, 0);
-        textItem->setScale(20.0);
-        m_scene->addItem(textItem);
+        textItem->setScale(100.0);
+        scene->addItem(textItem);
     }
-#endif    
+#endif
 }
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
-        // Get viewport dimensions
-        int width = viewport()->width();
-        int height = viewport()->height();
-        
-        // Use the smaller dimension to maintain square aspect ratio
-        qreal scale = qMin(width, height) / 8.0; // Divide by scene width (8)
-        
-        // Apply transformation to scale the 8x8 scene to fit the viewport
-        QTransform transform;
-        transform.scale(scale, scale);
-        setTransform(transform);
-        
-        // Call base class implementation
-        QGraphicsView::resizeEvent(event);
+    const int width_px = viewport()->width();
+    const int height_px = viewport()->height();
 
-#if 0    
-    const int width_px = event->size().width();
-    const int height_px = event->size().height();
-
-    // Set view geometry
-    if (width_px != height_px)
-    {
-        int x = 0;
-        int y = 0;
-        int w = 0;
-        int h = 0;
-        if (width_px < height_px)
-        {
-            // Fill width
-            x = 0;
-            y = (height_px - width_px) / 2.0;
-            w = width_px;
-            h = width_px;
-        }
-        else
-        {
-            // Fill height
-            x = (width_px - height_px) / 2.0;
-            y = 0;
-            w = height_px;
-            h = height_px;
-        }
-        viewport()->setGeometry(x, y, w, h);
-    }
+    // Use the smaller dimension to maintain square aspect ratio
+    const qreal scale = qMin(width_px, height_px) / PHYSICAL_SIDE_IN;
+    const auto transform = QTransform::fromScale(scale, scale);
+    setTransform(transform);
 
     // Calculate square side in inches
     qreal side_in;
@@ -137,24 +100,12 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     // Set title with percent of actual size
     {
         const int percent = side_in / PHYSICAL_SIDE_IN * 100.0;
-        const QString title =
+        const auto title =
             QString("FJ - %1\"x%1\" %2%").arg(PHYSICAL_SIDE_IN).arg(percent);
         setWindowTitle(title);
     }
 
-    // Get latest view size
     QGraphicsView::resizeEvent(event);
-
-    // Map view to scene
-    // Q_ASSERT(sceneRect() == scene()->sceneRect());
-    // Q_ASSERT(sceneRect().topLeft() == QPointF(0.0, 0.0));
-    // Q_ASSERT(sceneRect().width() == sceneRect().height());
-    // Q_ASSERT(width() == height());
-    const qreal sx = viewport()->width() / sceneRect().width();
-    const qreal sy = viewport()->height() / sceneRect().height();
-    scale(sx, sy);
-    // fitInView(sceneRect());
-#endif    
 }
 
 QFont SquareGraphicsView::getFont(const QString& fontFilename)
@@ -188,15 +139,15 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
     // Draw viewport border
     {
         QPainter painter(viewport());
-    
+
         // Disable anti-aliasing for crisp lines
         painter.setRenderHint(QPainter::Antialiasing, false);
-    
+
         // Draw a red border around the viewport
         {
             QPen pen(Qt::red);
             const int penWidth = 10;
-            pen.setWidth(penWidth); 
+            pen.setWidth(penWidth);
             painter.setPen(pen);
             QRect rect = viewport()->rect();
             rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
@@ -207,7 +158,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         {
             QPen pen(Qt::magenta);
             const int penWidth = 6;
-            pen.setWidth(penWidth); 
+            pen.setWidth(penWidth);
             painter.setPen(pen);
             QRect r = rect();
             r.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
@@ -218,7 +169,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         {
             QPen pen(Qt::green);
             const int penWidth = 2;
-            pen.setWidth(penWidth); 
+            pen.setWidth(penWidth);
             painter.setPen(pen);
             const QRectF rect_scene = scene()->sceneRect();
             const QPointF topLeft_scene = rect_scene.topLeft();

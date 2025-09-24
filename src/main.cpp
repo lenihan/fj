@@ -1,4 +1,3 @@
-#include "mainwindow.h"
 #include "squareGraphicsView.h"
 #include <QApplication>
 #include <QGraphicsScene>
@@ -21,11 +20,10 @@ int main(int argc, char* argv[])
     scene.setBackgroundBrush(QBrush(Qt::black));
     
     SquareGraphicsView view(&scene);
-    view.setSceneRect(x, y, w, h);
+    view.setSceneRect(scene.sceneRect());
     Q_ASSERT(scene.sceneRect() == view.sceneRect());
     
     view.resize(640, 640);
     view.show();
-
     return app.exec();    
 }
