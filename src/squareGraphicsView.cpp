@@ -26,12 +26,11 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     g_yellowSquare->setBrush(Qt::yellow); // Set fill color to blue
     g_yellowSquare->setPen(QPen(QBrush(Qt::gray), 0.0));
 
-#if 0
+#if 1
     // Load font
     QFont font = getFont("Hack-Regular.ttf");
 
     // Text item
-    if(0)
     {
         auto* textItem = new QGraphicsTextItem;
         const QString text = "1234567890123456789012345678901234567890123456789"
@@ -41,8 +40,31 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         textItem->setPlainText(text);
         textItem->setFont(font);
         textItem->setDefaultTextColor(Qt::red);
+
+        QFontMetrics metrics(font);
+        const qreal fontDpi = metrics.fontDpi();
+        QChar character = 'A';
+        int actual_char_width_px = metrics.horizontalAdvance(character);
+        const qreal CHARS_PER_LINE = 95.0;
+        const int view_width_px = viewport()->rect().width();
+        const qreal scene_width_in = sceneRect().width();
+
+        // const qreal char_width_in = scene_width_in / CHARS_PER_LINE;
+        const qreal char_width_px = static_cast<qreal>(view_width_px) / CHARS_PER_LINE;
+
+
+
+        const qreal view_to_scene_scale = scene_width_in / view_width_px;
+        const qreal font_scale = char_width_px / actual_char_width_px;
+        // const qreal font_scale = 0.92; //actual_char_width_px / char_width_px;
+
+        QRectF r1 = textItem->boundingRect();
+        qreal fudge = view_width_px/r1.width();
+        const qreal scale = view_to_scene_scale * fudge;
         textItem->setPos(0, 0);
-        textItem->setScale(100.0);
+        textItem->setScale(scale);
+        QRectF r2 = textItem->boundingRect();
+        // textItem->setScale(.0115);
         scene->addItem(textItem);
     }
 #endif
@@ -143,6 +165,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         painter.setRenderHint(QPainter::Antialiasing, false);
 
         // Draw a red border around the viewport
+        if(0)
         {
             QPen pen(Qt::red);
             const int penWidth = 10;
@@ -152,8 +175,9 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
             rect.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
             painter.drawRect(rect);
         }
-
+        
         // Draw a red border around the view
+        if(0)
         {
             QPen pen(Qt::magenta);
             const int penWidth = 6;
@@ -163,8 +187,9 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
             r.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
             painter.drawRect(r);
         }
-
+        
         // Draw a green border around the scene
+        if(0)
         {
             QPen pen(Qt::green);
             const int penWidth = 2;
