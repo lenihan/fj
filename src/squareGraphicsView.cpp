@@ -41,30 +41,16 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         textItem->setFont(font);
         textItem->setDefaultTextColor(Qt::red);
 
-        QFontMetrics metrics(font);
-        const qreal fontDpi = metrics.fontDpi();
-        QChar character = 'A';
-        int actual_char_width_px = metrics.horizontalAdvance(character);
         const qreal CHARS_PER_LINE = 95.0;
         const int view_width_px = viewport()->rect().width();
         const qreal scene_width_in = sceneRect().width();
-
-        // const qreal char_width_in = scene_width_in / CHARS_PER_LINE;
-        const qreal char_width_px = static_cast<qreal>(view_width_px) / CHARS_PER_LINE;
-
-
-
         const qreal view_to_scene_scale = scene_width_in / view_width_px;
-        const qreal font_scale = char_width_px / actual_char_width_px;
-        // const qreal font_scale = 0.92; //actual_char_width_px / char_width_px;
-
         QRectF r1 = textItem->boundingRect();
         qreal fudge = view_width_px/r1.width();
         const qreal scale = view_to_scene_scale * fudge;
-        textItem->setPos(0, 0);
         textItem->setScale(scale);
-        QRectF r2 = textItem->boundingRect();
-        // textItem->setScale(.0115);
+        
+        textItem->setPos(0, 0);
         scene->addItem(textItem);
     }
 #endif
