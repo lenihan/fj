@@ -17,31 +17,57 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setRenderHint(QPainter::Antialiasing);
 
     // Create a blue square
-    g_blueSquare = scene->addRect(0.0, 0.0, 4.0, 4.0);
+    const qreal sceneSize = sceneRect().width();
+    const qreal halfSceneSize = sceneSize / 2.0;
+    g_blueSquare = scene->addRect(0.0, 0.0, halfSceneSize, halfSceneSize);
     g_blueSquare->setBrush(Qt::blue); // Set fill color to blue
     g_blueSquare->setPen(QPen(QBrush(Qt::white), 0.0));
 
     // Create a yellow square
-    g_yellowSquare = scene->addRect(4.0, 4.0, 4.0, 4.0);
+    g_yellowSquare = scene->addRect(halfSceneSize, halfSceneSize, halfSceneSize, halfSceneSize);
     g_yellowSquare->setBrush(Qt::yellow); // Set fill color to blue
     g_yellowSquare->setPen(QPen(QBrush(Qt::gray), 0.0));
 
 #if 1
-    // Load font
-    QFont font = getFont("Hack-Regular.ttf");
 
-    // Text item
-    {
+// Text item
+{
+        // Load font
+
+        // MS Word Hack font pt sizes, characters per row
+        //    6 Pt, 159 chars/row
+        //    7 Pt, 136 chars/row
+        //    8 Pt, 119 chars/row
+        //   10 Pt,  95 chars/row
+        //   12 Pt,  79 chars/row
+        QHash<int, int> hash;
+        hash[6] = 159;
+        hash[7] = 136;
+        hash[8] = 119;
+        hash[10] = 95;
+        hash[12] = 79;
+
+        QFont font = getFont("Hack-Regular.ttf");
+        const int fontSize = 6;
+        font.setPointSize(fontSize);
+        qreal chars_per_line = hash[fontSize];
+
         auto* textItem = new QGraphicsTextItem;
-        const QString text = "1234567890123456789012345678901234567890123456789"
-                             "0123456789012345678901234567890123456789012345\n"
-                             "         10        20        30        40        "
-                             "50        60        70        80        90";
-        textItem->setPlainText(text);
+        const QString text6pt = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789\n"
+                                "         10        20        30        40        50        60        70        80        90        100       110       120       130       140       150";
+        const QString text7pt = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456\n"
+                                "         10        20        30        40        50        60        70        80        90        100       110       120       130";
+        const QString text8pt = "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789\n"
+                                "         10        20        30        40        50        60        70        80        90        100       110";
+        const QString text10pt = "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345\n"
+                                 "         10        20        30        40        50        60        70        80        90";
+        const QString text12pt = "1234567890123456789012345678901234567890123456789012345678901234567890123456789\n"
+                                 "         10        20        30        40        50        60        70";
+
+        textItem->setPlainText(text10pt);
         textItem->setFont(font);
         textItem->setDefaultTextColor(Qt::red);
 
-        const qreal CHARS_PER_LINE = 95.0;
         const int view_width_px = viewport()->rect().width();
         const qreal scene_width_in = sceneRect().width();
         const qreal view_to_scene_scale = scene_width_in / view_width_px;
@@ -175,7 +201,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         }
         
         // Draw a green border around the scene
-        if(0)
+        if(1)
         {
             QPen pen(Qt::green);
             const int penWidth = 2;

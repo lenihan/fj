@@ -4,7 +4,16 @@
 
 namespace
 {
-const qreal PHYSICAL_SIDE_IN = 8.0;
+    // A4: Paper,      8.27" x 11.69" 
+    // A5: Half of A4, 5.83" x  8.27"
+    // A6: Half of A5, 4.13" x  5.83"
+    // 
+    // A5 fits inside FJ screen
+    // FJ screen fits inside A4
+    // For two pages, use 2 A6 portrait or landscape
+    //     - Design for A5 usage
+    //     - Print to A4
+    const qreal PHYSICAL_SIDE_IN = 11.69; 
 }
 
 int main(int argc, char* argv[])
