@@ -22,7 +22,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     scene->addRect(cardRect, QPen(Qt::NoPen), QBrush(cardColor));
     
     // Title line
-    const QLineF titleLine(0.0, 0.5, 5.0, 0.5);
+    const qreal TITLE_ROW_HEIGHT_IN = 0.5;
+    const QLineF titleLine(0.0, TITLE_ROW_HEIGHT_IN, 5.0, TITLE_ROW_HEIGHT_IN);
     const QColor titleLineColor("#C9A1AE");
     QPen titleLinePen(titleLineColor);
     titleLinePen.setWidthF(3.0);
@@ -32,7 +33,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     // Body lines
     for( int i = 0; i < 9; ++i)
     {
-        const qreal y = 0.75 + i * 0.25;
+        const qreal BODY_ROW_HEIGHT_IN = 0.25;
+        const qreal y = 0.75 + i * BODY_ROW_HEIGHT_IN;
         const QLineF bodyLine(0.0, y, 5.0, y);
         const QColor bodyLineColor("#7d93eaff");
         QPen bodyLinePen(bodyLineColor);
