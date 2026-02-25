@@ -16,12 +16,36 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
 
+    // 3x5 Card
     const QRectF cardRect(0.0, 0.0, 5.0, 3.0);
     const QColor cardColor("#fdf9f0"); 
     scene->addRect(cardRect, QPen(Qt::NoPen), QBrush(cardColor));
+    
+    // Title line
+    const QLineF titleLine(0.0, 0.5, 5.0, 0.5);
+    const QColor titleLineColor("#C9A1AE");
+    QPen titleLinePen(titleLineColor);
+    titleLinePen.setWidthF(3.0);
+    titleLinePen.setCosmetic(true);
+    scene->addLine(titleLine, titleLinePen);
+
+    // Body lines
+    for( int i = 0; i < 9; ++i)
+    {
+        const qreal y = 0.75 + i * 0.25;
+        const QLineF bodyLine(0.0, y, 5.0, y);
+        const QColor bodyLineColor("#7d93eaff");
+        QPen bodyLinePen(bodyLineColor);
+        bodyLinePen.setWidthF(3.0);
+        bodyLinePen.setCosmetic(true);
+        scene->addLine(bodyLine, bodyLinePen);
+    }
+
+    // UI
     const QRectF uiRect(0.0, 3.0, 5.0, 2.0);
     const QColor uiColor("#202020");
     scene->addRect(uiRect, QPen(Qt::NoPen), QBrush(uiColor));
+
 }
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
