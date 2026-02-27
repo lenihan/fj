@@ -1,11 +1,7 @@
 #include "squareGraphicsView.h"
 #include <QFontDatabase>
-#include <QGraphicsLineItem>
-#include <QGraphicsRectItem>
-#include <QGraphicsTextItem>
 #include <QResizeEvent>
-#include <QTextCursor>
-#include <QVector>
+#include <QGraphicsSimpleTextItem>
 
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     : QGraphicsView(scene)
@@ -29,6 +25,46 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     titleLinePen.setWidthF(3.0);
     titleLinePen.setCosmetic(true);
     scene->addLine(titleLine, titleLinePen);
+
+    // Title text item
+    const QFont font = getFont("Hack-Regular.ttf");
+    QGraphicsSimpleTextItem* titleText = scene->addSimpleText("yjgp()/\\[]{}456789012345678901234567890", font);
+    // titleText->setScale(.04);
+    {
+        const QFontMetricsF fm(font);
+        const qreal charPerRow = 29.0;
+        const qreal pxPerChar = fm.maxWidth();
+        const qreal pxPerRow = pxPerChar * charPerRow;
+        
+        // Map a horizontal line of given length
+        const QPointF topLeft_px = mapFromScene(QPointF(0.0, 0.0));
+        const QPointF topRight_px = mapFromScene(QPointF(5.0, 0.0));
+        const qreal width_px =  QLineF(topLeft_px, topRight_px).length();
+        const qreal titleScale = width_px / pxPerRow;
+        
+        const qreal left_scn = 0.0;
+        const qreal right_scn = 5.0;
+        const qreal top_scn = 0.0;
+        const qreal bottom_scn = 0.5;
+        
+        const QPointF bottomLeft_scn(left_scn, bottom_scn);
+        const QPointF bottomLeft_px = mapFromScene(bottomLeft_scn);
+        const qreal rowHeight_px = QLineF(topLeft_px, bottomLeft_px).length();
+        const qreal fontHeight_px = fm.height();
+        const qreal yOffset_scn = (rowHeight_px - fontHeight_px) / 2.0;
+        const qreal ascent_scn = mapToScene(0.0, fm.ascent()).y();
+        
+        qreal y = (0.5 - (fontHeight_px*titleScale)) / 2.0;
+        titleText->setPos(0.0, y);
+        // titleText->setPos(0.0, 0.1);
+        // titleText->setPos(0.0, 0.0);
+        // titleText->setPos(left_scn, yOffset_scn);
+        titleText->setScale(titleScale);
+    }
+
+
+
+
 
     // Body lines
     for( int i = 0; i < 9; ++i)
