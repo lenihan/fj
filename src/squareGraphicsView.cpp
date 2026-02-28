@@ -12,59 +12,61 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
 
+    // Globals
+    const qreal CARD_LEFT_SCN = 0.0;
+    const qreal CARD_RIGHT_SCN = 5.0;
+    const qreal CARD_TOP_SCN = 0.0;
+    const qreal CARD_BOTTOM_SCN = 3.0;
+    const QPointF CARD_TOP_LEFT_PT_SCN(CARD_LEFT_SCN, CARD_TOP_SCN);
+    const QPointF CARD_BOTTOM_RIGHT_PT_SCN(CARD_RIGHT_SCN, CARD_BOTTOM_SCN);
+    const QRectF CARD_RECT_SCN(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
+    const QRectF CARD_RECT_VIEW = mapFromScene(CARD_RECT_SCN).boundingRect();
+    const qreal CARD_WIDTH_VIEW = CARD_RECT_VIEW.width();
+
+    const QFont FONT = getFont("Hack-Regular.ttf");
+    const QFontMetricsF fm(FONT);
+    const qreal CHAR_WIDTH_FNT = fm.maxWidth();
+    const qreal CHAR_HEIGHT_FNT = fm.height();
+
     // 3x5 Card
-    const QRectF cardRect(0.0, 0.0, 5.0, 3.0);
-    const QColor cardColor("#fdf9f0"); 
-    scene->addRect(cardRect, QPen(Qt::NoPen), QBrush(cardColor));
+    {
+        const QRectF cardRect_scn(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
+        const QColor cardColor("#fdf9f0"); 
+        scene->addRect(cardRect_scn, QPen(Qt::NoPen), QBrush(cardColor));
+    }
     
     // Title line
-    const qreal TITLE_ROW_HEIGHT_IN = 0.5;
-    const QLineF titleLine(0.0, TITLE_ROW_HEIGHT_IN, 5.0, TITLE_ROW_HEIGHT_IN);
-    const QColor titleLineColor("#C9A1AE");
-    QPen titleLinePen(titleLineColor);
-    titleLinePen.setWidthF(3.0);
-    titleLinePen.setCosmetic(true);
-    scene->addLine(titleLine, titleLinePen);
-
-    // Title text item
-    const QFont font = getFont("Hack-Regular.ttf");
-    QGraphicsSimpleTextItem* titleText = scene->addSimpleText("yjgp()/\\[]{}456789012345678901234567890", font);
-    // titleText->setScale(.04);
     {
-        const QFontMetricsF fm(font);
-        const qreal charPerRow = 29.0;
-        const qreal pxPerChar = fm.maxWidth();
-        const qreal pxPerRow = pxPerChar * charPerRow;
+        const qreal titleRowHeight_scn = 0.5;
+        const qreal titleRow_y_scn = CARD_TOP_SCN + titleRowHeight_scn;
+        const QPointF leftPoint_scn(CARD_LEFT_SCN, titleRow_y_scn);
+        const QPointF rightPoint_scn(CARD_RIGHT_SCN, titleRow_y_scn);
+        const QLineF titleLine_scn(leftPoint_scn, rightPoint_scn);
         
-        // Map a horizontal line of given length
-        const QPointF topLeft_px = mapFromScene(QPointF(0.0, 0.0));
-        const QPointF topRight_px = mapFromScene(QPointF(5.0, 0.0));
-        const qreal width_px =  QLineF(topLeft_px, topRight_px).length();
-        const qreal titleScale = width_px / pxPerRow;
+        const QColor titleLineColor("#C9A1AE");
+        QPen titleLinePen(titleLineColor);
+        titleLinePen.setWidthF(3.0);
+        titleLinePen.setCosmetic(true);
         
-        const qreal left_scn = 0.0;
-        const qreal right_scn = 5.0;
-        const qreal top_scn = 0.0;
-        const qreal bottom_scn = 0.5;
-        
-        const QPointF bottomLeft_scn(left_scn, bottom_scn);
-        const QPointF bottomLeft_px = mapFromScene(bottomLeft_scn);
-        const qreal rowHeight_px = QLineF(topLeft_px, bottomLeft_px).length();
-        const qreal fontHeight_px = fm.height();
-        const qreal yOffset_scn = (rowHeight_px - fontHeight_px) / 2.0;
-        const qreal ascent_scn = mapToScene(0.0, fm.ascent()).y();
-        
-        qreal y = (0.5 - (fontHeight_px*titleScale)) / 2.0;
-        titleText->setPos(0.0, y);
-        // titleText->setPos(0.0, 0.1);
-        // titleText->setPos(0.0, 0.0);
-        // titleText->setPos(left_scn, yOffset_scn);
-        titleText->setScale(titleScale);
+        scene->addLine(titleLine_scn, titleLinePen);
     }
 
-
-
-
+    // Title text item
+    QGraphicsSimpleTextItem* titleText = scene->addSimpleText("123456789012345678901234567890", FONT);
+    // titleText->setScale(.04);
+    {
+        // Map a horizontal line of given length
+        const qreal charPerRow = 29.0;
+        const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
+        const qreal fntToView_scale = CARD_WIDTH_VIEW / rowWidth_fnt;
+        
+        const qreal rowHeight_scn = 0.5;
+        const qreal fontHeight_view = CHAR_HEIGHT_FNT * fntToView_scale;
+        // TODO: next line should not have scn and view together...need to fix!!!!!!!!!!!!!!!
+        const qreal yOffset_scn = (rowHeight_scn - fontHeight_view) / 2.0;
+        titleText->setPos(CARD_LEFT_SCN, yOffset_scn);
+        titleText->setScale(fntToView_scale);
+    }
 
     // Body lines
     for( int i = 0; i < 9; ++i)
