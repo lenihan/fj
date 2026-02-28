@@ -20,8 +20,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     const QPointF CARD_TOP_LEFT_PT_SCN(CARD_LEFT_SCN, CARD_TOP_SCN);
     const QPointF CARD_BOTTOM_RIGHT_PT_SCN(CARD_RIGHT_SCN, CARD_BOTTOM_SCN);
     const QRectF CARD_RECT_SCN(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
-    const QRectF CARD_RECT_VIEW = mapFromScene(CARD_RECT_SCN).boundingRect();
-    const qreal CARD_WIDTH_VIEW = CARD_RECT_VIEW.width();
+    const qreal CARD_WIDTH_SCN = CARD_RECT_SCN.width();
 
     const QFont FONT = getFont("Hack-Regular.ttf");
     const QFontMetricsF fm(FONT);
@@ -58,21 +57,20 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         // Map a horizontal line of given length
         const qreal charPerRow = 29.0;
         const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
-        const qreal fntToView_scale = CARD_WIDTH_VIEW / rowWidth_fnt;
+        const qreal fntToScn_scale = CARD_WIDTH_SCN / rowWidth_fnt;
         
         const qreal rowHeight_scn = 0.5;
-        const qreal fontHeight_view = CHAR_HEIGHT_FNT * fntToView_scale;
-        // TODO: next line should not have scn and view together...need to fix!!!!!!!!!!!!!!!
-        const qreal yOffset_scn = (rowHeight_scn - fontHeight_view) / 2.0;
+        const qreal fontHeight_scn = CHAR_HEIGHT_FNT * fntToScn_scale;
+        const qreal yOffset_scn = (rowHeight_scn - fontHeight_scn) / 2.0;
         titleText->setPos(CARD_LEFT_SCN, yOffset_scn);
-        titleText->setScale(fntToView_scale);
+        titleText->setScale(fntToScn_scale);
     }
 
     // Body lines
     for( int i = 0; i < 9; ++i)
     {
-        const qreal BODY_ROW_HEIGHT_IN = 0.25;
-        const qreal y = 0.75 + i * BODY_ROW_HEIGHT_IN;
+        const qreal bodyRowHeight_scn = 0.25;
+        const qreal y = 0.75 + i * bodyRowHeight_scn;
         const QLineF bodyLine(0.0, y, 5.0, y);
         const QColor bodyLineColor("#7d93eaff");
         QPen bodyLinePen(bodyLineColor);
