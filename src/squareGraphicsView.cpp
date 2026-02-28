@@ -27,6 +27,9 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     const qreal CHAR_WIDTH_FNT = fm.maxWidth();
     const qreal CHAR_HEIGHT_FNT = fm.height();
 
+    const qreal TITLE_ROW_HEIGHT_SCN = 0.5;
+    const qreal BODY_ROW_HEIGHT_SCN = 0.25;
+
     // 3x5 Card
     {
         const QRectF cardRect_scn(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
@@ -36,8 +39,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     
     // Title line
     {
-        const qreal titleRowHeight_scn = 0.5;
-        const qreal titleRow_y_scn = CARD_TOP_SCN + titleRowHeight_scn;
+        const qreal titleRow_y_scn = CARD_TOP_SCN + TITLE_ROW_HEIGHT_SCN;
         const QPointF leftPoint_scn(CARD_LEFT_SCN, titleRow_y_scn);
         const QPointF rightPoint_scn(CARD_RIGHT_SCN, titleRow_y_scn);
         const QLineF titleLine_scn(leftPoint_scn, rightPoint_scn);
@@ -60,17 +62,15 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         titleText->setScale(fntToScn_scale);
         
         // Calc y offset to center text
-        const qreal rowHeight_scn = 0.5;
         const qreal fontHeight_scn = CHAR_HEIGHT_FNT * fntToScn_scale;
-        const qreal yOffset_scn = (rowHeight_scn - fontHeight_scn) / 2.0;
+        const qreal yOffset_scn = (TITLE_ROW_HEIGHT_SCN - fontHeight_scn) / 2.0;
         titleText->setPos(CARD_LEFT_SCN, yOffset_scn);
     }
 
     // Body lines
     for( int i = 0; i < 9; ++i)
     {
-        const qreal bodyRowHeight_scn = 0.25;
-        const qreal y = 0.75 + i * bodyRowHeight_scn;
+        const qreal y = (BODY_ROW_HEIGHT_SCN + TITLE_ROW_HEIGHT_SCN) + (i * BODY_ROW_HEIGHT_SCN);
         const QLineF bodyLine(0.0, y, 5.0, y);
         const QColor bodyLineColor("#7d93eaff");
         QPen bodyLinePen(bodyLineColor);
