@@ -54,7 +54,6 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     QGraphicsSimpleTextItem* titleText = scene->addSimpleText("123456789012345678901234567890", FONT);
     // titleText->setScale(.04);
     {
-        // Map a horizontal line of given length
         const qreal charPerRow = 29.0;
         const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
         const qreal fntToScn_scale = CARD_WIDTH_SCN / rowWidth_fnt;
