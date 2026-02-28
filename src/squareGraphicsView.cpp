@@ -120,9 +120,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
         int limitingPx = width_px;
         qreal dpi = dpiX;
 
-        const qreal widthScale = width_px / scene_width_in;
-        const qreal heightScale = height_px / scene_height_in;
-        if (heightScale < widthScale)
+        if (scene_height_in < scene_width_in)
         {
             limitingSceneIn = scene_height_in;
             limitingPx = height_px;
