@@ -67,16 +67,42 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         titleText->setPos(CARD_LEFT_SCN, yOffset_scn);
     }
 
-    // Body lines
-    for( int i = 0; i < 9; ++i)
+    // Body text
     {
-        const qreal y = (BODY_ROW_HEIGHT_SCN + TITLE_ROW_HEIGHT_SCN) + (i * BODY_ROW_HEIGHT_SCN);
-        const QLineF bodyLine(0.0, y, 5.0, y);
-        const QColor bodyLineColor("#7d93eaff");
-        QPen bodyLinePen(bodyLineColor);
-        bodyLinePen.setWidthF(3.0);
-        bodyLinePen.setCosmetic(true);
-        scene->addLine(bodyLine, bodyLinePen);
+        // Calc font to scene scale
+        const qreal charPerRow = 59.0;
+        const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
+        const qreal fntToScn_scale = CARD_WIDTH_SCN / rowWidth_fnt;
+        
+        for( int i = 0; i < 9; ++i)
+        {
+            // Body line
+            {
+                const qreal y = (BODY_ROW_HEIGHT_SCN + TITLE_ROW_HEIGHT_SCN) + (i * BODY_ROW_HEIGHT_SCN);
+                const QLineF bodyLine(0.0, y, 5.0, y);
+                const QColor bodyLineColor("#7d93eaff");
+                QPen bodyLinePen(bodyLineColor);
+                bodyLinePen.setWidthF(3.0);
+                bodyLinePen.setCosmetic(true);
+                scene->addLine(bodyLine, bodyLinePen);
+            }
+        }
+
+            
+        for( int i = 0; i < 10; ++i)
+        {
+            // Body Text Item
+            {
+                QGraphicsSimpleTextItem* bodyText = scene->addSimpleText("123456789012345678901234567890123456789012345678901234567890", FONT);
+                bodyText->setScale(fntToScn_scale);
+
+                // Calc y offset to center text
+                const qreal y = TITLE_ROW_HEIGHT_SCN + (i * BODY_ROW_HEIGHT_SCN);
+                const qreal fontHeight_scn = CHAR_HEIGHT_FNT * fntToScn_scale;
+                const qreal yOffset_scn = (BODY_ROW_HEIGHT_SCN - fontHeight_scn) / 2.0;
+                bodyText->setPos(CARD_LEFT_SCN, y + yOffset_scn);
+            }
+        }
     }
 
     // UI
@@ -200,7 +226,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         }
         
         // Draw a green border around the scene
-        if(1)
+        if(0)
         {
             QPen pen(Qt::green);
             const int penWidth = 2;
