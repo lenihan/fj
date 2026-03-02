@@ -12,6 +12,20 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
 
+    // Dummy card
+    int i = 0;
+    m_rows[i++] = " Example Card";
+    m_rows[i++] = " Typing mode:       Caps+Space";
+    m_rows[i++] = "   Cursor up:       Caps+I";
+    m_rows[i++] = "   Cursor left:     Caps+J";
+    m_rows[i++] = "   Cursor down:     Caps+K";
+    m_rows[i++] = "   Cursor right:    Caps+L";
+    m_rows[i++] = "   Delete:          Shift+Backspace";
+    m_rows[i++] = "   Indent:          Tab";
+    m_rows[i++] = "   Unindent:        Shift+Tab";
+    m_rows[i++] = " Move cursor:       Caps, I|J|K|L";
+    m_rows[i++] = "                             1                            ";
+
     // Globals
     const qreal CARD_LEFT_SCN = 0.0;
     const qreal CARD_RIGHT_SCN = 5.0;
@@ -53,7 +67,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     }
 
     // Title text item
-    QGraphicsSimpleTextItem* titleText = scene->addSimpleText("123456789012345678901234567890", FONT);
+    QGraphicsSimpleTextItem* titleText = scene->addSimpleText(m_rows[0], FONT);
+    // QGraphicsSimpleTextItem* titleText = scene->addSimpleText("123456789012345678901234567890", FONT);
     {
         // Calc font to scene scale
         const qreal charPerRow = 29.0;
@@ -92,7 +107,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         {
             // Body Text Item
             {
-                QGraphicsSimpleTextItem* bodyText = scene->addSimpleText("123456789012345678901234567890123456789012345678901234567890", FONT);
+                QGraphicsSimpleTextItem* bodyText = scene->addSimpleText(m_rows[i+1], FONT);
+                // QGraphicsSimpleTextItem* bodyText = scene->addSimpleText("123456789012345678901234567890123456789012345678901234567890", FONT);
                 bodyText->setScale(fntToScn_scale);
 
                 // Calc y offset to center text
@@ -108,8 +124,14 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     const QRectF uiRect(0.0, 3.0, 5.0, 2.0);
     const QColor uiColor("#202020");
     scene->addRect(uiRect, QPen(Qt::NoPen), QBrush(uiColor));
-
 }
+
+
+void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
+{
+    const QString typed = event->text();
+}
+
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
