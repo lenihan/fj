@@ -87,7 +87,6 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
                 scene->addLine(bodyLine, bodyLinePen);
             }
         }
-
             
         for( int i = 0; i < 10; ++i)
         {
@@ -146,7 +145,9 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
         int limitingPx = width_px;
         qreal dpi = dpiX;
 
-        if (scene_height_in < scene_width_in)
+        const qreal widthScale = width_px / scene_width_in;
+        const qreal heightScale = height_px / scene_height_in;
+        if (heightScale < widthScale)
         {
             limitingSceneIn = scene_height_in;
             limitingPx = height_px;
@@ -155,7 +156,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 
         view_side_in = limitingPx / dpi;
 
-        const int percent = view_side_in / limitingSceneIn * 100.0;
+        const int percent = qCeil(view_side_in / limitingSceneIn * 100.0);
         const auto title = QString("FJ - %1\"x%2\" %3%")
                                 .arg(scene_width_in, 0, 'f', 2)
                                 .arg(scene_height_in, 0, 'f', 2)

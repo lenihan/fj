@@ -31,8 +31,8 @@ int main(int argc, char* argv[])
                                                            // 109.22 34" Dell
         const qreal dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11,
                                                            // 109.18 34" Dell
-        const int width_px = dpiX * DISPLAY_WIDTH_IN;
-        const int height_px = dpiY * DISPLAY_HEIGHT_IN;                                                 
+        const int width_px = qCeil(dpiX * DISPLAY_WIDTH_IN);
+        const int height_px = qCeil(dpiY * DISPLAY_HEIGHT_IN);                                                 
         view.resize(width_px, height_px);
     }
 
