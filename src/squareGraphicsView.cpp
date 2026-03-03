@@ -14,16 +14,16 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
     // Dummy card
     int i = 0;
-    m_rows[i++] = " Example Card";
-    m_rows[i++] = " Typing mode:       Caps+Space";
-    m_rows[i++] = "   Cursor up:       Caps+I";
-    m_rows[i++] = "   Cursor left:     Caps+J";
-    m_rows[i++] = "   Cursor down:     Caps+K";
-    m_rows[i++] = "   Cursor right:    Caps+L";
-    m_rows[i++] = "   Delete:          Shift+Backspace";
-    m_rows[i++] = "   Indent:          Tab";
-    m_rows[i++] = "   Unindent:        Shift+Tab";
-    m_rows[i++] = " Move cursor:       Caps, I|J|K|L";
+    m_rows[i++] = "Example Card";
+    m_rows[i++] = "Typing mode:       Caps+Space";
+    m_rows[i++] = "  Cursor up:       Caps+I";
+    m_rows[i++] = "  Cursor left:     Caps+J";
+    m_rows[i++] = "  Cursor down:     Caps+K";
+    m_rows[i++] = "  Cursor right:    Caps+L";
+    m_rows[i++] = "  Delete:          Shift+Backspace";
+    m_rows[i++] = "  Indent:          Tab";
+    m_rows[i++] = "  Unindent:        Shift+Tab";
+    m_rows[i++] = "Move cursor:       Caps,I|J|K|L";
     m_rows[i++] = "                             1                            ";
 
     // Globals
@@ -31,10 +31,11 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     const qreal CARD_RIGHT_SCN = 5.0;
     const qreal CARD_TOP_SCN = 0.0;
     const qreal CARD_BOTTOM_SCN = 3.0;
+    const qreal CARD_BORDER = 0.1;
     const QPointF CARD_TOP_LEFT_PT_SCN(CARD_LEFT_SCN, CARD_TOP_SCN);
     const QPointF CARD_BOTTOM_RIGHT_PT_SCN(CARD_RIGHT_SCN, CARD_BOTTOM_SCN);
     const QRectF CARD_RECT_SCN(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
-    const qreal CARD_WIDTH_SCN = CARD_RECT_SCN.width();
+    const qreal USEABLE_CARD_WIDTH_SCN = CARD_RECT_SCN.width() - (2 * CARD_BORDER);
 
     const QFont FONT = getFont("Hack-Regular.ttf");
     const QFontMetricsF fm(FONT);
@@ -71,23 +72,23 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     // QGraphicsSimpleTextItem* titleText = scene->addSimpleText("123456789012345678901234567890", FONT);
     {
         // Calc font to scene scale
-        const qreal charPerRow = 29.0;
+        const qreal charPerRow = 30.0;
         const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
-        const qreal fntToScn_scale = CARD_WIDTH_SCN / rowWidth_fnt;
+        const qreal fntToScn_scale = USEABLE_CARD_WIDTH_SCN / rowWidth_fnt;
         titleText->setScale(fntToScn_scale);
         
         // Calc y offset to center text
         const qreal fontHeight_scn = CHAR_HEIGHT_FNT * fntToScn_scale;
         const qreal yOffset_scn = (TITLE_ROW_HEIGHT_SCN - fontHeight_scn) / 2.0;
-        titleText->setPos(CARD_LEFT_SCN, yOffset_scn);
+        titleText->setPos(CARD_LEFT_SCN + CARD_BORDER, yOffset_scn);
     }
 
     // Body text
     {
         // Calc font to scene scale
-        const qreal charPerRow = 59.0;
+        const qreal charPerRow = 60.0;
         const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
-        const qreal fntToScn_scale = CARD_WIDTH_SCN / rowWidth_fnt;
+        const qreal fntToScn_scale = USEABLE_CARD_WIDTH_SCN / rowWidth_fnt;
         
         for( int i = 0; i < 9; ++i)
         {
@@ -115,7 +116,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
                 const qreal y = TITLE_ROW_HEIGHT_SCN + (i * BODY_ROW_HEIGHT_SCN);
                 const qreal fontHeight_scn = CHAR_HEIGHT_FNT * fntToScn_scale;
                 const qreal yOffset_scn = (BODY_ROW_HEIGHT_SCN - fontHeight_scn) / 2.0;
-                bodyText->setPos(CARD_LEFT_SCN, y + yOffset_scn);
+                bodyText->setPos(CARD_LEFT_SCN + CARD_BORDER, y + yOffset_scn);
             }
         }
     }
