@@ -5,24 +5,24 @@
 #include <QFontMetricsF>
 
 RowItem::RowItem(RowType rowType)
-    : QGraphicsSimpleTextItem(), m_font(getFont()),
-      m_charsPerRow(rowType == RowType::Title ? m_titleCharsPerRow
-                                              : m_bodyCharsPerRow),
-      m_charWidth_fnt(getCharWidth()), m_charHeight_fnt(getCharHeight()),
-      m_cardTopLeftPt_scn(m_cardLeft_scn, m_cardTop_scn),
-      m_cardBottomRightPt_scn(m_cardRight_scn, m_cardBottom_scn),
-      m_cardRect_scn(m_cardTopLeftPt_scn, m_cardBottomRightPt_scn),
+    : QGraphicsSimpleTextItem(), kFont(getFont()),
+      kCharsPerRow(rowType == RowType::Title ? kTitleCharsPerRow
+                                              : kBodyCharsPerRow),
+      kCharWidth_fnt(getCharWidth()), kCharHeight_fnt(getCharHeight()),
+      kCardTopLeftPt_scn(kCardLeft_scn, kCardTop_scn),
+      kCardBottomRightPt_scn(kCardRight_scn, kCardBottom_scn),
+      kCardRect_scn(kCardTopLeftPt_scn, kCardBottomRightPt_scn),
       m_rowType(rowType)
 {
     // Calc font to scene scale
-    const qreal rowWidth_fnt = m_charWidth_fnt * m_charsPerRow;
-    const qreal fntToScn_scale = m_useableCardWidth_scn / rowWidth_fnt;
+    const qreal rowWidth_fnt = kCharWidth_fnt * kCharsPerRow;
+    const qreal fntToScn_scale = kUseableCardWidth_scn / rowWidth_fnt;
     setScale(fntToScn_scale);
 
     // Calc y offset to center text
-    const qreal fontHeight_scn = m_charHeight_fnt * fntToScn_scale;
-    const qreal yOffset_scn = (m_titleRowHeight_scn - fontHeight_scn) / 2.0;
-    setPos(m_cardLeft_scn + m_cardBorder_scn, yOffset_scn);
+    const qreal fontHeight_scn = kCharHeight_fnt * fntToScn_scale;
+    const qreal yOffset_scn = (kTitleRowHeight_scn - fontHeight_scn) / 2.0;
+    setPos(kCardLeft_scn + kCardBorder_scn, yOffset_scn);
 
 }
 

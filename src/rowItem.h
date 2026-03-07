@@ -17,28 +17,25 @@ class RowItem : public QGraphicsSimpleTextItem
     static qreal getCharWidth();
     static qreal getCharHeight();
     
-    const QFont m_font;
-    const qreal m_charsPerRow;
-    const qreal m_charWidth_fnt;
-    const qreal m_charHeight_fnt;
+    const QFont kFont;
+    const qreal kCharsPerRow;
+    const qreal kCharWidth_fnt;
+    const qreal kCharHeight_fnt;
 
-    static constexpr qreal m_titleCharsPerRow = 30.0;
-    static constexpr qreal m_bodyCharsPerRow = 60.0;
-    const qreal m_titleRowHeight_scn = 0.5;
-    const qreal m_bodyRowHeight_scn = 0.25;
+    static constexpr qreal kTitleCharsPerRow = 30.0;
+    static constexpr qreal kBodyCharsPerRow = 60.0;
+    static constexpr const qreal kTitleRowHeight_scn = 0.5;
+    static constexpr const qreal kBodyRowHeight_scn = 0.25;
 
-    const qreal m_cardLeft_scn = 0.0;
-    const qreal m_cardRight_scn = 5.0;
-    const qreal m_cardTop_scn = 0.0;
-    const qreal m_cardBottom_scn = 3.0;
-    const qreal m_cardBorder_scn = 0.1;
-    const QPointF m_cardTopLeftPt_scn;
-    const QPointF m_cardBottomRightPt_scn;
-    const QRectF m_cardRect_scn;
-    const qreal m_useableCardWidth_scn = m_cardRect_scn.width() - (2 * m_cardBorder_scn);
-
+    static constexpr const qreal kCardLeft_scn = 0.0;
+    static constexpr const qreal kCardRight_scn = 5.0;
+    static constexpr const qreal kCardTop_scn = 0.0;
+    static constexpr const qreal kCardBottom_scn = 3.0;
+    static constexpr const qreal kCardBorder_scn = 0.1;
+    const QPointF kCardTopLeftPt_scn;
+    const QPointF kCardBottomRightPt_scn;
+    const QRectF kCardRect_scn;
+    const qreal kUseableCardWidth_scn = kCardRect_scn.width() - (2 * kCardBorder_scn);
     
     RowType m_rowType;
-    qreal m_rowHeight_scn;
-    uint8_t m_maxNumChars;
 };
