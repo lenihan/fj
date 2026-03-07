@@ -24,12 +24,6 @@ RowItem::RowItem(RowType rowType)
     const qreal yOffset_scn = (m_titleRowHeight_scn - fontHeight_scn) / 2.0;
     setPos(m_cardLeft_scn + m_cardBorder_scn, yOffset_scn);
 
-    if (m_rowType == RowType::Title)
-    {
-    }
-    if (rowType == RowType::Body)
-    {
-    }
 }
 
 void RowItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,

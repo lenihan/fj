@@ -70,20 +70,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
     // Title text item
     auto *titleRow = new RowItem(RowItem::RowType::Title);
-    QGraphicsSimpleTextItem* titleText = scene->addSimpleText(m_rows[0], FONT);
-    // QGraphicsSimpleTextItem* titleText = scene->addSimpleText("123456789012345678901234567890", FONT);
-    {
-        // Calc font to scene scale
-        const qreal charPerRow = 30.0;
-        const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
-        const qreal fntToScn_scale = USEABLE_CARD_WIDTH_SCN / rowWidth_fnt;
-        titleText->setScale(fntToScn_scale);
-        
-        // Calc y offset to center text
-        const qreal fontHeight_scn = CHAR_HEIGHT_FNT * fntToScn_scale;
-        const qreal yOffset_scn = (TITLE_ROW_HEIGHT_SCN - fontHeight_scn) / 2.0;
-        titleText->setPos(CARD_LEFT_SCN + CARD_BORDER, yOffset_scn);
-    }
+    titleRow->setText(m_rows[0]);
+    scene->addItem(titleRow);
 
     // Body text
     {

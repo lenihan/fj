@@ -22,8 +22,8 @@ class RowItem : public QGraphicsSimpleTextItem
     const qreal m_charWidth_fnt;
     const qreal m_charHeight_fnt;
 
-    const qreal m_titleCharsPerRow = 30.0;
-    const qreal m_bodyCharsPerRow = 60.0;
+    static constexpr qreal m_titleCharsPerRow = 30.0;
+    static constexpr qreal m_bodyCharsPerRow = 60.0;
     const qreal m_titleRowHeight_scn = 0.5;
     const qreal m_bodyRowHeight_scn = 0.25;
 
