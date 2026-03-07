@@ -2,6 +2,7 @@
 #include <QFontDatabase>
 #include <QResizeEvent>
 #include <QGraphicsSimpleTextItem>
+#include "rowItem.h"
 
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     : QGraphicsView(scene)
@@ -68,6 +69,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     }
 
     // Title text item
+    auto *titleRow = new RowItem(RowItem::RowType::Title);
     QGraphicsSimpleTextItem* titleText = scene->addSimpleText(m_rows[0], FONT);
     // QGraphicsSimpleTextItem* titleText = scene->addSimpleText("123456789012345678901234567890", FONT);
     {
