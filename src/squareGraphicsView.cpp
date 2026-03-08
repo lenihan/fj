@@ -42,7 +42,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     const QFontMetricsF fm(FONT);
     const qreal CHAR_WIDTH_FNT = fm.maxWidth();
     const qreal CHAR_HEIGHT_FNT = fm.height();
-
+        qreal ptSize = FONT.pointSizeF();
     const qreal TITLE_ROW_HEIGHT_SCN = 0.5;
     const qreal BODY_ROW_HEIGHT_SCN = 0.25;
 
@@ -69,7 +69,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     }
 
     // Title text item
-    auto *titleRow = new RowItem(RowItem::RowType::Title);
+    auto *titleRow = new RowItem(0);
     titleRow->setText(m_rows[0]);
     scene->addItem(titleRow);
 
@@ -98,6 +98,11 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         {
             // Body Text Item
             {
+                auto *bodyRow = new RowItem(i+1);
+                bodyRow->setText(m_rows[i+1]);
+                scene->addItem(bodyRow);
+
+#if 0
                 QGraphicsSimpleTextItem* bodyText = scene->addSimpleText(m_rows[i+1], FONT);
                 // QGraphicsSimpleTextItem* bodyText = scene->addSimpleText("123456789012345678901234567890123456789012345678901234567890", FONT);
                 bodyText->setScale(fntToScn_scale);
@@ -107,6 +112,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
                 const qreal fontHeight_scn = CHAR_HEIGHT_FNT * fntToScn_scale;
                 const qreal yOffset_scn = (BODY_ROW_HEIGHT_SCN - fontHeight_scn) / 2.0;
                 bodyText->setPos(CARD_LEFT_SCN + CARD_BORDER, y + yOffset_scn);
+#endif
             }
         }
     }
@@ -285,6 +291,8 @@ QFont SquareGraphicsView::getFont(const QString& fontFilename)
 
     QString fontFamily = fontFamilies.at(0); // e.g., "Hack"
     font.setFamily(fontFamily);
+
+    font.setPointSize(12);
 
     // Verify the font is loaded correctly
     Q_ASSERT(QFontInfo(font).exactMatch());
