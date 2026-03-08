@@ -30,7 +30,7 @@ class RowItem : public QGraphicsSimpleTextItem
     static constexpr const qreal kCardTop_scn = 0.0;
     static constexpr const qreal kCardBottom_scn = 3.0;
     static constexpr const qreal kCardBorder_scn = 0.1;
-    
+
     const QPointF kCardTopLeftPt_scn;
     const QPointF kCardBottomRightPt_scn;
     const QRectF kCardRect_scn;

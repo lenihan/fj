@@ -13,11 +13,7 @@ RowItem::RowItem(uint8_t row)
       kCardBottomRightPt_scn(kCardRight_scn, kCardBottom_scn),
       kCardRect_scn(kCardTopLeftPt_scn, kCardBottomRightPt_scn)
 {
-    const QFont FONT = getFont();
-    const QFontMetricsF fm(FONT);
-    const qreal CHAR_WIDTH_FNT = fm.maxWidth();
-    Q_ASSERT(CHAR_WIDTH_FNT == kCharWidth_fnt);
-    setFont(FONT);
+    setFont(kFont);
 
     // Calc font to scene scale
     const qreal rowWidth_fnt = kCharWidth_fnt * kCharsPerRow;
@@ -25,7 +21,7 @@ RowItem::RowItem(uint8_t row)
     setScale(fntToScn_scale);
 
     // Calc y offset to center text
-    const qreal y = m_row == 0 ? 0 : kTitleRowHeight_scn + ((m_row - 1) * kBodyRowHeight_scn);
+    const qreal y = kTitleRowHeight_scn + ((m_row - 1) * kRowHeight_scn);
     const qreal fontHeight_scn = kCharHeight_fnt * fntToScn_scale;
     const qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
     setPos(kCardLeft_scn + kCardBorder_scn, y + yOffset_scn);
