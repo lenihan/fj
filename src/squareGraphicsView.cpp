@@ -1,5 +1,4 @@
 #include "squareGraphicsView.h"
-#include <QFontDatabase>
 #include <QResizeEvent>
 #include <QGraphicsSimpleTextItem>
 #include "cardItem.h"
@@ -28,49 +27,9 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     m_rows[i++] = "Move cursor:       Caps,I|J|K|L";
     m_rows[i++] = "                             1                            ";
 
-    // Globals
-    const qreal CARD_LEFT_SCN = 0.0;
-    const qreal CARD_RIGHT_SCN = 5.0;
-    const qreal CARD_TOP_SCN = 0.0;
-    const qreal CARD_BOTTOM_SCN = 3.0;
-    const qreal CARD_BORDER = 0.1;
-    const QPointF CARD_TOP_LEFT_PT_SCN(CARD_LEFT_SCN, CARD_TOP_SCN);
-    const QPointF CARD_BOTTOM_RIGHT_PT_SCN(CARD_RIGHT_SCN, CARD_BOTTOM_SCN);
-    const QRectF CARD_RECT_SCN(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
-    const qreal USEABLE_CARD_WIDTH_SCN = CARD_RECT_SCN.width() - (2 * CARD_BORDER);
-
-    const QFont FONT = getFont("Hack-Regular.ttf");
-    const QFontMetricsF fm(FONT);
-    const qreal CHAR_WIDTH_FNT = fm.maxWidth();
-    const qreal CHAR_HEIGHT_FNT = fm.height();
-    const qreal TITLE_ROW_HEIGHT_SCN = 0.5;
-    const qreal BODY_ROW_HEIGHT_SCN = 0.25;
-
     // 3x5 Card
     auto* cardItem = new CardItem();
     scene->addItem(cardItem);
-
-    // {
-    //     const QRectF cardRect_scn(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
-    //     const QColor cardColor("#fdf9f0"); 
-    //     scene->addRect(cardRect_scn, QPen(Qt::NoPen), QBrush(cardColor));
-    // }
-    
-    // Title line
-
-    {
-        // const qreal titleRow_y_scn = CARD_TOP_SCN + TITLE_ROW_HEIGHT_SCN;
-        // const QPointF leftPoint_scn(CARD_LEFT_SCN, titleRow_y_scn);
-        // const QPointF rightPoint_scn(CARD_RIGHT_SCN, titleRow_y_scn);
-        // const QLineF titleLine_scn(leftPoint_scn, rightPoint_scn);
-        
-        // const QColor titleLineColor("#C9A1AE");
-        // QPen titleLinePen(titleLineColor);
-        // titleLinePen.setWidthF(3.0);
-        // titleLinePen.setCosmetic(true);
-        
-        // scene->addLine(titleLine_scn, titleLinePen);
-    }
 
     // Title text item
     auto *titleRow = new RowItem(0);
@@ -79,25 +38,6 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
     // Body text
     {
-        // Calc font to scene scale
-        const qreal charPerRow = 60.0;
-        const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
-        const qreal fntToScn_scale = USEABLE_CARD_WIDTH_SCN / rowWidth_fnt;
-        
-        // for( int i = 0; i < 9; ++i)
-        // {
-        //     // Body line
-        //     {
-        //         const qreal y = (BODY_ROW_HEIGHT_SCN + TITLE_ROW_HEIGHT_SCN) + (i * BODY_ROW_HEIGHT_SCN);
-        //         const QLineF bodyLine(0.0, y, 5.0, y);
-        //         const QColor bodyLineColor("#7d93eaff");
-        //         QPen bodyLinePen(bodyLineColor);
-        //         bodyLinePen.setWidthF(3.0);
-        //         bodyLinePen.setCosmetic(true);
-        //         scene->addLine(bodyLine, bodyLinePen);
-        //     }
-        // }
-            
         for( int i = 0; i < 10; ++i)
         {
             // Body Text Item
@@ -265,31 +205,6 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     }
 
     QGraphicsView::resizeEvent(event);
-}
-
-QFont SquareGraphicsView::getFont(const QString& fontFilename)
-{
-    QFont font;
-
-    // Load the font from the resource
-    QFontDatabase fontDatabase;
-    const int fontId =
-        fontDatabase.addApplicationFont(":/fonts/" + fontFilename);
-    Q_ASSERT(fontId != -1);
-
-    // Get the font family name
-    QStringList fontFamilies = fontDatabase.applicationFontFamilies(fontId);
-    Q_ASSERT(!fontFamilies.isEmpty());
-
-    QString fontFamily = fontFamilies.at(0); // e.g., "Hack"
-    font.setFamily(fontFamily);
-
-    font.setPointSize(12);
-
-    // Verify the font is loaded correctly
-    Q_ASSERT(QFontInfo(font).exactMatch());
-
-    return font;
 }
 
 void SquareGraphicsView::paintEvent(QPaintEvent* event)

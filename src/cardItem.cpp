@@ -1,5 +1,6 @@
 #include "CardItem.h"
 #include <QPen>
+
 CardItem::CardItem(QGraphicsItem* parent)
     : QGraphicsRectItem(parent),
       kCardTopLeftPt_scn(kCardLeft_scn, kCardTop_scn),
@@ -16,7 +17,7 @@ CardItem::CardItem(QGraphicsItem* parent)
     {
         const qreal y = kCardTop_scn + kTitleRowHeight_scn;
         titleLine->setLine(kCardLeft_scn, y, kCardRight_scn, y);
-        
+
         QPen pen(kTitleLineColor);
         pen.setWidthF(3.0);
         pen.setCosmetic(true);
@@ -24,13 +25,14 @@ CardItem::CardItem(QGraphicsItem* parent)
     }
 
     // Body lines
-    for( int i = 0; i < 9; ++i)
+    for (int i = 0; i < 9; ++i)
     {
         // Body line
         auto* bodyLine = new QGraphicsLineItem(this);
         {
             // TODO: Combine title/body with single setLine, single y calc
-            const qreal y = (kBodyRowHeight_scn + kTitleRowHeight_scn) + (i * kBodyRowHeight_scn);
+            const qreal y = (kBodyRowHeight_scn + kTitleRowHeight_scn) +
+                            (i * kBodyRowHeight_scn);
             bodyLine->setLine(kCardLeft_scn, y, kCardRight_scn, y);
 
             QPen pen(kBodyLineColor);

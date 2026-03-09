@@ -1,4 +1,3 @@
-#include <QFont>
 #include <QGraphicsView>
 
 class SquareGraphicsView : public QGraphicsView
@@ -12,8 +11,6 @@ class SquareGraphicsView : public QGraphicsView
     void resizeEvent(QResizeEvent* event) override;
 
   private:
-    QFont getFont(const QString& fontFilename);
-
     struct CardPosition {
         uint16_t year = 2026;   // 0000–9999
         uint16_t page = 1;      // 1–9999
