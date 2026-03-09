@@ -2,6 +2,7 @@
 #include <QFontDatabase>
 #include <QResizeEvent>
 #include <QGraphicsSimpleTextItem>
+#include "cardItem.h"
 #include "rowItem.h"
 
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
@@ -46,25 +47,29 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     const qreal BODY_ROW_HEIGHT_SCN = 0.25;
 
     // 3x5 Card
-    {
-        const QRectF cardRect_scn(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
-        const QColor cardColor("#fdf9f0"); 
-        scene->addRect(cardRect_scn, QPen(Qt::NoPen), QBrush(cardColor));
-    }
+    auto* cardItem = new CardItem();
+    scene->addItem(cardItem);
+
+    // {
+    //     const QRectF cardRect_scn(CARD_TOP_LEFT_PT_SCN, CARD_BOTTOM_RIGHT_PT_SCN);
+    //     const QColor cardColor("#fdf9f0"); 
+    //     scene->addRect(cardRect_scn, QPen(Qt::NoPen), QBrush(cardColor));
+    // }
     
     // Title line
+
     {
-        const qreal titleRow_y_scn = CARD_TOP_SCN + TITLE_ROW_HEIGHT_SCN;
-        const QPointF leftPoint_scn(CARD_LEFT_SCN, titleRow_y_scn);
-        const QPointF rightPoint_scn(CARD_RIGHT_SCN, titleRow_y_scn);
-        const QLineF titleLine_scn(leftPoint_scn, rightPoint_scn);
+        // const qreal titleRow_y_scn = CARD_TOP_SCN + TITLE_ROW_HEIGHT_SCN;
+        // const QPointF leftPoint_scn(CARD_LEFT_SCN, titleRow_y_scn);
+        // const QPointF rightPoint_scn(CARD_RIGHT_SCN, titleRow_y_scn);
+        // const QLineF titleLine_scn(leftPoint_scn, rightPoint_scn);
         
-        const QColor titleLineColor("#C9A1AE");
-        QPen titleLinePen(titleLineColor);
-        titleLinePen.setWidthF(3.0);
-        titleLinePen.setCosmetic(true);
+        // const QColor titleLineColor("#C9A1AE");
+        // QPen titleLinePen(titleLineColor);
+        // titleLinePen.setWidthF(3.0);
+        // titleLinePen.setCosmetic(true);
         
-        scene->addLine(titleLine_scn, titleLinePen);
+        // scene->addLine(titleLine_scn, titleLinePen);
     }
 
     // Title text item
@@ -79,19 +84,19 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
         const qreal rowWidth_fnt = CHAR_WIDTH_FNT * charPerRow;
         const qreal fntToScn_scale = USEABLE_CARD_WIDTH_SCN / rowWidth_fnt;
         
-        for( int i = 0; i < 9; ++i)
-        {
-            // Body line
-            {
-                const qreal y = (BODY_ROW_HEIGHT_SCN + TITLE_ROW_HEIGHT_SCN) + (i * BODY_ROW_HEIGHT_SCN);
-                const QLineF bodyLine(0.0, y, 5.0, y);
-                const QColor bodyLineColor("#7d93eaff");
-                QPen bodyLinePen(bodyLineColor);
-                bodyLinePen.setWidthF(3.0);
-                bodyLinePen.setCosmetic(true);
-                scene->addLine(bodyLine, bodyLinePen);
-            }
-        }
+        // for( int i = 0; i < 9; ++i)
+        // {
+        //     // Body line
+        //     {
+        //         const qreal y = (BODY_ROW_HEIGHT_SCN + TITLE_ROW_HEIGHT_SCN) + (i * BODY_ROW_HEIGHT_SCN);
+        //         const QLineF bodyLine(0.0, y, 5.0, y);
+        //         const QColor bodyLineColor("#7d93eaff");
+        //         QPen bodyLinePen(bodyLineColor);
+        //         bodyLinePen.setWidthF(3.0);
+        //         bodyLinePen.setCosmetic(true);
+        //         scene->addLine(bodyLine, bodyLinePen);
+        //     }
+        // }
             
         for( int i = 0; i < 10; ++i)
         {

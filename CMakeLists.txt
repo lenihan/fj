@@ -43,6 +43,8 @@ project(fj)
 set(SOURCES
     resources/resources.qrc
     src/main.cpp
+    src/cardItem.h
+    src/cardItem.cpp
     src/rowItem.cpp
     src/rowItem.h
     src/squareGraphicsView.cpp

@@ -23,13 +23,13 @@ class RowItem : public QGraphicsSimpleTextItem
 
     static constexpr qreal kTitleCharsPerRow = 30.0;
     static constexpr qreal kBodyCharsPerRow = 60.0;
-    static constexpr const qreal kTitleRowHeight_scn = 0.5;
-    static constexpr const qreal kBodyRowHeight_scn = 0.25;
-    static constexpr const qreal kCardLeft_scn = 0.0;
-    static constexpr const qreal kCardRight_scn = 5.0;
-    static constexpr const qreal kCardTop_scn = 0.0;
-    static constexpr const qreal kCardBottom_scn = 3.0;
-    static constexpr const qreal kCardBorder_scn = 0.1;
+    static constexpr qreal kTitleRowHeight_scn = 0.5;
+    static constexpr qreal kBodyRowHeight_scn = 0.25;
+    static constexpr qreal kCardLeft_scn = 0.0;
+    static constexpr qreal kCardRight_scn = 5.0;
+    static constexpr qreal kCardTop_scn = 0.0;
+    static constexpr qreal kCardBottom_scn = 3.0;
+    static constexpr qreal kCardBorder_scn = 0.1;
 
     const QPointF kCardTopLeftPt_scn;
     const QPointF kCardBottomRightPt_scn;
