@@ -1,4 +1,5 @@
 #include "CardItem.h"
+#include "rowItem.h"
 #include <QPen>
 
 CardItem::CardItem(QGraphicsItem* parent)
@@ -12,33 +13,51 @@ CardItem::CardItem(QGraphicsItem* parent)
     setPen(Qt::NoPen);
     setBrush(QBrush(kCardColor));
 
-    // Title line
-    auto* titleLine = new QGraphicsLineItem(this);
+    // Row lines
+    for (int i = 0; i < kNumRows - 1; ++i)
     {
-        const qreal y = kCardTop_scn + kTitleRowHeight_scn;
-        titleLine->setLine(kCardLeft_scn, y, kCardRight_scn, y);
+        auto* line = new QGraphicsLineItem(this);
+        const qreal y = kCardTop_scn + kTitleRowHeight_scn + (i * kBodyRowHeight_scn);
+        line->setLine(kCardLeft_scn, y, kCardRight_scn, y);
 
-        QPen pen(kTitleLineColor);
+        QPen pen(i == 0 ? kTitleLineColor : kBodyLineColor);
         pen.setWidthF(3.0);
         pen.setCosmetic(true);
-        titleLine->setPen(pen);
+        line->setPen(pen);
     }
 
-    // Body lines
-    for (int i = 0; i < 9; ++i)
-    {
-        // Body line
-        auto* bodyLine = new QGraphicsLineItem(this);
-        {
-            // TODO: Combine title/body with single setLine, single y calc
-            const qreal y = (kBodyRowHeight_scn + kTitleRowHeight_scn) +
-                            (i * kBodyRowHeight_scn);
-            bodyLine->setLine(kCardLeft_scn, y, kCardRight_scn, y);
 
-            QPen pen(kBodyLineColor);
-            pen.setWidthF(3.0);
-            pen.setCosmetic(true);
-            bodyLine->setPen(pen);
+    // Dummy card
+    int i = 0;
+    QStringList rowText = QStringList(11);
+    rowText[i++] = "Example Card";
+    rowText[i++] = "Typing mode:       Caps+Space";
+    rowText[i++] = "  Cursor up:       Caps+I";
+    rowText[i++] = "  Cursor left:     Caps+J";
+    rowText[i++] = "  Cursor down:     Caps+K";
+    rowText[i++] = "  Cursor right:    Caps+L";
+    rowText[i++] = "  Delete:          Shift+Backspace";
+    rowText[i++] = "  Indent:          Tab";
+    rowText[i++] = "  Unindent:        Shift+Tab";
+    rowText[i++] = "Move cursor:       Caps,I|J|K|L";
+    rowText[i++] = "                             1                            ";
+
+    // Row text
+        // Title text item
+    // auto *titleRow = new RowItem(0);
+    // titleRow->setText(m_rows[0]);
+    // scene->addItem(titleRow);
+
+    // Body text
+    {
+        for( int i = 0; i < kNumRows; ++i)
+        {
+            // Body Text Item
+            {
+                auto *bodyRow = new RowItem(i, this);
+                bodyRow->setText(rowText[i]);
+                // scene->addItem(bodyRow);
+            }
         }
     }
 }

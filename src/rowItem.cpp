@@ -4,8 +4,8 @@
 #include <QFontInfo>
 #include <QFontMetricsF>
 
-RowItem::RowItem(uint8_t row)
-    : QGraphicsSimpleTextItem(), m_row(row), kFont(getFont()),
+RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
+    : QGraphicsSimpleTextItem(parent), m_row(row), kFont(getFont()),
       kCharsPerRow(row == 0 ? kTitleCharsPerRow : kBodyCharsPerRow),
       kRowHeight_scn(row == 0 ? kTitleRowHeight_scn : kBodyRowHeight_scn),
       kCharWidth_fnt(getCharWidth()), kCharHeight_fnt(getCharHeight()),

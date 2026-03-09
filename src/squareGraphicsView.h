@@ -18,7 +18,7 @@ class SquareGraphicsView : public QGraphicsView
         uint8_t  col  = 0;      // 0–60
     };
 
-    QStringList m_rows = QStringList(11);
+    // QStringList m_rows = QStringList(11);
 
     CardPosition m_currentPosition;
 };

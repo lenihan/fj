@@ -14,6 +14,7 @@ class CardItem : public QGraphicsRectItem
     static constexpr qreal kCardBorder_scn = 0.1;
     static constexpr char kCardColor[] = "#fdf9f0";
 
+    static constexpr uint8_t kNumRows = 11;
     static constexpr qreal kTitleRowHeight_scn = 0.5;
     static constexpr qreal kBodyRowHeight_scn = 0.25;
     static constexpr char kTitleLineColor[] = "#C9A1AE";

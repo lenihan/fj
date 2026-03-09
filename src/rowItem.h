@@ -5,7 +5,7 @@
 class RowItem : public QGraphicsSimpleTextItem
 {
   public:
-    RowItem(uint8_t row);
+    RowItem(uint8_t row, QGraphicsItem* parent = nullptr);
     virtual void paint(QPainter* painter,
                        const QStyleOptionGraphicsItem* option,
                        QWidget* widget) override;
