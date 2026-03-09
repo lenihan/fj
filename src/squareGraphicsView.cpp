@@ -1,6 +1,5 @@
 #include "squareGraphicsView.h"
 #include <QResizeEvent>
-#include <QGraphicsSimpleTextItem>
 #include "cardItem.h"
 #include "rowItem.h"
 
@@ -13,41 +12,9 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
 
-    // // Dummy card
-    // int i = 0;
-    // m_rows[i++] = "Example Card";
-    // m_rows[i++] = "Typing mode:       Caps+Space";
-    // m_rows[i++] = "  Cursor up:       Caps+I";
-    // m_rows[i++] = "  Cursor left:     Caps+J";
-    // m_rows[i++] = "  Cursor down:     Caps+K";
-    // m_rows[i++] = "  Cursor right:    Caps+L";
-    // m_rows[i++] = "  Delete:          Shift+Backspace";
-    // m_rows[i++] = "  Indent:          Tab";
-    // m_rows[i++] = "  Unindent:        Shift+Tab";
-    // m_rows[i++] = "Move cursor:       Caps,I|J|K|L";
-    // m_rows[i++] = "                             1                            ";
-
     // 3x5 Card
     auto* cardItem = new CardItem();
     scene->addItem(cardItem);
-
-    // // Title text item
-    // auto *titleRow = new RowItem(0);
-    // titleRow->setText(m_rows[0]);
-    // scene->addItem(titleRow);
-
-    // // Body text
-    // {
-    //     for( int i = 0; i < 10; ++i)
-    //     {
-    //         // Body Text Item
-    //         {
-    //             auto *bodyRow = new RowItem(i+1);
-    //             bodyRow->setText(m_rows[i+1]);
-    //             scene->addItem(bodyRow);
-    //         }
-    //     }
-    // }
 
     // UI
     const QRectF uiRect(0.0, 3.0, 5.0, 2.0);

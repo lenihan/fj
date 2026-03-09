@@ -17,7 +17,8 @@ CardItem::CardItem(QGraphicsItem* parent)
     for (int i = 0; i < kNumRows - 1; ++i)
     {
         auto* line = new QGraphicsLineItem(this);
-        const qreal y = kCardTop_scn + kTitleRowHeight_scn + (i * kBodyRowHeight_scn);
+        const qreal y =
+            kCardTop_scn + kTitleRowHeight_scn + (i * kBodyRowHeight_scn);
         line->setLine(kCardLeft_scn, y, kCardRight_scn, y);
 
         QPen pen(i == 0 ? kTitleLineColor : kBodyLineColor);
@@ -25,7 +26,6 @@ CardItem::CardItem(QGraphicsItem* parent)
         pen.setCosmetic(true);
         line->setPen(pen);
     }
-
 
     // Dummy card
     int i = 0;
@@ -42,22 +42,9 @@ CardItem::CardItem(QGraphicsItem* parent)
     rowText[i++] = "Move cursor:       Caps,I|J|K|L";
     rowText[i++] = "                             1                            ";
 
-    // Row text
-        // Title text item
-    // auto *titleRow = new RowItem(0);
-    // titleRow->setText(m_rows[0]);
-    // scene->addItem(titleRow);
-
-    // Body text
+    for (int i = 0; i < kNumRows; ++i)
     {
-        for( int i = 0; i < kNumRows; ++i)
-        {
-            // Body Text Item
-            {
-                auto *bodyRow = new RowItem(i, this);
-                bodyRow->setText(rowText[i]);
-                // scene->addItem(bodyRow);
-            }
-        }
+        auto* bodyRow = new RowItem(i, this);
+        bodyRow->setText(rowText[i]);
     }
 }
