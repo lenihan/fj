@@ -1,7 +1,9 @@
 #include "squareGraphicsView.h"
-#include <QResizeEvent>
 #include "cardItem.h"
+#include "constants.h"
 #include "rowItem.h"
+
+#include <QResizeEvent>
 
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     : QGraphicsView(scene)

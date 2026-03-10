@@ -1,13 +1,9 @@
 #include "cardItem.h"
 #include "rowItem.h"
+
 #include <QPen>
 
-CardItem::CardItem(QGraphicsItem* parent)
-    : QGraphicsRectItem(parent)
-    // ,
-    //   kCardTopLeftPt_scn(Card::kLeft_scn, Card::kTop_scn),
-    //   kCardBottomRightPt_scn(Card::kRight_scn, Card::kBottom_scn),
-    //   Card::kRect_scn(kCardTopLeftPt_scn, kCardBottomRightPt_scn)
+CardItem::CardItem(QGraphicsItem* parent) : QGraphicsRectItem(parent)
 {
     // Card background
     setRect(Card::kRect_scn);

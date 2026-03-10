@@ -1,20 +1,16 @@
 #include "squareGraphicsView.h"
+#include "constants.h"
+
 #include <QApplication>
 #include <QGraphicsScene>
 #include <QScreen>
-
-namespace
-{
-    const qreal DISPLAY_WIDTH_IN = 5.0;   // Width of 3x5 card
-    const qreal DISPLAY_HEIGHT_IN = 5.0;  // Height of 3x5 card + 2" for UI
-}
 
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
     
     QGraphicsScene scene;
-    scene.setSceneRect(0.0, 0.0, DISPLAY_WIDTH_IN, DISPLAY_HEIGHT_IN);
+    scene.setSceneRect(Screen::kLeft_scn, Screen::kTop_scn, Screen::kWidth_scn, Screen::kHeight_scn);
     scene.setBackgroundBrush(QBrush(Qt::black));
     
     SquareGraphicsView view(&scene);
@@ -31,8 +27,8 @@ int main(int argc, char* argv[])
                                                            // 109.22 34" Dell
         const qreal dpiY = screen->physicalDotsPerInchY(); // 129 on Surface Pro 11,
                                                            // 109.18 34" Dell
-        const int width_px = qCeil(dpiX * DISPLAY_WIDTH_IN);
-        const int height_px = qCeil(dpiY * DISPLAY_HEIGHT_IN);                                                 
+        const int width_px = qCeil(dpiX * Screen::kWidth_scn);
+        const int height_px = qCeil(dpiY * Screen::kHeight_scn);                                                 
         view.resize(width_px, height_px);
     }
 
