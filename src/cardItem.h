@@ -23,9 +23,9 @@ class CardItem : public QGraphicsRectItem
     // static constexpr char Title::kLineColor[] = "#C9A1AE";
     // static constexpr char Body::kLineColor[] = "#7d93eaff";
 
-    const QPointF kCardTopLeftPt_scn;
-    const QPointF kCardBottomRightPt_scn;
-    const QRectF kCardRect_scn;
-    const qreal kUseableCardWidth_scn =
-        kCardRect_scn.width() - (2 * Card::kBorder_scn);
+    // const QPointF kCardTopLeftPt_scn;
+    // const QPointF kCardBottomRightPt_scn;
+    //  const QRectF Card::kRect_scn;
+    // const qreal kUseableCardWidth_scn =
+    //     Card::kRect_scn.width() - (2 * Card::kBorder_scn);
 };

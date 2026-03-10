@@ -3,13 +3,14 @@
 #include <QPen>
 
 CardItem::CardItem(QGraphicsItem* parent)
-    : QGraphicsRectItem(parent),
-      kCardTopLeftPt_scn(Card::kLeft_scn, Card::kTop_scn),
-      kCardBottomRightPt_scn(Card::kRight_scn, Card::kBottom_scn),
-      kCardRect_scn(kCardTopLeftPt_scn, kCardBottomRightPt_scn)
+    : QGraphicsRectItem(parent)
+    // ,
+    //   kCardTopLeftPt_scn(Card::kLeft_scn, Card::kTop_scn),
+    //   kCardBottomRightPt_scn(Card::kRight_scn, Card::kBottom_scn),
+    //   Card::kRect_scn(kCardTopLeftPt_scn, kCardBottomRightPt_scn)
 {
     // Card background
-    setRect(kCardRect_scn);
+    setRect(Card::kRect_scn);
     setPen(Qt::NoPen);
     setBrush(QBrush(Card::kColor));
 

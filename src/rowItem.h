@@ -34,11 +34,11 @@ class RowItem : public QGraphicsSimpleTextItem
     // static constexpr qreal kCardBottom_scn = 3.0;
     // static constexpr qreal kCardBorder_scn = 0.1;
 
-    const QPointF kCardTopLeftPt_scn;
-    const QPointF kCardBottomRightPt_scn;
-    const QRectF kCardRect_scn;
-    const qreal kUseableCardWidth_scn =
-        kCardRect_scn.width() - (2 * Card::kBorder_scn);
+    // const QPointF kCardTopLeftPt_scn;
+    // const QPointF kCardBottomRightPt_scn;
+    // const QRectF Card::kRect_scn;
+    // const qreal kUseableCardWidth_scn =
+    //     Card::kRect_scn.width() - (2 * Card::kBorder_scn);
 
     uint8_t m_row;
 };
