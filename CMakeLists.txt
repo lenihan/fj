@@ -42,9 +42,10 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 project(fj)
 set(SOURCES
     resources/resources.qrc
-    src/main.cpp
+    src/constants.h
     src/cardItem.h
     src/cardItem.cpp
+    src/main.cpp
     src/rowItem.cpp
     src/rowItem.h
     src/squareGraphicsView.cpp

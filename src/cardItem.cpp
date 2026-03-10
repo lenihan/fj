@@ -1,27 +1,27 @@
-#include "CardItem.h"
+#include "cardItem.h"
 #include "rowItem.h"
 #include <QPen>
 
 CardItem::CardItem(QGraphicsItem* parent)
     : QGraphicsRectItem(parent),
-      kCardTopLeftPt_scn(kCardLeft_scn, kCardTop_scn),
-      kCardBottomRightPt_scn(kCardRight_scn, kCardBottom_scn),
+      kCardTopLeftPt_scn(Card::kLeft_scn, Card::kTop_scn),
+      kCardBottomRightPt_scn(Card::kRight_scn, Card::kBottom_scn),
       kCardRect_scn(kCardTopLeftPt_scn, kCardBottomRightPt_scn)
 {
     // Card background
     setRect(kCardRect_scn);
     setPen(Qt::NoPen);
-    setBrush(QBrush(kCardColor));
+    setBrush(QBrush(Card::kColor));
 
     // Row lines
-    for (int i = 0; i < kNumRows - 1; ++i)
+    for (int i = 0; i < Card::kNumRows - 1; ++i)
     {
         auto* line = new QGraphicsLineItem(this);
         const qreal y =
-            kCardTop_scn + kTitleRowHeight_scn + (i * kBodyRowHeight_scn);
-        line->setLine(kCardLeft_scn, y, kCardRight_scn, y);
+            Card::kTop_scn + Title::kRowHeight_scn + (i * Body::kRowHeight_scn);
+        line->setLine(Card::kLeft_scn, y, Card::kRight_scn, y);
 
-        QPen pen(i == 0 ? kTitleLineColor : kBodyLineColor);
+        QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
         pen.setWidthF(3.0);
         pen.setCosmetic(true);
         line->setPen(pen);
@@ -42,7 +42,7 @@ CardItem::CardItem(QGraphicsItem* parent)
     rowText[i++] = "Move cursor:       Caps,I|J|K|L";
     rowText[i++] = "                             1                            ";
 
-    for (int i = 0; i < kNumRows; ++i)
+    for (int i = 0; i < Card::kNumRows; ++i)
     {
         auto* bodyRow = new RowItem(i, this);
         bodyRow->setText(rowText[i]);

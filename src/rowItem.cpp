@@ -6,11 +6,11 @@
 
 RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent), m_row(row), kFont(getFont()),
-      kCharsPerRow(row == 0 ? kTitleCharsPerRow : kBodyCharsPerRow),
-      kRowHeight_scn(row == 0 ? kTitleRowHeight_scn : kBodyRowHeight_scn),
+      kCharsPerRow(row == 0 ? Title::kCharsPerRow : Body::kCharsPerRow),
+      kRowHeight_scn(row == 0 ? Title::kRowHeight_scn : Body::kRowHeight_scn),
       kCharWidth_fnt(getCharWidth()), kCharHeight_fnt(getCharHeight()),
-      kCardTopLeftPt_scn(kCardLeft_scn, kCardTop_scn),
-      kCardBottomRightPt_scn(kCardRight_scn, kCardBottom_scn),
+      kCardTopLeftPt_scn(Card::kLeft_scn, Card::kTop_scn),
+      kCardBottomRightPt_scn(Card::kRight_scn, Card::kBottom_scn),
       kCardRect_scn(kCardTopLeftPt_scn, kCardBottomRightPt_scn)
 {
     setFont(kFont);
@@ -21,10 +21,10 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     setScale(fntToScn_scale);
 
     // Calc y offset to center text
-    const qreal y = kTitleRowHeight_scn + ((m_row - 1) * kRowHeight_scn);
+    const qreal y = Title::kRowHeight_scn + ((m_row - 1) * kRowHeight_scn);
     const qreal fontHeight_scn = kCharHeight_fnt * fntToScn_scale;
     const qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
-    setPos(kCardLeft_scn + kCardBorder_scn, y + yOffset_scn);
+    setPos(Card::kLeft_scn + Card::kBorder_scn, y + yOffset_scn);
 }
 
 void RowItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
