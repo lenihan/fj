@@ -24,24 +24,18 @@ CardItem::CardItem(QGraphicsItem* parent) : QGraphicsRectItem(parent)
         line->setPen(pen);
     }
 
-    // Dummy card
-    int i = 0;
-    QStringList rowText = QStringList(11);
-    rowText[i++] = "Example Card";
-    rowText[i++] = "Typing mode:       Caps+Space";
-    rowText[i++] = "  Cursor up:       Caps+I";
-    rowText[i++] = "  Cursor left:     Caps+J";
-    rowText[i++] = "  Cursor down:     Caps+K";
-    rowText[i++] = "  Cursor right:    Caps+L";
-    rowText[i++] = "  Delete:          Shift+Backspace";
-    rowText[i++] = "  Indent:          Tab";
-    rowText[i++] = "  Unindent:        Shift+Tab";
-    rowText[i++] = "Move cursor:       Caps,I|J|K|L";
-    rowText[i++] = "                             1                            ";
-
+    // Reserve space for rows
+    m_rows.reserve(Card::kNumRows);
     for (int i = 0; i < Card::kNumRows; ++i)
     {
-        auto* bodyRow = new RowItem(i, this);
-        bodyRow->setText(rowText[i]);
+        m_rows.emplace_back(new RowItem(static_cast<uint8_t>(i), this));
+    }
+}
+
+void CardItem::setText(QStringList text)
+{
+    for (int i = 0; i < Card::kNumRows; ++i)
+    {
+        m_rows[i]->setText(text[i]);
     }
 }

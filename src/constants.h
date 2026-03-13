@@ -32,8 +32,10 @@ struct Card
     inline static const auto kTopLeftPt_scn = QPointF(kLeft_scn, kTop_scn);
     inline static const auto kBottomRightPt_scn =
         QPointF(kRight_scn, kBottom_scn);
+
     inline static const auto kRect_scn =
         QRectF(kTopLeftPt_scn, kBottomRightPt_scn);
+
     inline static const qreal kUseabledWidth_scn =
         kRect_scn.width() - (2 * kBorder_scn);
 };
@@ -58,6 +60,13 @@ struct UI
     static inline constexpr qreal kRight_scn = Screen::kRight_scn;
     static inline constexpr qreal kTop_scn = Card::kBottom_scn;
     static inline constexpr qreal kBottom_scn = Screen::kBottom_scn;
+
+    inline static const auto kTopLeftPt_scn = QPointF(kLeft_scn, kTop_scn);
+    inline static const auto kBottomRightPt_scn =
+        QPointF(kRight_scn, kBottom_scn);
+
+    inline static const auto kRect_scn =
+        QRectF(kTopLeftPt_scn, kBottomRightPt_scn);
 
     inline static constexpr char kBackgroundColor[] = "#202020";
 };

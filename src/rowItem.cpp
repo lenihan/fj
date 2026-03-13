@@ -12,6 +12,7 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
       kRowHeight_scn(row == 0 ? Title::kRowHeight_scn : Body::kRowHeight_scn),
       m_row(row)
 {
+    m_text.reserve(kCharsPerRow);
     setFont(kFont);
 
     // Calc font to scene scale

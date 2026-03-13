@@ -15,15 +15,33 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setRenderHint(QPainter::Antialiasing);
 
     // 3x5 Card
-    auto* cardItem = new CardItem();
-    scene->addItem(cardItem);
+    auto* card = new CardItem();
+    scene->addItem(card);
+
+    
+
+    // Dummy card
+    int i = 0;
+    QStringList rowText = QStringList(11);
+    rowText[i++] = "Example Card";
+    rowText[i++] = "Typing mode:       Caps+Space";
+    rowText[i++] = "  Cursor up:       Caps+I";
+    rowText[i++] = "  Cursor left:     Caps+J";
+    rowText[i++] = "  Cursor down:     Caps+K";
+    rowText[i++] = "  Cursor right:    Caps+L";
+    rowText[i++] = "  Delete:          Shift+Backspace";
+    rowText[i++] = "  Indent:          Tab";
+    rowText[i++] = "  Unindent:        Shift+Tab";
+    rowText[i++] = "Move cursor:       Caps,I|J|K|L";
+    rowText[i++] = "                             1                            ";
+    card->setText(rowText);    
+
 
     // UI
-    const QRectF uiRect(0.0, 3.0, 5.0, 2.0);
+    const QRectF uiRect(UI::kRect_scn);
     const QColor uiColor("#202020");
     scene->addRect(uiRect, QPen(Qt::NoPen), QBrush(uiColor));
 }
-
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
 {
@@ -118,7 +136,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
     // }
     event->accept(); // Stop propagation if desired
 }
-
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
