@@ -15,10 +15,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setRenderHint(QPainter::Antialiasing);
 
     // 3x5 Card
-    auto* card = new CardItem();
-    scene->addItem(card);
-
-    
+    m_card = new CardItem();
+    scene->addItem(m_card);
 
     // Dummy card
     int i = 0;
@@ -34,7 +32,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     rowText[i++] = "  Unindent:        Shift+Tab";
     rowText[i++] = "Move cursor:       Caps,I|J|K|L";
     rowText[i++] = "                             1                            ";
-    card->setText(rowText);    
+    m_card->setText(rowText);    
 
 
     // UI
@@ -45,6 +43,26 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
 {
+    if (event->key() == Qt::Key_Return)
+    {
+        m_current.row++;
+        Q_ASSERT(m_current.row < Card::kNumRows);
+        m_current.col = 0;
+    }
+    else if(event->key() == Qt::Key_Backspace)
+    {
+        if (m_current.col != 0)
+        {
+            m_card->setChar('x', m_current.row, m_current.col);    
+        }
+    }
+    else 
+    {
+        const QChar c = event->text()[0];
+        m_card->setChar(c, m_current.row, m_current.col);
+        m_current.col++;
+    }
+#if 1
     switch(event->key())
     {
         case Qt::Key_Space: qDebug() << "Space"; break;
@@ -134,6 +152,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
     //     const QString typed = event->text();
     //     qDebug() << "Got: " << typed;
     // }
+#endif
     event->accept(); // Stop propagation if desired
 }
 

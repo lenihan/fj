@@ -10,6 +10,7 @@ class CardItem : public QGraphicsRectItem
 {
   public:
     CardItem(QGraphicsItem* parent = nullptr);
+    void setChar(const QChar ch, const uint8_t row, const uint8_t col);
     void setText(QStringList text);
 
   private:

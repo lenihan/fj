@@ -32,10 +32,24 @@ CardItem::CardItem(QGraphicsItem* parent) : QGraphicsRectItem(parent)
     }
 }
 
+void CardItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
+{
+    Q_ASSERT(row < Card::kNumRows);
+    Q_ASSERT(col < m_rows[row]->charsPerRow());
+    auto x = m_rows[row]->text().size();
+    auto y = m_rows[row]->charsPerRow();
+    Q_ASSERT(m_rows[row]->text().size() == m_rows[row]->charsPerRow());
+    QString t = m_rows[row]->text();
+    t[col] = ch;
+    m_rows[row]->setText(t);
+}
+
 void CardItem::setText(QStringList text)
 {
     for (int i = 0; i < Card::kNumRows; ++i)
     {
-        m_rows[i]->setText(text[i]);
+        QString t = m_rows[i]->text();
+        t.replace(0, text[i].size(), text[i]);
+        m_rows[i]->setText(t);
     }
 }

@@ -12,7 +12,6 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
       kRowHeight_scn(row == 0 ? Title::kRowHeight_scn : Body::kRowHeight_scn),
       m_row(row)
 {
-    m_text.reserve(kCharsPerRow);
     setFont(kFont);
 
     // Calc font to scene scale
@@ -25,12 +24,21 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     const qreal fontHeight_scn = kFontCharHeight_fnt * fntToScn_scale;
     const qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
     setPos(Card::kLeft_scn + Card::kBorder_scn, y + yOffset_scn);
+
+    const QString blankLine(kCharsPerRow, ' ');
+    setText(blankLine);
+    Q_ASSERT(text().size() == kCharsPerRow);
 }
 
 void RowItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                     QWidget* widget)
 {
     QGraphicsSimpleTextItem::paint(painter, option, widget);
+}
+
+uint8_t RowItem::charsPerRow() const
+{
+    return kCharsPerRow;
 }
 
 // static

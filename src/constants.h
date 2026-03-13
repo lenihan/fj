@@ -42,14 +42,14 @@ struct Card
 
 struct Title
 {
-    inline static constexpr qreal kCharsPerRow = 30.0;
+    inline static constexpr uint8_t kCharsPerRow = 30;
     inline static constexpr qreal kRowHeight_scn = 0.5;
     inline static constexpr char kLineColor[] = "#C9A1AE";
 };
 
 struct Body
 {
-    inline static constexpr qreal kCharsPerRow = 60.0;
+    inline static constexpr uint8_t kCharsPerRow = 60;
     inline static constexpr qreal kRowHeight_scn = 0.25;
     inline static constexpr char kLineColor[] = "#7d93eaff";
 };
