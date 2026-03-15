@@ -3,7 +3,8 @@
 
 #include <QPen>
 
-CardItem::CardItem(QGraphicsItem* parent) : QGraphicsRectItem(parent)
+CardItem::CardItem(QGraphicsItem* parent)
+    : QGraphicsRectItem(parent), m_currentRow(0), m_currentCol(0)
 {
     // Card background
     setRect(Card::kRect_scn);
@@ -28,7 +29,7 @@ CardItem::CardItem(QGraphicsItem* parent) : QGraphicsRectItem(parent)
     m_rows.reserve(Card::kNumRows);
     for (int i = 0; i < Card::kNumRows; ++i)
     {
-        m_rows.emplace_back(new RowItem(static_cast<uint8_t>(i), this));
+        m_rows.emplaceBack(new RowItem(static_cast<uint8_t>(i), this));
     }
 }
 

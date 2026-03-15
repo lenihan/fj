@@ -1,9 +1,9 @@
 #pragma once
 
 #include <QGraphicsView>
+#include <QMap>
 
 class CardItem;
-
 class SquareGraphicsView : public QGraphicsView
 {
   public:
@@ -21,8 +21,11 @@ class SquareGraphicsView : public QGraphicsView
         uint16_t page = 1;    // 1–9999
         uint8_t row = 0;      // 0–10
         uint8_t col = 0;      // 0–60
+        bool front = true;    // false = back
     };
-
     CardPosition m_current;
-    CardItem* m_card;
+
+    using CardStack = QList<CardItem*>;
+    using YearToCardStack = QMap<uint16_t, CardStack>;
+    YearToCardStack m_yearToCardStack;
 };

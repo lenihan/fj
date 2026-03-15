@@ -15,4 +15,6 @@ class CardItem : public QGraphicsRectItem
 
   private:
     QList<RowItem*> m_rows;
+    uint8_t m_currentRow;
+    uint8_t m_currentCol;
 };

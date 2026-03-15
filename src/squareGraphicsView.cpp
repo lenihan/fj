@@ -15,8 +15,9 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setRenderHint(QPainter::Antialiasing);
 
     // 3x5 Card
-    m_card = new CardItem();
-    scene->addItem(m_card);
+    auto& cardStack = m_yearToCardStack[2026];
+    CardItem*& card = cardStack.emplaceBack(new CardItem);
+    scene->addItem(card);
 
     // Dummy card
     int i = 0;
@@ -32,7 +33,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     rowText[i++] = "  Unindent:        Shift+Tab";
     rowText[i++] = "Move cursor:       Caps,I|J|K|L";
     rowText[i++] = "                             1                            ";
-    m_card->setText(rowText);    
+    card->setText(rowText);    
 
 
     // UI
@@ -43,6 +44,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
 {
+    CardStack& cardStack = m_yearToCardStack[2026];
+    CardItem* card = cardStack[0];
     if (event->key() == Qt::Key_Return)
     {
         m_current.row++;
@@ -53,15 +56,16 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
     {
         if (m_current.col != 0)
         {
-            m_card->setChar('x', m_current.row, m_current.col);    
+            card->setChar('x', m_current.row, m_current.col);    
         }
     }
     else 
     {
         const QChar c = event->text()[0];
-        m_card->setChar(c, m_current.row, m_current.col);
+        card->setChar(c, m_current.row, m_current.col);
         m_current.col++;
     }
+
 #if 1
     switch(event->key())
     {

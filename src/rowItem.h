@@ -12,7 +12,7 @@ class RowItem : public QGraphicsSimpleTextItem
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                QWidget* widget) override;
     uint8_t charsPerRow() const;
-    void backspace();
+
 
   private:
     static QFont getFont();
@@ -27,5 +27,4 @@ class RowItem : public QGraphicsSimpleTextItem
     const qreal kRowHeight_scn;
 
     uint8_t m_row;
-    uint8_t m_backspaceCol;
 };
