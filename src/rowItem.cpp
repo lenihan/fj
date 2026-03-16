@@ -36,7 +36,7 @@ void RowItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
     QGraphicsSimpleTextItem::paint(painter, option, widget);
 }
 
-uint8_t RowItem::charsPerRow() const
+uint8_t RowItem::colPerRow() const
 {
     return kCharsPerRow;
 }

@@ -14,26 +14,31 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
 
+    m_current.year = 2026;
+    m_current.page = 0;
+    m_current.row = 0;
+    m_current.col = 0;
+
     // 3x5 Card
-    auto& cardStack = m_yearToCardStack[2026];
-    CardItem*& card = cardStack.emplaceBack(new CardItem);
+    auto& cardStack = m_yearToCardStack[m_current.year];
+    CardItem*& card = cardStack.emplaceBack(new CardItem(m_current.page));
     scene->addItem(card);
 
     // Dummy card
-    int i = 0;
-    QStringList rowText = QStringList(11);
-    rowText[i++] = "Example Card";
-    rowText[i++] = "Typing mode:       Caps+Space";
-    rowText[i++] = "  Cursor up:       Caps+I";
-    rowText[i++] = "  Cursor left:     Caps+J";
-    rowText[i++] = "  Cursor down:     Caps+K";
-    rowText[i++] = "  Cursor right:    Caps+L";
-    rowText[i++] = "  Delete:          Shift+Backspace";
-    rowText[i++] = "  Indent:          Tab";
-    rowText[i++] = "  Unindent:        Shift+Tab";
-    rowText[i++] = "Move cursor:       Caps,I|J|K|L";
-    rowText[i++] = "                             1                            ";
-    card->setText(rowText);    
+    // int i = 0;
+    // QStringList rowText = QStringList(11);
+    // rowText[i++] = "Example Card";
+    // rowText[i++] = "Typing mode:       Caps+Space";
+    // rowText[i++] = "  Cursor up:       Caps+I";
+    // rowText[i++] = "  Cursor left:     Caps+J";
+    // rowText[i++] = "  Cursor down:     Caps+K";
+    // rowText[i++] = "  Cursor right:    Caps+L";
+    // rowText[i++] = "  Delete:          Shift+Backspace";
+    // rowText[i++] = "  Indent:          Tab";
+    // rowText[i++] = "  Unindent:        Shift+Tab";
+    // rowText[i++] = "Move cursor:       Caps,I|J|K|L";
+    // rowText[i++] = "                            XXX                           ";
+    // card->setText(rowText);    
 
 
     // UI
@@ -44,8 +49,9 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
 {
-    CardStack& cardStack = m_yearToCardStack[2026];
-    CardItem* card = cardStack[0];
+    CardStack& cardStack = m_yearToCardStack[m_current.year];
+    CardItem* card = cardStack[m_current.page];
+
     if (event->key() == Qt::Key_Return)
     {
         m_current.row++;
@@ -54,16 +60,27 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
     }
     else if(event->key() == Qt::Key_Backspace)
     {
-        if (m_current.col != 0)
-        {
-            card->setChar('x', m_current.row, m_current.col);    
-        }
     }
     else 
     {
         const QChar c = event->text()[0];
         card->setChar(c, m_current.row, m_current.col);
         m_current.col++;
+        
+        if (m_current.col >= card->colPerRow(m_current.row))
+        {
+            m_current.col = 0;
+            m_current.row++;
+        }
+        if (m_current.row >= (card->userRowsPerCard()))
+        {
+            m_current.row = 0;
+            m_current.col = 0;
+            m_current.page++;
+            card->hide();
+            CardItem*& nextCard = cardStack.emplaceBack(new CardItem(m_current.page));
+            scene()->addItem(nextCard);
+        }
     }
 
 #if 1

@@ -3,8 +3,8 @@
 
 #include <QPen>
 
-CardItem::CardItem(QGraphicsItem* parent)
-    : QGraphicsRectItem(parent), m_currentRow(0), m_currentCol(0)
+CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
+    : QGraphicsRectItem(parent), m_page(page), m_currentRow(0), m_currentCol(0)
 {
     // Card background
     setRect(Card::kRect_scn);
@@ -31,15 +31,30 @@ CardItem::CardItem(QGraphicsItem* parent)
     {
         m_rows.emplaceBack(new RowItem(static_cast<uint8_t>(i), this));
     }
+
+    // Center page number on last line
+    const uint8_t lastRow = Card::kNumRows - 1;
+    const uint8_t cols = m_rows[lastRow]->colPerRow();
+    // const QString centeredPageNum = QString("%1").arg(m_page, cols, ' ', Qt::AlignCenter);
+    
+    const QString pageNum = QString::number(m_page);
+    QString centeredPageNum(cols, ' ');
+    const qsizetype position = (cols - pageNum.length())/2;
+    const qsizetype n = pageNum.length();
+    centeredPageNum.replace(position, n, pageNum);
+
+    // const QString centeredPageNum = QString("%1").arg(2, 10, 'a', Qt::AlignCenter);
+    qDebug() << centeredPageNum;
+    m_rows[lastRow]->setText(centeredPageNum);
 }
 
 void CardItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
 {
     Q_ASSERT(row < Card::kNumRows);
-    Q_ASSERT(col < m_rows[row]->charsPerRow());
+    Q_ASSERT(col < m_rows[row]->colPerRow());
     auto x = m_rows[row]->text().size();
-    auto y = m_rows[row]->charsPerRow();
-    Q_ASSERT(m_rows[row]->text().size() == m_rows[row]->charsPerRow());
+    auto y = m_rows[row]->colPerRow();
+    Q_ASSERT(m_rows[row]->text().size() == m_rows[row]->colPerRow());
     QString t = m_rows[row]->text();
     t[col] = ch;
     m_rows[row]->setText(t);
@@ -53,4 +68,15 @@ void CardItem::setText(QStringList text)
         t.replace(0, text[i].size(), text[i]);
         m_rows[i]->setText(t);
     }
+}
+
+uint8_t CardItem::userRowsPerCard() const
+{
+    return Card::kNumRows - 1; // last row for page number
+}
+
+uint8_t CardItem::colPerRow(uint8_t row) const
+{
+    Q_ASSERT(row <= Card::kNumRows);
+    return m_rows[row]->colPerRow();
 }

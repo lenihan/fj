@@ -11,7 +11,7 @@ class RowItem : public QGraphicsSimpleTextItem
     explicit RowItem(uint8_t row, QGraphicsItem* parent = nullptr);
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                QWidget* widget) override;
-    uint8_t charsPerRow() const;
+    uint8_t colPerRow() const;
 
 
   private:

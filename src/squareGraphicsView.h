@@ -17,11 +17,10 @@ class SquareGraphicsView : public QGraphicsView
   private:
     struct CardPosition
     {
-        uint16_t year = 2026; // 0000–9999
-        uint16_t page = 1;    // 1–9999
-        uint8_t row = 0;      // 0–10
-        uint8_t col = 0;      // 0–60
-        bool front = true;    // false = back
+        uint16_t year; // 0000–9999
+        uint16_t page; // 0–9999
+        uint8_t row;   // 0–10
+        uint8_t col;   // 0–60
     };
     CardPosition m_current;
 
