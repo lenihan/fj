@@ -35,16 +35,11 @@ CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
     // Center page number on last line
     const uint8_t lastRow = Card::kNumRows - 1;
     const uint8_t cols = m_rows[lastRow]->colPerRow();
-    // const QString centeredPageNum = QString("%1").arg(m_page, cols, ' ', Qt::AlignCenter);
-    
     const QString pageNum = QString::number(m_page);
     QString centeredPageNum(cols, ' ');
     const qsizetype position = (cols - pageNum.length())/2;
     const qsizetype n = pageNum.length();
     centeredPageNum.replace(position, n, pageNum);
-
-    // const QString centeredPageNum = QString("%1").arg(2, 10, 'a', Qt::AlignCenter);
-    qDebug() << centeredPageNum;
     m_rows[lastRow]->setText(centeredPageNum);
 }
 

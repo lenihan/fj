@@ -22,6 +22,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     // 3x5 Card
     auto& cardStack = m_yearToCardStack[m_current.year];
     CardItem*& card = cardStack.emplaceBack(new CardItem(m_current.page));
+    card->setChar(u'▒', 0, 0);
     scene->addItem(card);
 
     // Dummy card
@@ -49,39 +50,79 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
 {
+    event->accept(); // Stop propagation if desired
+
     CardStack& cardStack = m_yearToCardStack[m_current.year];
     CardItem* card = cardStack[m_current.page];
 
     if (event->key() == Qt::Key_Return)
     {
+        card->setChar(' ', m_current.row, m_current.col);
         m_current.row++;
-        Q_ASSERT(m_current.row < Card::kNumRows);
         m_current.col = 0;
     }
     else if(event->key() == Qt::Key_Backspace)
     {
+        card->setChar(' ', m_current.row, m_current.col);
+        if (m_current.col == 0)
+        {
+            if (m_current.row == 0)
+            {
+                if (m_current.page != 0)
+                {
+                    m_current.page--;
+                    // m_current.row = 
+                    // TODO
+                }
+                else
+                {
+                    // noop
+                }
+            }
+            else
+            {
+                m_current.row--;
+                // TODO
+                //m_current.col = end of last col`
+            }
+        }
+        else
+        {
+            m_current.col--;
+        }
+    }
+    else if (event->key() == Qt::Key_Escape ||
+             event->key() == Qt::Key_Delete ||
+             event->key() == Qt::Key_Tab)
+    {
+        return; // noop
     }
     else 
     {
-        const QChar c = event->text()[0];
+        if (event->text().isEmpty())
+        {
+            return;
+        }
+        QChar c = event->text()[0];
         card->setChar(c, m_current.row, m_current.col);
         m_current.col++;
-        
         if (m_current.col >= card->colPerRow(m_current.row))
         {
             m_current.col = 0;
             m_current.row++;
         }
-        if (m_current.row >= (card->userRowsPerCard()))
-        {
-            m_current.row = 0;
-            m_current.col = 0;
-            m_current.page++;
-            card->hide();
-            CardItem*& nextCard = cardStack.emplaceBack(new CardItem(m_current.page));
-            scene()->addItem(nextCard);
-        }
     }
+    if (m_current.row >= (card->userRowsPerCard()))
+    {
+        m_current.row = 0;
+        m_current.col = 0;
+        m_current.page++;
+        card->hide();
+        CardItem*& nextCard = cardStack.emplaceBack(new CardItem(m_current.page));
+        scene()->addItem(nextCard);
+        card = nextCard;
+    }
+    card->setChar(u'▒', m_current.row, m_current.col);
 
 #if 1
     switch(event->key())
