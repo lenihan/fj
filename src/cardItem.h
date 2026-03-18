@@ -11,6 +11,7 @@ class CardItem : public QGraphicsRectItem
   public:
     CardItem(uint16_t page, QGraphicsItem* parent = nullptr);
     void setChar(const QChar ch, const uint8_t row, const uint8_t col);
+    void setText(const uint8_t row, const QString& text);
     void setText(QStringList text);
     uint8_t userRowsPerCard() const;
     uint8_t colPerRow(uint8_t row) const;

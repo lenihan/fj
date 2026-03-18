@@ -12,6 +12,7 @@ class RowItem : public QGraphicsSimpleTextItem
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                QWidget* widget) override;
     uint8_t colPerRow() const;
+    void setText(const QString& text); // Hides base class setText
 
 
   private:

@@ -25,9 +25,9 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     const qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
     setPos(Card::kLeft_scn + Card::kBorder_scn, y + yOffset_scn);
 
-    const QString blankLine(kCharsPerRow, ' ');
-    setText(blankLine);
-    Q_ASSERT(text().size() == kCharsPerRow);
+    // const QString blankLine(kCharsPerRow, ' ');
+    // setText(blankLine);
+    // Q_ASSERT(text().size() == kCharsPerRow);
 }
 
 void RowItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
@@ -39,6 +39,12 @@ void RowItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
 uint8_t RowItem::colPerRow() const
 {
     return kCharsPerRow;
+}
+
+void RowItem::setText(const QString& text)
+{
+    Q_ASSERT(text.length() <= kCharsPerRow);
+    QGraphicsSimpleTextItem::setText(text);
 }
 
 // static

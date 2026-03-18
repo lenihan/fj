@@ -20,9 +20,24 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     m_current.col = 0;
 
     // 3x5 Card
+    // Card 1: Year w/ first/last line read-only
+    // Card 2: Index w/ card read-only
+    // Card 3: Reoccuring appointments for year (Birthday's, anniversaries, holidays, etc.)
+    // Card 4: Future with list of Future Months links
+    // Card 5:   continued for rest of year
+    // Card 6: Future April
+    // Card 7: April w/ list of weeks of April and links
+    // Card 8: April Week 1
+    // Card 9: April Week 2
+    // Card 10: April Week 3
+    // Card 11: April Week 4
+    // Card 12: April TODO
+    // Card 13: April Daily
     auto& cardStack = m_yearToCardStack[m_current.year];
     CardItem*& card = cardStack.emplaceBack(new CardItem(m_current.page));
-    card->setChar(u'▒', 0, 0);
+    card->setText(0, QString::number(m_current.year));
+    m_current.row = 1;
+    card->setChar(u'▒', m_current.row, m_current.col);
     scene->addItem(card);
 
     // Dummy card

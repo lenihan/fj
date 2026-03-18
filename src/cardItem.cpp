@@ -35,11 +35,12 @@ CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
     // Center page number on last line
     const uint8_t lastRow = Card::kNumRows - 1;
     const uint8_t cols = m_rows[lastRow]->colPerRow();
-    const QString pageNum = QString::number(m_page);
+    const QString pageNum = QString::number(m_page+1);
     QString centeredPageNum(cols, ' ');
     const qsizetype position = (cols - pageNum.length())/2;
     const qsizetype n = pageNum.length();
     centeredPageNum.replace(position, n, pageNum);
+    Q_ASSERT(centeredPageNum.length() == cols);
     m_rows[lastRow]->setText(centeredPageNum);
 }
 
@@ -49,10 +50,19 @@ void CardItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
     Q_ASSERT(col < m_rows[row]->colPerRow());
     auto x = m_rows[row]->text().size();
     auto y = m_rows[row]->colPerRow();
-    Q_ASSERT(m_rows[row]->text().size() == m_rows[row]->colPerRow());
+    Q_ASSERT(m_rows[row]->text().length() <= m_rows[row]->colPerRow());
     QString t = m_rows[row]->text();
+    if (t.length() < (col + 1))
+    {
+        t += QString(col + 1 - t.length(), ' ');
+    }
     t[col] = ch;
     m_rows[row]->setText(t);
+}
+
+void CardItem::setText(const uint8_t row, const QString& text)
+{
+    m_rows[row]->setText(text);
 }
 
 void CardItem::setText(QStringList text)
