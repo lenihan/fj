@@ -4,6 +4,9 @@
 #include <QFontInfo>
 #include <QFontMetricsF>
 
+#include <QBrush>
+#include <QPen>
+
 RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent), kFont(getFont()),
       kFontCharWidth_fnt(getFontCharWidth_fnt()),
@@ -13,6 +16,11 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
       m_row(row)
 {
     setFont(kFont);
+
+    setBrush(QColor(64, 64, 64));
+    // setPen(QPen(Qt::black));
+    // setPen(Qt::NoPen);
+    setPen(QColor(128, 128, 128));
 
     // Calc font to scene scale
     const qreal rowWidth_fnt = kFontCharWidth_fnt * kCharsPerRow;

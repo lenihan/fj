@@ -72,13 +72,17 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
 
     if (event->key() == Qt::Key_Return)
     {
-        card->setChar(' ', m_current.row, m_current.col);
+        QString t = card->text(m_current.row);
+        t.remove(m_current.col, 1);
+        card->setText(m_current.row, t);
         m_current.row++;
         m_current.col = 0;
     }
     else if(event->key() == Qt::Key_Backspace)
     {
-        card->setChar(' ', m_current.row, m_current.col);
+        QString t = card->text(m_current.row);
+        t.remove(m_current.col, 1);
+        card->setText(m_current.row, t);
         if (m_current.col == 0)
         {
             if (m_current.row == 0)
@@ -86,8 +90,11 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
                 if (m_current.page != 0)
                 {
                     m_current.page--;
-                    // m_current.row = 
-                    // TODO
+                    card->hide();
+                    card = cardStack[m_current.page];
+                    card->show();
+                    m_current.row = card->userRowsPerCard() - 1;
+                    m_current.col = card->text(m_current.row).length();
                 }
                 else
                 {
@@ -97,8 +104,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent *event)
             else
             {
                 m_current.row--;
-                // TODO
-                //m_current.col = end of last col`
+                m_current.col = card->text(m_current.row).length();
             }
         }
         else

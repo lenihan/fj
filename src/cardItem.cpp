@@ -60,6 +60,11 @@ void CardItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
     m_rows[row]->setText(t);
 }
 
+ QString CardItem::text(const uint8_t row) const
+ {
+    return m_rows[row]->text();
+ }
+
 void CardItem::setText(const uint8_t row, const QString& text)
 {
     m_rows[row]->setText(text);
