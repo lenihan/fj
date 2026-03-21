@@ -1,7 +1,6 @@
 #pragma once
 
 #include "constants.h"
-
 #include <QFont>
 #include <QGraphicsSimpleTextItem>
 
@@ -9,11 +8,11 @@ class RowItem : public QGraphicsSimpleTextItem
 {
   public:
     explicit RowItem(uint8_t row, QGraphicsItem* parent = nullptr);
+    QRectF boundingRect() const override;
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                QWidget* widget) override;
     uint8_t colPerRow() const;
-    void setText(const QString& text); // Hides base class setText
-
+    void setText(const QString& text); // Not virtual, hides base class setText
 
   private:
     static QFont getFont();
@@ -28,4 +27,5 @@ class RowItem : public QGraphicsSimpleTextItem
     const qreal kRowHeight_scn;
 
     uint8_t m_row;
+    uint8_t m_col;
 };

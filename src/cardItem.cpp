@@ -70,16 +70,6 @@ void CardItem::setText(const uint8_t row, const QString& text)
     m_rows[row]->setText(text);
 }
 
-void CardItem::setText(QStringList text)
-{
-    for (int i = 0; i < Card::kNumRows; ++i)
-    {
-        QString t = m_rows[i]->text();
-        t.replace(0, text[i].size(), text[i]);
-        m_rows[i]->setText(t);
-    }
-}
-
 uint8_t CardItem::userRowsPerCard() const
 {
     return Card::kNumRows - 1; // last row for page number

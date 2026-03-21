@@ -18,6 +18,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     m_current.page = 0;
     m_current.row = 0;
     m_current.col = 0;
+    
 
     // 3x5 Card
     // Card 1: Year w/ first/last line read-only

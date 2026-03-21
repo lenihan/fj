@@ -1,11 +1,13 @@
 #include "rowItem.h"
-
+#include <limits>
+#include <QBrush>
 #include <QFontDatabase>
 #include <QFontInfo>
 #include <QFontMetricsF>
-
-#include <QBrush>
+#include <QPainter>
 #include <QPen>
+
+inline constexpr auto FJ_INACTIVE = std::numeric_limits<uint8_t>::max();
 
 RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent), kFont(getFont()),
@@ -13,14 +15,14 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
       kFontCharHeight_fnt(getFontCharHeight_fnt()),
       kCharsPerRow(row == 0 ? Title::kCharsPerRow : Body::kCharsPerRow),
       kRowHeight_scn(row == 0 ? Title::kRowHeight_scn : Body::kRowHeight_scn),
-      m_row(row)
+      m_row(row), m_col(FJ_INACTIVE)
 {
     setFont(kFont);
 
-    setBrush(QColor(64, 64, 64));
-    // setPen(QPen(Qt::black));
-    // setPen(Qt::NoPen);
-    setPen(QColor(128, 128, 128));
+    // setBrush(QColor(64, 64, 64));
+    setPen(QPen(Qt::black));
+    setPen(Qt::NoPen);
+    // setPen(QColor(128, 128, 128));
 
     // Calc font to scene scale
     const qreal rowWidth_fnt = kFontCharWidth_fnt * kCharsPerRow;
@@ -32,22 +34,40 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     const qreal fontHeight_scn = kFontCharHeight_fnt * fntToScn_scale;
     const qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
     setPos(Card::kLeft_scn + Card::kBorder_scn, y + yOffset_scn);
+}
 
-    // const QString blankLine(kCharsPerRow, ' ');
-    // setText(blankLine);
-    // Q_ASSERT(text().size() == kCharsPerRow);
+QRectF RowItem::boundingRect() const
+{
+    QRectF r = QGraphicsSimpleTextItem::boundingRect();
+    if (m_col != FJ_INACTIVE)
+    {
+        // m_activeCol;
+        r = QRectF(0.0, 0.0, kFontCharWidth_fnt, kFontCharHeight_fnt);
+        // Give a little extra space on right side for cursor when at end
+        // if (r.setRight(r.right() + 2);
+    }
+    return r;
 }
 
 void RowItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                     QWidget* widget)
 {
     QGraphicsSimpleTextItem::paint(painter, option, widget);
+
+    if (m_col != FJ_INACTIVE)
+    {
+        QPen debugPen(Qt::red,
+                      0); // width = 0 → cosmetic = 1 physical pixel, always sharp
+        debugPen.setCosmetic(true); // very important on high-DPI/retina screens
+        painter->setPen(debugPen);
+        painter->setBrush(Qt::NoBrush); // no fill
+    
+        // Draw exactly around boundingRect()
+        painter->drawRect(boundingRect());
+    }
 }
 
-uint8_t RowItem::colPerRow() const
-{
-    return kCharsPerRow;
-}
+uint8_t RowItem::colPerRow() const { return kCharsPerRow; }
 
 void RowItem::setText(const QString& text)
 {
