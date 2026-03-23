@@ -15,8 +15,8 @@ class CardItem : public QGraphicsRectItem
     void setText(const uint8_t row, const QString& text);
     uint8_t userRowsPerCard() const;
     uint8_t colPerRow(uint8_t row) const;
-    uint8_t currentRow() const;
-    uint8_t currentCol() const;
+    qreal rowLineY_scn(uint8_t row) const;
+    const RowItem* rowItem(uint8_t row) const;
 
   private:
     QList<RowItem*> m_rows;

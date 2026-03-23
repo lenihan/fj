@@ -14,6 +14,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
 
+    m_cursor.setScene(scene);
     m_cursor.setYear(2026);
     m_cursor.setCardNum(0);
     m_cursor.setRow(0);
@@ -32,7 +33,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     CardItem*& card = cardStack.emplaceBack(new CardItem(m_cursor.cardNum()));
     card->setText(0, QString::number(m_cursor.year()));
     m_cursor.setRow(1);
-    card->setChar(u'▒', m_cursor.row(), m_cursor.col());
+    // card->setChar(u'▒', m_cursor.row(), m_cursor.col());
     scene->addItem(card);
 
     // Dummy card
@@ -60,7 +61,30 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 {
     // Do overlay here
-    QGraphicsView::drawForeground(painter, rect);
+    {
+        QPen pen(Qt::red);
+        pen.setCosmetic(true);
+        painter->setPen(pen);
+
+        CardStack& cardStack = m_yearToCardStack[m_cursor.year()];
+        CardItem* card = cardStack[m_cursor.cardNum()];
+        const RowItem* rowItem = card->rowItem(m_cursor.row());
+
+        const qreal rowHeight_scn = rowItem->rowHeight_scn();
+        const qreal charHeight_scn = rowItem->charHeight_scn();
+        const qreal charWidth_scn = rowItem->charWidth_scn();
+        const qreal lineY_scn =  card->rowLineY_scn(m_cursor.row());
+
+        QRectF r(
+            m_cursor.col() * charWidth_scn + Card::kBorder_scn, // x
+            lineY_scn - rowHeight_scn,      // y
+            charWidth_scn,                  // width
+            rowHeight_scn);                 // height
+
+        painter->drawRect(r);
+    }
+
+    // QGraphicsView::drawForeground(painter, rect);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
@@ -164,7 +188,11 @@ b: bullet
         scene()->addItem(nextCard);
         card = nextCard;
     }
-    card->setChar(u'▒', m_cursor.row(), m_cursor.col());
+    // Force redraw of cursor at new location
+     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
+
+    card->setChar(u' ', m_cursor.row(), m_cursor.col());
+    // card->setChar(u'▒', m_cursor.row(), m_cursor.col());
 
 #if 1
     switch (event->key())
@@ -529,13 +557,32 @@ uint8_t SquareGraphicsView::Cursor::row() const { return m_row; }
 
 uint8_t SquareGraphicsView::Cursor::col() const { return m_col; }
 
-void SquareGraphicsView::Cursor::setYear(const uint16_t year) { m_year = year; }
-
-void SquareGraphicsView::Cursor::setCardNum(const uint16_t cardNum)
-{
-    m_cardNum = cardNum;
+void SquareGraphicsView::Cursor::setYear(const uint16_t year) 
+{ 
+    m_year = year; 
+    // Q_ASSERT(m_scene);
+    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
 
-void SquareGraphicsView::Cursor::setRow(const uint8_t row) { m_row = row; }
+void SquareGraphicsView::Cursor::setCardNum(const uint16_t cardNum) 
+{ 
+    m_cardNum = cardNum; 
+    // Q_ASSERT(m_scene);
+    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
+}
 
-void SquareGraphicsView::Cursor::setCol(const uint8_t col) { m_col = col; }
+void SquareGraphicsView::Cursor::setRow(const uint8_t row) 
+{ 
+    m_row = row; 
+    // Q_ASSERT(m_scene);
+    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
+}
+
+void SquareGraphicsView::Cursor::setCol(const uint8_t col) 
+{ 
+    m_col = col;
+    // Q_ASSERT(m_scene);
+    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
+}
+
+void SquareGraphicsView::Cursor::setScene(QGraphicsScene* scene) { m_scene = scene; }

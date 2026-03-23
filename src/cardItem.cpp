@@ -15,9 +15,8 @@ CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
     for (int i = 0; i < Card::kNumRows - 1; ++i)
     {
         auto* line = new QGraphicsLineItem(this);
-        const qreal y =
-            Card::kTop_scn + Title::kRowHeight_scn + (i * Body::kRowHeight_scn);
-        line->setLine(Card::kLeft_scn, y, Card::kRight_scn, y);
+        const qreal y_scn = rowLineY_scn(i);
+        line->setLine(Card::kLeft_scn, y_scn, Card::kRight_scn, y_scn);
 
         QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
         pen.setWidthF(3.0);
@@ -35,9 +34,9 @@ CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
     // Center page number on last line
     const uint8_t lastRow = Card::kNumRows - 1;
     const uint8_t cols = m_rows[lastRow]->colPerRow();
-    const QString pageNum = QString::number(m_page+1);
+    const QString pageNum = QString::number(m_page + 1);
     QString centeredPageNum(cols, ' ');
-    const qsizetype position = (cols - pageNum.length())/2;
+    const qsizetype position = (cols - pageNum.length()) / 2;
     const qsizetype n = pageNum.length();
     centeredPageNum.replace(position, n, pageNum);
     Q_ASSERT(centeredPageNum.length() == cols);
@@ -60,10 +59,7 @@ void CardItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
     m_rows[row]->setText(t);
 }
 
- QString CardItem::text(const uint8_t row) const
- {
-    return m_rows[row]->text();
- }
+QString CardItem::text(const uint8_t row) const { return m_rows[row]->text(); }
 
 void CardItem::setText(const uint8_t row, const QString& text)
 {
@@ -79,4 +75,17 @@ uint8_t CardItem::colPerRow(uint8_t row) const
 {
     Q_ASSERT(row <= Card::kNumRows);
     return m_rows[row]->colPerRow();
+}
+
+qreal CardItem::rowLineY_scn(uint8_t row) const
+{
+    const qreal y_scn =
+        Card::kTop_scn + Title::kRowHeight_scn + (row * Body::kRowHeight_scn);
+    return y_scn;
+}
+
+const RowItem* CardItem::rowItem(uint8_t row) const 
+{
+    Q_ASSERT(row <= Card::kNumRows); 
+    return m_rows[row]; 
 }
