@@ -14,11 +14,10 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
 
-    m_cursor.setScene(scene);
-    m_cursor.setYear(2026);
-    m_cursor.setCardNum(0);
-    m_cursor.setRow(0);
-    m_cursor.setCol(0);
+    m_cursor.m_year = 2026;
+    m_cursor.m_cardNum = 0;
+    m_cursor.m_row = 0;
+    m_cursor.m_col = 0;
 
     // 3x5 Card
     // Card 1: Year w/ first/last line read-only
@@ -29,11 +28,10 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     // weeks of April and links Card 8: April Week 1 Card 9: April Week 2 Card
     // 10: April Week 3 Card 11: April Week 4 Card 12: April TODO Card 13: April
     // Daily
-    auto& cardStack = m_yearToCardStack[m_cursor.year()];
-    CardItem*& card = cardStack.emplaceBack(new CardItem(m_cursor.cardNum()));
-    card->setText(0, QString::number(m_cursor.year()));
-    m_cursor.setRow(1);
-    // card->setChar(u'▒', m_cursor.row(), m_cursor.col());
+    auto& cardStack = m_yearToCardStack[m_cursor.m_year];
+    CardItem*& card = cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
+    card->setText(0, QString::number(m_cursor.m_year));
+    m_cursor.m_row = 1;
     scene->addItem(card);
 
     // Dummy card
@@ -60,31 +58,27 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 {
-    // Do overlay here
-    {
-        QPen pen(Qt::red);
-        pen.setCosmetic(true);
-        painter->setPen(pen);
+    // Draw cursor
+    QPen pen(Qt::red);
+    pen.setCosmetic(true);
+    painter->setPen(pen);
 
-        CardStack& cardStack = m_yearToCardStack[m_cursor.year()];
-        CardItem* card = cardStack[m_cursor.cardNum()];
-        const RowItem* rowItem = card->rowItem(m_cursor.row());
+    CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
+    CardItem* card = cardStack[m_cursor.m_cardNum];
+    const RowItem* rowItem = card->rowItem(m_cursor.m_row);
 
-        const qreal rowHeight_scn = rowItem->rowHeight_scn();
-        const qreal charHeight_scn = rowItem->charHeight_scn();
-        const qreal charWidth_scn = rowItem->charWidth_scn();
-        const qreal lineY_scn =  card->rowLineY_scn(m_cursor.row());
+    const qreal rowHeight_scn = rowItem->rowHeight_scn();
+    const qreal charHeight_scn = rowItem->charHeight_scn();
+    const qreal charWidth_scn = rowItem->charWidth_scn();
+    const qreal lineY_scn =  card->rowLineY_scn(m_cursor.m_row);
 
-        QRectF r(
-            m_cursor.col() * charWidth_scn + Card::kBorder_scn, // x
-            lineY_scn - rowHeight_scn,      // y
-            charWidth_scn,                  // width
-            rowHeight_scn);                 // height
+    QRectF r(
+        m_cursor.m_col * charWidth_scn + Card::kBorder_scn, // x
+        lineY_scn - rowHeight_scn,      // y
+        charWidth_scn,                  // width
+        rowHeight_scn);                 // height
 
-        painter->drawRect(r);
-    }
-
-    // QGraphicsView::drawForeground(painter, rect);
+    painter->drawRect(r);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
@@ -112,34 +106,34 @@ b: bullet
 */
     event->accept(); // Stop propagation if desired
 
-    CardStack& cardStack = m_yearToCardStack[m_cursor.year()];
-    CardItem* card = cardStack[m_cursor.cardNum()];
+    CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
+    CardItem* card = cardStack[m_cursor.m_cardNum];
 
     if (event->key() == Qt::Key_Return)
     {
-        QString t = card->text(m_cursor.row());
-        t.remove(m_cursor.col(), 1);
-        card->setText(m_cursor.row(), t);
-        m_cursor.setRow(m_cursor.row() + 1);
-        m_cursor.setCol(0);
+        QString t = card->text(m_cursor.m_row);
+        t.remove(m_cursor.m_col, 1);
+        card->setText(m_cursor.m_row, t);
+        m_cursor.m_row = m_cursor.m_row + 1;
+        m_cursor.m_col = 0;
     }
     else if (event->key() == Qt::Key_Backspace)
     {
-        QString t = card->text(m_cursor.row());
-        t.remove(m_cursor.col(), 1);
-        card->setText(m_cursor.row(), t);
-        if (m_cursor.col() == 0)
+        QString t = card->text(m_cursor.m_row);
+        t.remove(m_cursor.m_col, 1);
+        card->setText(m_cursor.m_row, t);
+        if (m_cursor.m_col == 0)
         {
-            if (m_cursor.row() == 0)
+            if (m_cursor.m_row == 0)
             {
-                if (m_cursor.cardNum() != 0)
+                if (m_cursor.m_cardNum != 0)
                 {
-                    m_cursor.setCardNum((m_cursor.cardNum() - 1));
+                    m_cursor.m_cardNum = m_cursor.m_cardNum - 1;
                     card->hide();
-                    card = cardStack[m_cursor.cardNum()];
+                    card = cardStack[m_cursor.m_cardNum];
                     card->show();
-                    m_cursor.setRow(card->userRowsPerCard() - 1);
-                    m_cursor.setCol(card->text(m_cursor.row()).length());
+                    m_cursor.m_row = card->userRowsPerCard() - 1;
+                    m_cursor.m_col = card->text(m_cursor.m_row).length();
                 }
                 else
                 {
@@ -148,13 +142,13 @@ b: bullet
             }
             else
             {
-                m_cursor.setRow(m_cursor.row() - 1);
-                m_cursor.setCol(card->text(m_cursor.row()).length());
+                m_cursor.m_row = m_cursor.m_row - 1;
+                m_cursor.m_col = card->text(m_cursor.m_row).length();
             }
         }
         else
         {
-            m_cursor.setCol(m_cursor.col() - 1);
+            m_cursor.m_col = m_cursor.m_col - 1;
         }
     }
     else if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Delete ||
@@ -169,30 +163,29 @@ b: bullet
             return;
         }
         QChar c = event->text()[0];
-        card->setChar(c, m_cursor.row(), m_cursor.col());
-        m_cursor.setCol(m_cursor.col() + 1);
-        if (m_cursor.col() >= card->colPerRow(m_cursor.row()))
+        card->setChar(c, m_cursor.m_row, m_cursor.m_col);
+        m_cursor.m_col = m_cursor.m_col + 1;
+        if (m_cursor.m_col >= card->colPerRow(m_cursor.m_row))
         {
-            m_cursor.setCol(0);
-            m_cursor.setRow(m_cursor.row() + 1);
+            m_cursor.m_col = 0;
+            m_cursor.m_row = m_cursor.m_row + 1;
         }
     }
-    if (m_cursor.row() >= (card->userRowsPerCard()))
+    if (m_cursor.m_row >= (card->userRowsPerCard()))
     {
-        m_cursor.setRow(0);
-        m_cursor.setCol(0);
-        m_cursor.setCardNum(m_cursor.cardNum() + 1);
+        m_cursor.m_row = 0;
+        m_cursor.m_col = 0;
+        m_cursor.m_cardNum = m_cursor.m_cardNum + 1;
         card->hide();
         CardItem*& nextCard =
-            cardStack.emplaceBack(new CardItem(m_cursor.cardNum()));
+            cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
         scene()->addItem(nextCard);
         card = nextCard;
     }
     // Force redraw of cursor at new location
      scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 
-    card->setChar(u' ', m_cursor.row(), m_cursor.col());
-    // card->setChar(u'▒', m_cursor.row(), m_cursor.col());
+    card->setChar(u' ', m_cursor.m_row, m_cursor.m_col);
 
 #if 1
     switch (event->key())
@@ -548,41 +541,3 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         }
     }
 }
-
-uint16_t SquareGraphicsView::Cursor::year() const { return m_year; }
-
-uint16_t SquareGraphicsView::Cursor::cardNum() const { return m_cardNum; }
-
-uint8_t SquareGraphicsView::Cursor::row() const { return m_row; }
-
-uint8_t SquareGraphicsView::Cursor::col() const { return m_col; }
-
-void SquareGraphicsView::Cursor::setYear(const uint16_t year) 
-{ 
-    m_year = year; 
-    // Q_ASSERT(m_scene);
-    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
-}
-
-void SquareGraphicsView::Cursor::setCardNum(const uint16_t cardNum) 
-{ 
-    m_cardNum = cardNum; 
-    // Q_ASSERT(m_scene);
-    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
-}
-
-void SquareGraphicsView::Cursor::setRow(const uint8_t row) 
-{ 
-    m_row = row; 
-    // Q_ASSERT(m_scene);
-    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
-}
-
-void SquareGraphicsView::Cursor::setCol(const uint8_t col) 
-{ 
-    m_col = col;
-    // Q_ASSERT(m_scene);
-    // m_scene->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
-}
-
-void SquareGraphicsView::Cursor::setScene(QGraphicsScene* scene) { m_scene = scene; }
