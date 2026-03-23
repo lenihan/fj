@@ -111,44 +111,22 @@ b: bullet
 
     if (event->key() == Qt::Key_Return)
     {
-        QString t = card->text(m_cursor.m_row);
-        t.remove(m_cursor.m_col, 1);
-        card->setText(m_cursor.m_row, t);
-        m_cursor.m_row = m_cursor.m_row + 1;
+        m_cursor.m_row++;
         m_cursor.m_col = 0;
     }
     else if (event->key() == Qt::Key_Backspace)
     {
-        QString t = card->text(m_cursor.m_row);
-        t.remove(m_cursor.m_col, 1);
-        card->setText(m_cursor.m_row, t);
         if (m_cursor.m_col == 0)
         {
-            if (m_cursor.m_row == 0)
-            {
-                if (m_cursor.m_cardNum != 0)
-                {
-                    m_cursor.m_cardNum = m_cursor.m_cardNum - 1;
-                    card->hide();
-                    card = cardStack[m_cursor.m_cardNum];
-                    card->show();
-                    m_cursor.m_row = card->userRowsPerCard() - 1;
-                    m_cursor.m_col = card->text(m_cursor.m_row).length();
-                }
-                else
-                {
-                    // noop
-                }
-            }
-            else
-            {
-                m_cursor.m_row = m_cursor.m_row - 1;
-                m_cursor.m_col = card->text(m_cursor.m_row).length();
-            }
+            // TODO: Alert user you can't backspace, only can remove characters from current row
+            // noop
         }
         else
         {
-            m_cursor.m_col = m_cursor.m_col - 1;
+            m_cursor.m_col--;
+            QString t = card->text(m_cursor.m_row);
+            t.remove(m_cursor.m_col, 1);
+            card->setText(m_cursor.m_row, t);
         }
     }
     else if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Delete ||
@@ -168,14 +146,14 @@ b: bullet
         if (m_cursor.m_col >= card->colPerRow(m_cursor.m_row))
         {
             m_cursor.m_col = 0;
-            m_cursor.m_row = m_cursor.m_row + 1;
+            m_cursor.m_row++;
         }
     }
     if (m_cursor.m_row >= (card->userRowsPerCard()))
     {
         m_cursor.m_row = 0;
         m_cursor.m_col = 0;
-        m_cursor.m_cardNum = m_cursor.m_cardNum + 1;
+        m_cursor.m_cardNum++;
         card->hide();
         CardItem*& nextCard =
             cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
@@ -183,9 +161,7 @@ b: bullet
         card = nextCard;
     }
     // Force redraw of cursor at new location
-     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
-
-    card->setChar(u' ', m_cursor.m_row, m_cursor.m_col);
+    scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 
 #if 1
     switch (event->key())
