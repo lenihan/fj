@@ -30,7 +30,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     // Daily
     auto& cardStack = m_yearToCardStack[m_cursor.m_year];
     CardItem*& card = cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
-    card->setText(0, QString::number(m_cursor.m_year));
+    card->setText(0, QString::number(m_cursor.m_year) + " Index");
     m_cursor.m_row = 1;
     scene->addItem(card);
 
@@ -98,25 +98,56 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
 /*
+First card is year/index card
+
 i, j, k, l: up, left, down, right
-n: new card
-c: continue to next card
-f: flip card
-g: go
-    i: index
-    y: year
-    d: daily
-    m: monthly
-    l: links on card
+    When editing, move by char/row
+    When not editing, left/right is prev/next card
+        Up/Down is row with link (if exists)
+        Spacebar - go to link
+u: Previous threaded card
+o: Next threaded card    
+n: new card: adds line to index 
+c: continue to next card, prev card gets a thread link to new card, new card gets thread link to prev card
+s: Create a "sub-card": Current card gets an index line with name of sub-card followed by card link, creates a new card with a back thread to this card 
+f: flip card: back as creation date on top with 9 lines for custom data, could be used for keyword search
+y: Go to year/index card
 t: todo/completed/no todo
-spacebar: edit
-q: move by character/row
-w: move by card
-e: move by year
-r: move by threading
-z: undo
-Z: redo
-b: bullet
+e: edit - keyboard types
+    backspace - remove last character
+    tab/Shift-tab indent/unindent bullet
+b: bullet/remove bullet
+q: query - search
+1-9,0: Favorites
+    Hold to set current card as favorite
+    Tap to go to favorite
+p: Print to PDF
+/: Help
+
+~: Future
+-: Future
+=: Future
+Backspace: Future
+Tab: Future
+w: Future
+r: Future
+[: Future
+]: Future
+\: Future
+a: Future
+d: Future
+g: Future
+;: Future
+': Future
+Enter: Future
+z: Future
+x: Future
+v: Future
+m: Future
+,: Future
+.: Future
+
+
 */
     event->accept(); // Stop propagation if desired
 
