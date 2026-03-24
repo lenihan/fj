@@ -123,11 +123,11 @@ q: query - search
     Tap to go to favorite
 p: Print to PDF
 /: Help
+Backspace: Go to last card
 
 ~: Future
 -: Future
 =: Future
-Backspace: Future
 Tab: Future
 w: Future
 r: Future
