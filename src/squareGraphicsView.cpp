@@ -61,7 +61,9 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
     // Draw cursor
     QPen pen(Qt::red);
     pen.setCosmetic(true);
+    pen.setWidthF(2.0);
     painter->setPen(pen);
+    painter->setBrush(Qt::red);
 
     CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
     CardItem* card = cardStack[m_cursor.m_cardNum];
@@ -72,13 +74,25 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
     const qreal charWidth_scn = rowItem->charWidth_scn();
     const qreal lineY_scn =  card->rowLineY_scn(m_cursor.m_row);
 
-    QRectF r(
-        m_cursor.m_col * charWidth_scn + Card::kBorder_scn, // x
-        lineY_scn - rowHeight_scn,      // y
-        charWidth_scn,                  // width
-        rowHeight_scn);                 // height
+    // QRectF r(
+    //     m_cursor.m_col * charWidth_scn + Card::kBorder_scn, // x
+    //     lineY_scn - rowHeight_scn,      // y
+    //     charWidth_scn,                  // width
+    //     rowHeight_scn);                 // height
+    // painter->drawRect(r);
 
-    painter->drawRect(r);
+    // const int x1 = m_cursor.m_col * charWidth_scn + Card::kBorder_scn;
+    // const int x2 = x1;
+    // const int y1 = lineY_scn - rowHeight_scn;
+    // const int y2 = lineY_scn; 
+    // painter->drawLine(x1, y1, x2, y2);
+    const QPointF points[3] = {
+        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn, lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
+        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0, lineY_scn),
+        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0, lineY_scn)
+    };
+
+    painter->drawPolygon(points, 3);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
