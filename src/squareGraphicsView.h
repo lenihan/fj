@@ -12,6 +12,7 @@ class SquareGraphicsView : public QGraphicsView
   protected:
     void drawForeground(QPainter* painter, const QRectF& rect) override;
     void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
 
@@ -28,4 +29,7 @@ class SquareGraphicsView : public QGraphicsView
     using CardStack = QList<CardItem*>;
     using YearToCardStack = QMap<uint16_t, CardStack>;
     YearToCardStack m_yearToCardStack;
+    bool m_capsDown{false};
+    bool m_capsPressed{false};
+    bool m_shiftDown{false};  
 };

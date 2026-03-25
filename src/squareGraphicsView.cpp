@@ -72,7 +72,7 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
     const qreal rowHeight_scn = rowItem->rowHeight_scn();
     const qreal charHeight_scn = rowItem->charHeight_scn();
     const qreal charWidth_scn = rowItem->charWidth_scn();
-    const qreal lineY_scn =  card->rowLineY_scn(m_cursor.m_row);
+    const qreal lineY_scn = card->rowLineY_scn(m_cursor.m_row);
 
     // QRectF r(
     //     m_cursor.m_col * charWidth_scn + Card::kBorder_scn, // x
@@ -84,78 +84,118 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
     // const int x1 = m_cursor.m_col * charWidth_scn + Card::kBorder_scn;
     // const int x2 = x1;
     // const int y1 = lineY_scn - rowHeight_scn;
-    // const int y2 = lineY_scn; 
+    // const int y2 = lineY_scn;
     // painter->drawLine(x1, y1, x2, y2);
     const QPointF points[3] = {
-        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn, lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
-        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0, lineY_scn),
-        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0, lineY_scn)
-    };
+        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn,
+                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
+        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn -
+                    charWidth_scn / 2.0,
+                lineY_scn),
+        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn +
+                    charWidth_scn / 2.0,
+                lineY_scn)};
 
     painter->drawPolygon(points, 3);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
-/*
-First card is year/index card
+    /*
+    First card is year/index card
 
-i: up row
-k: down row
-j: left char
-l: right char
-u: prev card
-o: next card
-m: prev thread card
-.: next thread card
-,: Cycle through card links
-Space: Go to selected card link
-n: new card: adds line to index 
-c: continue to next card, prev card gets a thread link to new card, new card gets thread link to prev card
-s: Create a "sub-card": Current card gets an index line with name of sub-card followed by card link, creates a new card with a back thread to this card 
-f: flip card: back as creation date on top with 9 lines for custom data, could be used for keyword search
-y: Go to year/index card
-t: todo/completed/no todo
-e: edit - keyboard types
-    backspace - remove last character
-    tab/Shift-tab indent/unindent bullet
-b: bullet/remove bullet
-q: query - search
-1-9,0: Favorites
-    Hold to set current card as favorite
-    Tap to go to favorite
-p: Print to PDF
-/: Help
-Backspace: Go to last card
+    i: up row
+    k: down row
+    j: left char
+    l: right char
+    u: prev card
+    o: next card
+    m: prev thread card
+    .: next thread card
+    ,: Cycle through card links
+    Space: Go to selected card link
+    n: new card: adds line to index
+    c: continue to next card, prev card gets a thread link to new card, new card
+    gets thread link to prev card s: Create a "sub-card": Current card gets an
+    index line with name of sub-card followed by card link, creates a new card
+    with a back thread to this card f: flip card: back as creation date on top
+    with 9 lines for custom data, could be used for keyword search y: Go to
+    year/index card t: todo/completed/no todo e: edit - keyboard types backspace
+    - remove last character tab/Shift-tab indent/unindent bullet b:
+    bullet/remove bullet q: query - search 1-9,0: Favorites Hold to set current
+    card as favorite Tap to go to favorite p: Print to PDF
+    /: Help
+    Backspace: Go to last card
 
-~: Future
--: Future
-=: Future
-Tab: Future
-w: Future
-r: Future
-[: Future
-]: Future
-\: Future
-a: Future
-d: Future
-g: Future
-;: Future
-': Future
-Enter: Future
-z: Future
-x: Future
-v: Future
+    ~: Future
+    -: Future
+    =: Future
+    Tab: Future
+    w: Future
+    r: Future
+    [: Future
+    ]: Future
+    \: Future
+    a: Future
+    d: Future
+    g: Future
+    ;: Future
+    ': Future
+    Enter: Future
+    z: Future
+    x: Future
+    v: Future
 
 
 
-*/
+    */
     event->accept(); // Stop propagation if desired
 
     CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
     CardItem* card = cardStack[m_cursor.m_cardNum];
 
-    if (event->key() == Qt::Key_Return)
+    const int k = event->key();
+    if (k == Qt::Key_CapsLock)
+    {
+        qDebug() << "CapsLock";
+        m_capsDown = true;
+        m_capsPressed = true;
+    }
+    else if (k == Qt::Key_Shift)
+    {
+        qDebug() << "Shift";
+        m_shiftDown = true;
+    }
+
+    else if (event->key() == Qt::Key_I)
+    {
+        if (m_capsDown || m_capsPressed)
+        {
+            m_cursor.m_row--;
+        }
+    }
+    else if (event->key() == Qt::Key_J)
+    {
+        if (m_capsDown || m_capsPressed)
+        {
+            m_cursor.m_col--;
+        }
+    }
+    else if (event->key() == Qt::Key_K)
+    {
+        if (m_capsDown || m_capsPressed)
+        {
+            m_cursor.m_row++;
+        }
+    }
+    else if (event->key() == Qt::Key_L)
+    {
+      if (m_capsDown || m_capsPressed)
+        {
+            m_cursor.m_col++;
+        }
+     }
+    else if (event->key() == Qt::Key_Return)
     {
         m_cursor.m_row++;
         m_cursor.m_col = 0;
@@ -164,8 +204,8 @@ v: Future
     {
         if (m_cursor.m_col == 0)
         {
-            // TODO: Alert user you can't backspace, only can remove characters from current row
-            // noop
+            // TODO: Alert user you can't backspace, only can remove characters
+            // from current row noop
         }
         else
         {
@@ -434,14 +474,12 @@ v: Future
     case Qt::Key_Shift:
         qDebug() << "Shift";
         break;
-    case Qt::Key_CapsLock:
-        qDebug() << "CapsLock";
-        break;
+        // case Qt::Key_CapsLock:
+        //     qDebug() << "CapsLock";
+        //     m_capsDown = true;
+        //     break;
     }
-    // if (event->key() == Qt::Key_CapsLock) qDebug() << "Caps"; break;
-    // {
-    //     qDebug() << "Caps Lock pressed";
-    // }
+
     // else
     // {
     //     const QString typed = event->text();
@@ -449,6 +487,21 @@ v: Future
     // }
 #endif
     event->accept(); // Stop propagation if desired
+}
+
+void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
+{
+    switch (event->key())
+    {
+    case Qt::Key_CapsLock:
+        qDebug() << "CapsLock up";
+        m_capsDown = false;
+        break;
+    case Qt::Key_Shift:
+        qDebug() << "Shift up";
+        m_shiftDown = false;
+        break;
+    }
 }
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
