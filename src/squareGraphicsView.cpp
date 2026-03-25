@@ -100,13 +100,16 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 /*
 First card is year/index card
 
-i, j, k, l: up, left, down, right
-    When editing, move by char/row
-    When not editing, left/right is prev/next card
-        Up/Down is row with link (if exists)
-        Spacebar - go to link
-u: Previous threaded card
-o: Next threaded card    
+i: up row
+k: down row
+j: left char
+l: right char
+u: prev card
+o: next card
+m: prev thread card
+.: next thread card
+,: Cycle through card links
+Space: Go to selected card link
 n: new card: adds line to index 
 c: continue to next card, prev card gets a thread link to new card, new card gets thread link to prev card
 s: Create a "sub-card": Current card gets an index line with name of sub-card followed by card link, creates a new card with a back thread to this card 
@@ -143,9 +146,7 @@ Enter: Future
 z: Future
 x: Future
 v: Future
-m: Future
-,: Future
-.: Future
+
 
 
 */
