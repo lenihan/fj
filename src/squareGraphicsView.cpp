@@ -155,46 +155,17 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     CardItem* card = cardStack[m_cursor.m_cardNum];
 
     const int k = event->key();
+    m_lastKeyPress = k;
     if (k == Qt::Key_CapsLock)
     {
         qDebug() << "CapsLock";
         m_capsDown = true;
-        m_capsPressed = true;
     }
     else if (k == Qt::Key_Shift)
     {
         qDebug() << "Shift";
         m_shiftDown = true;
     }
-
-    else if (event->key() == Qt::Key_I)
-    {
-        if (m_capsDown || m_capsPressed)
-        {
-            m_cursor.m_row--;
-        }
-    }
-    else if (event->key() == Qt::Key_J)
-    {
-        if (m_capsDown || m_capsPressed)
-        {
-            m_cursor.m_col--;
-        }
-    }
-    else if (event->key() == Qt::Key_K)
-    {
-        if (m_capsDown || m_capsPressed)
-        {
-            m_cursor.m_row++;
-        }
-    }
-    else if (event->key() == Qt::Key_L)
-    {
-      if (m_capsDown || m_capsPressed)
-        {
-            m_cursor.m_col++;
-        }
-     }
     else if (event->key() == Qt::Key_Return)
     {
         m_cursor.m_row++;
@@ -222,29 +193,59 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     }
     else
     {
-        if (event->text().isEmpty())
+        if (m_actionMode || m_capsDown)
         {
-            return;
+            if (k == Qt::Key_I) 
+            {   
+                // TODO: if on first row of card and not on card 0, go to prev card last non-readonly row.
+                m_cursor.m_row--;
+            }
+            else if (k == Qt::Key_K) 
+            {
+                // TODO: if on last row of card, go to next cards first non-readonly row
+                m_cursor.m_row++;
+            }
+            else if (k == Qt::Key_J)
+            {
+                // TODO: if on col 0, go to prev non-readonly (maybe on a prev card) row's last col.
+                m_cursor.m_col--;
+            } 
+            else if (k == Qt::Key_L) 
+            {
+                // TODO: if on last col, go to next avail row, col 0
+                m_cursor.m_col++;
+            }
+            else if (k == Qt::Key_E)
+            {
+                m_actionMode = false;
+            }
         }
-        QChar c = event->text()[0];
-        card->setChar(c, m_cursor.m_row, m_cursor.m_col);
-        m_cursor.m_col = m_cursor.m_col + 1;
-        if (m_cursor.m_col >= card->colPerRow(m_cursor.m_row))
+        else 
         {
-            m_cursor.m_col = 0;
-            m_cursor.m_row++;
+            if (event->text().isEmpty())
+            {
+                return;
+            }
+            QChar c = event->text()[0];
+            card->setChar(c, m_cursor.m_row, m_cursor.m_col);
+            m_cursor.m_col = m_cursor.m_col + 1;
+            if (m_cursor.m_col >= card->colPerRow(m_cursor.m_row))
+            {
+                m_cursor.m_col = 0;
+                m_cursor.m_row++;
+            }
+            if (m_cursor.m_row >= (card->userRowsPerCard()))
+            {
+                m_cursor.m_row = 0;
+                m_cursor.m_col = 0;
+                m_cursor.m_cardNum++;
+                card->hide();
+                CardItem*& nextCard =
+                    cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
+                scene()->addItem(nextCard);
+                card = nextCard;
+            }
         }
-    }
-    if (m_cursor.m_row >= (card->userRowsPerCard()))
-    {
-        m_cursor.m_row = 0;
-        m_cursor.m_col = 0;
-        m_cursor.m_cardNum++;
-        card->hide();
-        CardItem*& nextCard =
-            cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
-        scene()->addItem(nextCard);
-        card = nextCard;
     }
     // Force redraw of cursor at new location
     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
@@ -496,6 +497,10 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
     case Qt::Key_CapsLock:
         qDebug() << "CapsLock up";
         m_capsDown = false;
+        if (m_lastKeyPress == Qt::Key_CapsLock)
+        {
+            m_actionMode = true;
+        }
         break;
     case Qt::Key_Shift:
         qDebug() << "Shift up";

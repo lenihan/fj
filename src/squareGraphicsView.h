@@ -30,6 +30,7 @@ class SquareGraphicsView : public QGraphicsView
     using YearToCardStack = QMap<uint16_t, CardStack>;
     YearToCardStack m_yearToCardStack;
     bool m_capsDown{false};
-    bool m_capsPressed{false};
+    bool m_actionMode{false};
     bool m_shiftDown{false};  
+    int m_lastKeyPress{0};
 };
