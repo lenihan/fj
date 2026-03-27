@@ -114,34 +114,49 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     .: next thread card
     ,: Cycle through card links
     Space: Go to selected card link
-    n: new card: adds line to index
-    c: continue to next card, prev card gets a thread link to new card, new card
-    gets thread link to prev card s: Create a "sub-card": Current card gets an
-    index line with name of sub-card followed by card link, creates a new card
-    with a back thread to this card f: flip card: back as creation date on top
-    with 9 lines for custom data, could be used for keyword search y: Go to
-    year/index card t: todo/completed/no todo e: edit - keyboard types backspace
-    - remove last character tab/Shift-tab indent/unindent bullet b:
-    bullet/remove bullet q: query - search 1-9,0: Favorites Hold to set current
-    card as favorite Tap to go to favorite p: Print to PDF
-    /: Help
+    n: Create Index card: 
+        - Does NOT have lines after titles
+        - Cursor goes to first blank line
+        - Only options:
+            - Modify title
+            - up/down to select a row
+            - , to follow card for that row 
+        - Index row will update to point to new collection/row
+        - Left thread points to parent index
+    c: New collection card
+        - Has lines
+        - Title is editable on first card of collection
+        - Continue to new card by pressing return until you pass last row
+        - left thread points to parent iIndex
+
+    with 9 lines for custom data, could be used for keyword search 
+    Enter: Go to first card (Index: <YEAR>) 
+    t: todo/completed/no todo 
+    e: edit - keyboard types 
+    tab/Shift-tab: indent/unindent bullet 
+    b: bullet/remove bullet 
+    q: query - search 
+    1-9,0: Favorites 
+        - Hold to set current card as favorite 
+        - Tap to go to favorite 
+    p: Print to PDF
+    /: Help - go to help card stack
     Backspace: Go to last card
+    d: Delete card/undelete card (removes from thread/index as needed, draw with strikethrough via custom paint)
 
     ~: Future
     -: Future
     =: Future
-    Tab: Future
     w: Future
     r: Future
     [: Future
     ]: Future
     \: Future
     a: Future
-    d: Future
     g: Future
     ;: Future
     ': Future
-    Enter: Future
+    y: Future
     z: Future
     x: Future
     v: Future
