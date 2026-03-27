@@ -176,6 +176,11 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         qDebug() << "CapsLock";
         m_capsDown = true;
     }
+    else if (k == Qt::Key_Pause)
+    {
+        qDebug() << "Got Pause aka capslock!!!!";
+        m_capsDown = true;
+    }
     else if (k == Qt::Key_Shift)
     {
         qDebug() << "Shift";
@@ -520,6 +525,14 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
     case Qt::Key_Shift:
         qDebug() << "Shift up";
         m_shiftDown = false;
+        break;
+    case Qt::Key_Pause:
+        qDebug() << "Pause up (aka capslock up)";
+        m_capsDown = false;
+        if (m_lastKeyPress == Qt::Key_Pause)
+        {
+            m_actionMode = true;
+        }
         break;
     }
 }
