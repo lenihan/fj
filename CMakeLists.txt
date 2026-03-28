@@ -40,16 +40,44 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 # Setup project
 
 project(fj)
+
+
+
 set(SOURCES
     resources/resources.qrc
     src/constants.h
-    src/cardItem.h
     src/cardItem.cpp
+    src/cardItem.h
     src/main.cpp
     src/rowItem.cpp
     src/rowItem.h
     src/squareGraphicsView.cpp
     src/squareGraphicsView.h
 )
-add_executable(${PROJECT_NAME} ${SOURCES})
+
+if(WIN32)
+    set(PLATFORM_SOURCES
+        src/win32/disableCapsLock.cpp
+        src/win32/disableCapsLock.h    
+    )
+elseif(UNIX)
+    message(FATAL_ERROR "TODO: implement disableCapsLock for Linux.")
+    set(PLATFORM_SOURCES
+        src/linux/disableCapsLock.cpp
+        src/linux/disableCapsLock.h    
+    )
+endif()
+
+add_executable(${PROJECT_NAME} ${SOURCES} ${PLATFORM_SOURCES})
+
+if(WIN32)
+    target_include_directories(fj PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/win32
+    )
+elseif(UNIX)
+    target_include_directories(fj PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/linux
+    )
+endif()
+
 target_link_libraries(${PROJECT_NAME} Qt6::Widgets)
