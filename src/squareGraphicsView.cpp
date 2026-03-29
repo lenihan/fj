@@ -129,12 +129,9 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         - Continue to new card by pressing return until you pass last row
         - left thread points to parent iIndex
 
-    with 9 lines for custom data, could be used for keyword search 
     Enter: Go to first card (Index: <YEAR>) 
     t: todo/completed/no todo 
     e: edit - keyboard types 
-    tab/Shift-tab: indent/unindent bullet 
-    b: bullet/remove bullet 
     q: query - search 
     1-9,0: Favorites 
         - Hold to set current card as favorite 
@@ -144,6 +141,8 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     Backspace: Go to last card
     d: Delete card/undelete card (removes from thread/index as needed, draw with strikethrough via custom paint)
 
+    tab: Future
+    b: Future
     ~: Future
     -: Future
     =: Future
@@ -160,9 +159,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     z: Future
     x: Future
     v: Future
-
-
-
     */
     event->accept(); // Stop propagation if desired
 
@@ -269,244 +265,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     }
     // Force redraw of cursor at new location
     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
-
-#if 1
-    switch (event->key())
-    {
-    case Qt::Key_Space:
-        qDebug() << "Space";
-        break;
-    case Qt::Key_Exclam:
-        qDebug() << "Exclamation";
-        break;
-    case Qt::Key_QuoteDbl:
-        qDebug() << "Double Quote";
-        break;
-    case Qt::Key_NumberSign:
-        qDebug() << "Number Sign";
-        break;
-    case Qt::Key_Dollar:
-        qDebug() << "Dollar";
-        break;
-    case Qt::Key_Percent:
-        qDebug() << "Percent";
-        break;
-    case Qt::Key_Ampersand:
-        qDebug() << "Ampersand";
-        break;
-    case Qt::Key_Apostrophe:
-        qDebug() << "Apostrophe";
-        break;
-    case Qt::Key_ParenLeft:
-        qDebug() << "Left Parenthesis";
-        break;
-    case Qt::Key_ParenRight:
-        qDebug() << "Right Parenthesis";
-        break;
-    case Qt::Key_Asterisk:
-        qDebug() << "Asterisk";
-        break;
-    case Qt::Key_Plus:
-        qDebug() << "Plus";
-        break;
-    case Qt::Key_Comma:
-        qDebug() << "Comma";
-        break;
-    case Qt::Key_Minus:
-        qDebug() << "Minus";
-        break;
-    case Qt::Key_Period:
-        qDebug() << "Period";
-        break;
-    case Qt::Key_Slash:
-        qDebug() << "Slash";
-        break;
-    case Qt::Key_0:
-        qDebug() << "0";
-        break;
-    case Qt::Key_1:
-        qDebug() << "1";
-        break;
-    case Qt::Key_2:
-        qDebug() << "2";
-        break;
-    case Qt::Key_3:
-        qDebug() << "3";
-        break;
-    case Qt::Key_4:
-        qDebug() << "4";
-        break;
-    case Qt::Key_5:
-        qDebug() << "5";
-        break;
-    case Qt::Key_6:
-        qDebug() << "6";
-        break;
-    case Qt::Key_7:
-        qDebug() << "7";
-        break;
-    case Qt::Key_8:
-        qDebug() << "8";
-        break;
-    case Qt::Key_9:
-        qDebug() << "9";
-        break;
-    case Qt::Key_Colon:
-        qDebug() << "Colon";
-        break;
-    case Qt::Key_Semicolon:
-        qDebug() << "Semicolon";
-        break;
-    case Qt::Key_Less:
-        qDebug() << "Less";
-        break;
-    case Qt::Key_Equal:
-        qDebug() << "Equal";
-        break;
-    case Qt::Key_Greater:
-        qDebug() << "Greater";
-        break;
-    case Qt::Key_Question:
-        qDebug() << "Question";
-        break;
-    case Qt::Key_At:
-        qDebug() << "@";
-        break;
-    case Qt::Key_A:
-        qDebug() << "A";
-        break;
-    case Qt::Key_B:
-        qDebug() << "B";
-        break;
-    case Qt::Key_C:
-        qDebug() << "C";
-        break;
-    case Qt::Key_D:
-        qDebug() << "D";
-        break;
-    case Qt::Key_E:
-        qDebug() << "E";
-        break;
-    case Qt::Key_F:
-        qDebug() << "F";
-        break;
-    case Qt::Key_G:
-        qDebug() << "G";
-        break;
-    case Qt::Key_H:
-        qDebug() << "H";
-        break;
-    case Qt::Key_I:
-        qDebug() << "I";
-        break;
-    case Qt::Key_J:
-        qDebug() << "J";
-        break;
-    case Qt::Key_K:
-        qDebug() << "K";
-        break;
-    case Qt::Key_L:
-        qDebug() << "L";
-        break;
-    case Qt::Key_M:
-        qDebug() << "M";
-        break;
-    case Qt::Key_N:
-        qDebug() << "N";
-        break;
-    case Qt::Key_O:
-        qDebug() << "O";
-        break;
-    case Qt::Key_P:
-        qDebug() << "P";
-        break;
-    case Qt::Key_Q:
-        qDebug() << "Q";
-        break;
-    case Qt::Key_R:
-        qDebug() << "R";
-        break;
-    case Qt::Key_S:
-        qDebug() << "S";
-        break;
-    case Qt::Key_T:
-        qDebug() << "T";
-        break;
-    case Qt::Key_U:
-        qDebug() << "U";
-        break;
-    case Qt::Key_V:
-        qDebug() << "V";
-        break;
-    case Qt::Key_W:
-        qDebug() << "W";
-        break;
-    case Qt::Key_X:
-        qDebug() << "X";
-        break;
-    case Qt::Key_Y:
-        qDebug() << "Y";
-        break;
-    case Qt::Key_Z:
-        qDebug() << "Z";
-        break;
-    case Qt::Key_BracketLeft:
-        qDebug() << "Bracket Left";
-        break;
-    case Qt::Key_Backslash:
-        qDebug() << "Backslash";
-        break;
-    case Qt::Key_BracketRight:
-        qDebug() << "Bracket Right";
-        break;
-    case Qt::Key_AsciiCircum:
-        qDebug() << "Caret";
-        break;
-    case Qt::Key_Underscore:
-        qDebug() << "Underscore";
-        break;
-    case Qt::Key_QuoteLeft:
-        qDebug() << "Quote Left";
-        break;
-    case Qt::Key_BraceLeft:
-        qDebug() << "Brace Left";
-        break;
-    case Qt::Key_Bar:
-        qDebug() << "Pipe";
-        break;
-    case Qt::Key_BraceRight:
-        qDebug() << "Brace Right";
-        break;
-    case Qt::Key_AsciiTilde:
-        qDebug() << "Tilde";
-        break;
-    case Qt::Key_Tab:
-        qDebug() << "Tab";
-        break;
-    case Qt::Key_Backtab:
-        qDebug() << "Backtab";
-        break;
-    case Qt::Key_Backspace:
-        qDebug() << "Backspace";
-        break;
-    case Qt::Key_Return:
-        qDebug() << "Return";
-        break;
-    case Qt::Key_Shift:
-        qDebug() << "Shift";
-        break;
-        // case Qt::Key_CapsLock:
-        //     qDebug() << "CapsLock";
-        //     m_capsDown = true;
-        //     break;
-    }
-
-    // else
-    // {
-    //     const QString typed = event->text();
-    //     qDebug() << "Got: " << typed;
-    // }
-#endif
     event->accept(); // Stop propagation if desired
 }
 
