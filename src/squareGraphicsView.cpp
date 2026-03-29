@@ -114,13 +114,13 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     .: next thread card
     ,: Cycle through card links
     Space: Go to selected card link
-    n: Create Index card: 
+    n: Create Index card:
         - Does NOT have lines after titles
         - Cursor goes to first blank line
         - Only options:
             - Modify title
             - up/down to select a row
-            - , to follow card for that row 
+            - , to follow card for that row
         - Index row will update to point to new collection/row
         - Left thread points to parent index
     c: New collection card
@@ -129,17 +129,18 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         - Continue to new card by pressing return until you pass last row
         - left thread points to parent iIndex
 
-    Enter: Go to first card (Index: <YEAR>) 
-    t: todo/completed/no todo 
-    e: edit - keyboard types 
-    q: query - search 
-    1-9,0: Favorites 
-        - Hold to set current card as favorite 
-        - Tap to go to favorite 
+    Enter: Go to first card (Index: <YEAR>)
+    t: todo/completed/no todo
+    e: edit - keyboard types
+    q: query - search
+    1-9,0: Favorites
+        - Hold to set current card as favorite
+        - Tap to go to favorite
     p: Print to PDF
     /: Help - go to help card stack
     Backspace: Go to last card
-    d: Delete card/undelete card (removes from thread/index as needed, draw with strikethrough via custom paint)
+    d: Delete card/undelete card (removes from thread/index as needed, draw with
+    strikethrough via custom paint)
 
     tab: Future
     b: Future
@@ -170,11 +171,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     if (k == Qt::Key_CapsLock)
     {
         qDebug() << "CapsLock";
-        m_capsDown = true;
-    }
-    else if (k == Qt::Key_Pause)
-    {
-        qDebug() << "Got Pause aka capslock!!!!";
         m_capsDown = true;
     }
     else if (k == Qt::Key_Shift)
@@ -211,22 +207,25 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     {
         if (m_actionMode || m_capsDown)
         {
-            if (k == Qt::Key_I) 
-            {   
-                // TODO: if on first row of card and not on card 0, go to prev card last non-readonly row.
+            if (k == Qt::Key_I)
+            {
+                // TODO: if on first row of card and not on card 0, go to prev
+                // card last non-readonly row.
                 m_cursor.m_row--;
             }
-            else if (k == Qt::Key_K) 
+            else if (k == Qt::Key_K)
             {
-                // TODO: if on last row of card, go to next cards first non-readonly row
+                // TODO: if on last row of card, go to next cards first
+                // non-readonly row
                 m_cursor.m_row++;
             }
             else if (k == Qt::Key_J)
             {
-                // TODO: if on col 0, go to prev non-readonly (maybe on a prev card) row's last col.
+                // TODO: if on col 0, go to prev non-readonly (maybe on a prev
+                // card) row's last col.
                 m_cursor.m_col--;
-            } 
-            else if (k == Qt::Key_L) 
+            }
+            else if (k == Qt::Key_L)
             {
                 // TODO: if on last col, go to next avail row, col 0
                 m_cursor.m_col++;
@@ -236,12 +235,10 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                 m_actionMode = false;
             }
         }
-        else 
+        else
         {
             if (event->text().isEmpty())
-            {
                 return;
-            }
             QChar c = event->text()[0];
             card->setChar(c, m_cursor.m_row, m_cursor.m_col);
             m_cursor.m_col = m_cursor.m_col + 1;
@@ -276,21 +273,11 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
         qDebug() << "CapsLock up";
         m_capsDown = false;
         if (m_lastKeyPress == Qt::Key_CapsLock)
-        {
             m_actionMode = true;
-        }
         break;
     case Qt::Key_Shift:
         qDebug() << "Shift up";
         m_shiftDown = false;
-        break;
-    case Qt::Key_Pause:
-        qDebug() << "Pause up (aka capslock up)";
-        m_capsDown = false;
-        if (m_lastKeyPress == Qt::Key_Pause)
-        {
-            m_actionMode = true;
-        }
         break;
     }
 }

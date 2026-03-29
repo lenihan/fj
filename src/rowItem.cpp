@@ -31,6 +31,10 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     const qreal fontHeight_scn = kFontCharHeight_fnt * m_fontToScnScale;
     const qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
     setPos(Card::kLeft_scn + Card::kBorder_scn, y + yOffset_scn);
+
+    // Initialize row filled with spaces (empty)
+    QString emptyRow(kCharsPerRow, ' ');
+    setText(emptyRow);
 }
 
 uint8_t RowItem::colPerRow() const { return kCharsPerRow; }
