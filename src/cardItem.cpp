@@ -47,16 +47,20 @@ void CardItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
 {
     Q_ASSERT(row < Card::kNumRows);
     Q_ASSERT(col < m_rows[row]->colPerRow());
-    auto x = m_rows[row]->text().size();
-    auto y = m_rows[row]->colPerRow();
-    Q_ASSERT(m_rows[row]->text().length() <= m_rows[row]->colPerRow());
-    QString t = m_rows[row]->text();
-    if (t.length() < (col + 1))
-    {
-        t += QString(col + 1 - t.length(), ' ');
-    }
-    t[col] = ch;
-    m_rows[row]->setText(t);
+    QString newText = m_rows[row]->text();
+    newText[col] = ch;
+    m_rows[row]->setText(newText);
+
+    // auto x = m_rows[row]->text().size();
+    // auto y = m_rows[row]->colPerRow();
+    // Q_ASSERT(m_rows[row]->text().length() <= m_rows[row]->colPerRow());
+    // QString t = m_rows[row]->text();
+    // if (t.length() < (col + 1))
+    // {
+    //     t += QString(col + 1 - t.length(), ' ');
+    // }
+    // t[col] = ch;
+    // m_rows[row]->setText(t);
 }
 
 QString CardItem::text(const uint8_t row) const { return m_rows[row]->text(); }

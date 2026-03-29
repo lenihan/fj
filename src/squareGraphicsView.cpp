@@ -187,15 +187,14 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     {
         if (m_cursor.m_col == 0)
         {
-            // TODO: Alert user you can't backspace, only can remove characters
-            // from current row noop
+            // noop
+            // TODO: Alert user you can't backspace past first col
         }
         else
         {
+            // Delete prev character
             m_cursor.m_col--;
-            QString t = card->text(m_cursor.m_row);
-            t.remove(m_cursor.m_col, 1);
-            card->setText(m_cursor.m_row, t);
+            card->setChar(' ', m_cursor.m_row, m_cursor.m_col);
         }
     }
     else if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Delete ||

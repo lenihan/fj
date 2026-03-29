@@ -34,6 +34,7 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
 
     // Initialize row filled with spaces (empty)
     QString emptyRow(kCharsPerRow, ' ');
+    // TODO: keep a m_text for faster updating, setText() to pass on to UI
     setText(emptyRow);
 }
 
@@ -41,7 +42,9 @@ uint8_t RowItem::colPerRow() const { return kCharsPerRow; }
 
 void RowItem::setText(const QString& text)
 {
-    Q_ASSERT(text.length() <= kCharsPerRow);
+    QString fullRow(kCharsPerRow, ' ');
+    fullRow.replace(0, text.length(), text);
+    Q_ASSERT(fullRow.length() == kCharsPerRow);
     QGraphicsSimpleTextItem::setText(text);
 }
 
