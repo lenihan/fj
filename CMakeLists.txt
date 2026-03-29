@@ -48,8 +48,8 @@ set(SOURCES
     src/constants.h
     src/cardItem.cpp
     src/cardItem.h
-    src/disableCapsLock.cpp
-    src/disableCapsLock.h  
+    src/capsLockModifier.cpp
+    src/capsLockModifier.h  
     src/main.cpp
     src/rowItem.cpp
     src/rowItem.h

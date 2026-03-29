@@ -1,6 +1,6 @@
 #include "squareGraphicsView.h"
 #include "constants.h"
-#include "disableCapsLock.h"
+#include "capsLockModifier.h"
 #include <QApplication>
 #include <QGraphicsScene>
 #include <QScreen>
@@ -33,6 +33,6 @@ int main(int argc, char* argv[])
     }
 
     view.show();
-    DisableCapsLock disableCapsLock(&view);
+    CapsLockModifier capsLockModifier(&view);
     return app.exec();
 }
