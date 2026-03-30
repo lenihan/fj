@@ -17,6 +17,17 @@ class SquareGraphicsView : public QGraphicsView
     void resizeEvent(QResizeEvent* event) override;
 
   private:
+    CardItem* currentCard();
+    void cursorUp();
+    void cursorDown();
+    void cursorLeft();
+    void cursorRight();
+    void cursorNextRow();
+    void cursorPrevRow();
+    void cursorNextCard();
+    void cursorPrevCard();
+
+
     struct Cursor
     {
         uint16_t m_year;      // 0000–9999

@@ -74,8 +74,8 @@ qreal CardItem::rowLineY_scn(uint8_t row) const
     return y_scn;
 }
 
-const RowItem* CardItem::rowItem(uint8_t row) const 
+const RowItem* CardItem::rowItem(uint8_t row) const
 {
-    Q_ASSERT(row <= Card::kNumRows); 
-    return m_rows[row]; 
+    Q_ASSERT(row <= Card::kNumRows);
+    return m_rows[row];
 }

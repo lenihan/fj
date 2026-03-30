@@ -34,22 +34,6 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     m_cursor.m_row = 1;
     scene->addItem(card);
 
-    // Dummy card
-    // int i = 0;
-    // QStringList rowText = QStringList(11);
-    // rowText[i++] = "Example Card";
-    // rowText[i++] = "Typing mode:       Caps+Space";
-    // rowText[i++] = "  Cursor up:       Caps+I";
-    // rowText[i++] = "  Cursor left:     Caps+J";
-    // rowText[i++] = "  Cursor down:     Caps+K";
-    // rowText[i++] = "  Cursor right:    Caps+L";
-    // rowText[i++] = "  Delete:          Shift+Backspace";
-    // rowText[i++] = "  Indent:          Tab";
-    // rowText[i++] = "  Unindent:        Shift+Tab";
-    // rowText[i++] = "Move cursor:       Caps,I|J|K|L";
-    // rowText[i++] = "                            XXX ";
-    // card->setText(rowText);
-
     // UI
     const QRectF uiRect(UI::kRect_scn);
     const QColor uiColor("#202020");
@@ -66,6 +50,7 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
     painter->setBrush(Qt::red);
 
     CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
+    Q_ASSERT((cardStack.size() - 1) >= m_cursor.m_cardNum);
     CardItem* card = cardStack[m_cursor.m_cardNum];
     const RowItem* rowItem = card->rowItem(m_cursor.m_row);
 
@@ -195,32 +180,15 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         if (m_actionMode || m_capsDown)
         {
             if (k == Qt::Key_I)
-            {
-                // TODO: if on first row of card and not on card 0, go to prev
-                // card last non-readonly row.
-                m_cursor.m_row--;
-            }
+                cursorUp();
             else if (k == Qt::Key_K)
-            {
-                // TODO: if on last row of card, go to next cards first
-                // non-readonly row
-                m_cursor.m_row++;
-            }
+                cursorDown();
             else if (k == Qt::Key_J)
-            {
-                // TODO: if on col 0, go to prev non-readonly (maybe on a prev
-                // card) row's last col.
-                m_cursor.m_col--;
-            }
+                cursorLeft();
             else if (k == Qt::Key_L)
-            {
-                // TODO: if on last col, go to next avail row, col 0
-                m_cursor.m_col++;
-            }
+                cursorRight();
             else if (k == Qt::Key_E)
-            {
                 m_actionMode = false;
-            }
         }
         else
         {
@@ -228,23 +196,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                 return;
             QChar c = event->text()[0];
             card->setChar(c, m_cursor.m_row, m_cursor.m_col);
-            m_cursor.m_col = m_cursor.m_col + 1;
-            if (m_cursor.m_col >= card->colPerRow(m_cursor.m_row))
-            {
-                m_cursor.m_col = 0;
-                m_cursor.m_row++;
-            }
-            if (m_cursor.m_row >= (card->userRowsPerCard()))
-            {
-                m_cursor.m_row = 0;
-                m_cursor.m_col = 0;
-                m_cursor.m_cardNum++;
-                card->hide();
-                CardItem*& nextCard =
-                    cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
-                scene()->addItem(nextCard);
-                card = nextCard;
-            }
+            cursorRight();
         }
     }
     // Force redraw of cursor at new location
@@ -324,6 +276,119 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     }
 
     QGraphicsView::resizeEvent(event);
+}
+
+CardItem* SquareGraphicsView::currentCard()
+{
+    auto& cardStack = m_yearToCardStack[m_cursor.m_year];
+    CardItem* card = cardStack[m_cursor.m_cardNum];
+    return card;
+}
+
+void SquareGraphicsView::cursorUp()
+{
+    // TODO: Body to title...use proportion to keep cursor appox in same
+    // location
+    if (m_cursor.m_row == 0)
+    {
+        if (m_cursor.m_cardNum == 0)
+        {
+            // noop
+        }
+        else
+        {
+            cursorPrevCard();
+            CardItem* card = currentCard();
+            m_cursor.m_row = card->userRowsPerCard() - 1;
+        }
+    }
+    else
+        m_cursor.m_row--;
+}
+
+void SquareGraphicsView::cursorDown()
+{
+    // TODO: Title to body...use proportion to keep cursor appox in same
+    // location
+    CardItem* card = currentCard();
+    if (m_cursor.m_row == (card->userRowsPerCard() - 1))
+    {
+        cursorNextCard();
+        m_cursor.m_row = 0;
+    }
+    else
+        m_cursor.m_row++;
+}
+
+void SquareGraphicsView::cursorLeft()
+{
+    if (m_cursor.m_col == 0)
+    {
+        cursorPrevRow();
+        CardItem* card = currentCard();
+        m_cursor.m_col = card->colPerRow(m_cursor.m_row) - 1;
+    }
+    else
+        m_cursor.m_col--;
+}
+
+void SquareGraphicsView::cursorRight()
+{
+    CardItem* card = currentCard();
+    if (m_cursor.m_col == (card->colPerRow(m_cursor.m_row) - 1))
+    {
+        cursorNextRow();
+        m_cursor.m_col = 0;
+    }
+    else
+        m_cursor.m_col++;
+}
+
+void SquareGraphicsView::cursorNextRow()
+{
+    CardItem* card = currentCard();
+    if (m_cursor.m_row == (card->userRowsPerCard() - 1))
+    {
+        cursorNextCard();
+        m_cursor.m_row = 0;
+    }
+    else
+        m_cursor.m_row++;
+}
+
+void SquareGraphicsView::cursorPrevRow()
+{
+    if (m_cursor.m_row == 0)
+    {
+        cursorPrevCard();
+        CardItem* card = currentCard();
+        m_cursor.m_row = card->userRowsPerCard() - 1;
+    }
+    else
+        m_cursor.m_row--;
+}
+
+void SquareGraphicsView::cursorNextCard()
+{
+    auto& cardStack = m_yearToCardStack[m_cursor.m_year];
+    if (m_cursor.m_cardNum == (cardStack.size() - 1))
+    {
+        CardItem* card = currentCard();
+        card->hide();
+        CardItem* nextCard = cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum + 1));
+        scene()->addItem(nextCard);
+    }
+    m_cursor.m_cardNum++;
+}
+
+void SquareGraphicsView::cursorPrevCard()
+{
+    if (m_cursor.m_cardNum == 0)
+    {
+        // noop
+    }
+    else
+        m_cursor.m_cardNum--;
 }
 
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
