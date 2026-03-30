@@ -10,7 +10,7 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent), kFont(getFont()),
       kFontCharWidth_fnt(getFontCharWidth_fnt()),
       kFontCharHeight_fnt(getFontCharHeight_fnt()),
-      kCharsPerRow(row == 0 ? Title::kCharsPerRow : Body::kCharsPerRow),
+      kColsPerRow(row == 0 ? Title::kColsPerRow : Body::kColsPerRow),
       kRowHeight_scn(row == 0 ? Title::kRowHeight_scn : Body::kRowHeight_scn),
       m_row(row)
 {
@@ -22,7 +22,7 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     // setPen(QColor(128, 128, 128));
 
     // Calc font to scene scale
-    const qreal rowWidth_fnt = kFontCharWidth_fnt * kCharsPerRow;
+    const qreal rowWidth_fnt = kFontCharWidth_fnt * kColsPerRow;
     m_fontToScnScale = Card::kUseabledWidth_scn / rowWidth_fnt;
     setScale(m_fontToScnScale);
 
@@ -33,34 +33,36 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     setPos(Card::kLeft_scn + Card::kBorder_scn, y + yOffset_scn);
 
     // Initialize row filled with spaces (empty)
-    QString emptyRow(kCharsPerRow, ' ');
-    // TODO: keep a m_text for faster updating, setText() to pass on to UI
-    setText(emptyRow);
+    m_text = QString(kColsPerRow, ' ');
+    setText(m_text);
 }
 
-uint8_t RowItem::colPerRow() const { return kCharsPerRow; }
+uint8_t RowItem::colPerRow() const { return kColsPerRow; }
+
+void RowItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
+{
+    Q_ASSERT(col < kColsPerRow);
+    m_text[col] = ch;
+    setText(m_text);
+}
 
 void RowItem::setText(const QString& text)
 {
-    QString fullRow(kCharsPerRow, ' ');
-    fullRow.replace(0, text.length(), text);
-    Q_ASSERT(fullRow.length() == kCharsPerRow);
+    m_text.replace(0, text.length(), text);
+    Q_ASSERT(m_text.length() == kColsPerRow);
     QGraphicsSimpleTextItem::setText(text);
 }
 
-qreal RowItem::rowHeight_scn() const 
-{ 
-    return kRowHeight_scn; 
+qreal RowItem::rowHeight_scn() const { return kRowHeight_scn; }
+
+qreal RowItem::charHeight_scn() const
+{
+    return kFontCharHeight_fnt * m_fontToScnScale;
 }
 
-qreal RowItem::charHeight_scn() const 
-{ 
-    return kFontCharHeight_fnt * m_fontToScnScale; 
-}
-
-qreal RowItem::charWidth_scn() const 
-{ 
-    return kFontCharWidth_fnt * m_fontToScnScale; 
+qreal RowItem::charWidth_scn() const
+{
+    return kFontCharWidth_fnt * m_fontToScnScale;
 }
 
 // static

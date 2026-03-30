@@ -74,18 +74,6 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
     const qreal charWidth_scn = rowItem->charWidth_scn();
     const qreal lineY_scn = card->rowLineY_scn(m_cursor.m_row);
 
-    // QRectF r(
-    //     m_cursor.m_col * charWidth_scn + Card::kBorder_scn, // x
-    //     lineY_scn - rowHeight_scn,      // y
-    //     charWidth_scn,                  // width
-    //     rowHeight_scn);                 // height
-    // painter->drawRect(r);
-
-    // const int x1 = m_cursor.m_col * charWidth_scn + Card::kBorder_scn;
-    // const int x2 = x1;
-    // const int y1 = lineY_scn - rowHeight_scn;
-    // const int y2 = lineY_scn;
-    // painter->drawLine(x1, y1, x2, y2);
     const QPointF points[3] = {
         QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn,
                 lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
