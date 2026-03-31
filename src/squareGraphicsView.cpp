@@ -23,34 +23,6 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 {
     m_cursor.draw(painter, rect);
-    // // Draw cursor
-    // QPen pen(Qt::red);
-    // pen.setCosmetic(true);
-    // pen.setWidthF(2.0);
-    // painter->setPen(pen);
-    // painter->setBrush(Qt::red);
-
-    // CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
-    // Q_ASSERT((cardStack.size() - 1) >= m_cursor.m_cardNum);
-    // CardItem* card = cardStack[m_cursor.m_cardNum];
-    // const RowItem* rowItem = card->rowItem(m_cursor.m_row);
-
-    // const qreal rowHeight_scn = rowItem->rowHeight_scn();
-    // const qreal charHeight_scn = rowItem->charHeight_scn();
-    // const qreal charWidth_scn = rowItem->charWidth_scn();
-    // const qreal lineY_scn = card->rowLineY_scn(m_cursor.m_row);
-
-    // const QPointF points[3] = {
-    //     QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn,
-    //             lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
-    //     QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn -
-    //                 charWidth_scn / 2.0,
-    //             lineY_scn),
-    //     QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn +
-    //                 charWidth_scn / 2.0,
-    //             lineY_scn)};
-    // 
-    // painter->drawPolygon(points, 3);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
@@ -168,7 +140,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     }
     // Force redraw of cursor at new location
     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
-    event->accept(); // Stop propagation if desired
 }
 
 void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
@@ -244,120 +215,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 
     QGraphicsView::resizeEvent(event);
 }
-#if 0
-CardItem* SquareGraphicsView::currentCard()
-{
-    auto& cardStack = m_yearToCardStack[m_cursor.m_year];
-    CardItem* card = cardStack[m_cursor.m_cardNum];
-    return card;
-}
 
-void SquareGraphicsView::cursorUp()
-{
-    // TODO: Body to title...use proportion to keep cursor appox in same
-    // location
-    if (m_cursor.m_row == 0)
-    {
-        if (m_cursor.m_cardNum == 0)
-        {
-            // noop
-        }
-        else
-        {
-            cursorPrevCard();
-            CardItem* card = currentCard();
-            m_cursor.m_row = card->userRowsPerCard() - 1;
-        }
-    }
-    else
-        m_cursor.m_row--;
-}
-
-void SquareGraphicsView::cursorDown()
-{
-    // TODO: Title to body...use proportion to keep cursor appox in same
-    // location
-    CardItem* card = currentCard();
-    if (m_cursor.m_row == (card->userRowsPerCard() - 1))
-    {
-        cursorNextCard();
-        m_cursor.m_row = 0;
-    }
-    else
-        m_cursor.m_row++;
-}
-
-void SquareGraphicsView::cursorLeft()
-{
-    if (m_cursor.m_col == 0)
-    {
-        cursorPrevRow();
-        CardItem* card = currentCard();
-        m_cursor.m_col = card->colPerRow(m_cursor.m_row) - 1;
-    }
-    else
-        m_cursor.m_col--;
-}
-
-void SquareGraphicsView::cursorRight()
-{
-    CardItem* card = currentCard();
-    if (m_cursor.m_col == (card->colPerRow(m_cursor.m_row) - 1))
-    {
-        cursorNextRow();
-        m_cursor.m_col = 0;
-    }
-    else
-        m_cursor.m_col++;
-}
-
-void SquareGraphicsView::cursorNextRow()
-{
-    CardItem* card = currentCard();
-    if (m_cursor.m_row == (card->userRowsPerCard() - 1))
-    {
-        cursorNextCard();
-        m_cursor.m_row = 0;
-    }
-    else
-        m_cursor.m_row++;
-}
-
-void SquareGraphicsView::cursorPrevRow()
-{
-    if (m_cursor.m_row == 0)
-    {
-        cursorPrevCard();
-        CardItem* card = currentCard();
-        m_cursor.m_row = card->userRowsPerCard() - 1;
-    }
-    else
-        m_cursor.m_row--;
-}
-
-void SquareGraphicsView::cursorNextCard()
-{
-    auto& cardStack = m_yearToCardStack[m_cursor.m_year];
-    if (m_cursor.m_cardNum == (cardStack.size() - 1))
-    {
-        CardItem* card = currentCard();
-        card->hide();
-        CardItem* nextCard = cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum + 1));
-        scene()->addItem(nextCard);
-    }
-    m_cursor.m_cardNum++;
-}
-
-void SquareGraphicsView::cursorPrevCard()
-{
-    if (m_cursor.m_cardNum == 0)
-    {
-        // noop
-    }
-    else
-        m_cursor.m_cardNum--;
-}
-#endif
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
 {
     // Call the base class implementation to draw the view's content
