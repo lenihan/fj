@@ -8,6 +8,8 @@
 #include <Windows.h>
 #include <qassert.h>
 
+QObject* CapsLockModifier::m_keyReceiver = nullptr;
+
 // Called before Caps Lock is processed by system.
 // Throw away system response to Caps Lock.
 // Send Caps Lock directly to our app.
@@ -18,19 +20,13 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
         KBDLLHOOKSTRUCT* p = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
         if (p->vkCode == VK_CAPITAL)
         {
-            QGuiApplication* guiApp =
-                qobject_cast<QGuiApplication*>(QCoreApplication::instance());
-            Q_ASSERT(guiApp);
-            QObject* target = guiApp->focusObject();
-            Q_ASSERT(target);
-
+            QObject* target = CapsLockModifier::keyReceiver();
             const bool isDown =
                 (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
             QKeyEvent* keyEvent =
                 new QKeyEvent(isDown ? QEvent::KeyPress : QEvent::KeyRelease,
                               Qt::Key_CapsLock, Qt::NoModifier);
             QCoreApplication::postEvent(target, keyEvent);
-            // TODO: Also fix linux
             return 1; // 1 = eat the key
         }
     }
@@ -46,6 +42,8 @@ CapsLockModifier::CapsLockModifier(QGraphicsView* view)
     // When this code executed before view->show(), view came up in the
     // background.
     Q_ASSERT(view->isVisible());
+
+    CapsLockModifier::m_keyReceiver = view;
 
     // If Caps Lock enabled, disable it with a simulated Caps Lock keypress
     const SHORT state = GetKeyState(VK_CAPITAL);
@@ -66,6 +64,8 @@ CapsLockModifier::~CapsLockModifier()
     if (m_capsOn)
         toggleCapsState();
 }
+
+QObject* CapsLockModifier::keyReceiver() { return m_keyReceiver; }
 
 void CapsLockModifier::toggleCapsState()
 {

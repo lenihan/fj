@@ -1,6 +1,7 @@
 #pragma once
 #include <qsystemdetection.h>
 class QGraphicsView;
+class QObject;
 
 #ifdef Q_OS_WINDOWS
 
@@ -12,11 +13,13 @@ class CapsLockModifier
   public:
     CapsLockModifier(QGraphicsView* view);
     ~CapsLockModifier();
+    static QObject* keyReceiver();
 
   private:
     void toggleCapsState();
     bool m_capsOn{false};
     HHOOK m_hook{nullptr};
+    static QObject* m_keyReceiver;
 };
 #endif
 
