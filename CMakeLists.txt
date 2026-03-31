@@ -49,7 +49,9 @@ set(SOURCES
     src/cardItem.cpp
     src/cardItem.h
     src/capsLockModifier.cpp
-    src/capsLockModifier.h  
+    src/capsLockModifier.h
+    src/cursor.cpp
+    src/cursor.h
     src/main.cpp
     src/rowItem.cpp
     src/rowItem.h

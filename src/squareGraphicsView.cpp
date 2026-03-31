@@ -1,38 +1,18 @@
 #include "squareGraphicsView.h"
 #include "cardItem.h"
 #include "constants.h"
+#include "cursor.h"
 #include "rowItem.h"
-
 #include <QResizeEvent>
 
 SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
-    : QGraphicsView(scene)
+    : QGraphicsView(scene), m_cursor(scene)
 {
     Q_ASSERT(scene);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setTransformationAnchor(AnchorViewCenter);
     setRenderHint(QPainter::Antialiasing);
-
-    m_cursor.m_year = 2026;
-    m_cursor.m_cardNum = 0;
-    m_cursor.m_row = 0;
-    m_cursor.m_col = 0;
-
-    // 3x5 Card
-    // Card 1: Year w/ first/last line read-only
-    // Card 2: Index w/ card read-only
-    // Card 3: Reoccuring appointments for year (Birthday's, anniversaries,
-    // holidays, etc.) Card 4: Future with list of Future Months links Card 5:
-    // continued for rest of year Card 6: Future April Card 7: April w/ list of
-    // weeks of April and links Card 8: April Week 1 Card 9: April Week 2 Card
-    // 10: April Week 3 Card 11: April Week 4 Card 12: April TODO Card 13: April
-    // Daily
-    auto& cardStack = m_yearToCardStack[m_cursor.m_year];
-    CardItem*& card = cardStack.emplaceBack(new CardItem(m_cursor.m_cardNum));
-    card->setText(0, QString::number(m_cursor.m_year) + " Index");
-    m_cursor.m_row = 1;
-    scene->addItem(card);
 
     // UI
     const QRectF uiRect(UI::kRect_scn);
@@ -42,34 +22,35 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 {
-    // Draw cursor
-    QPen pen(Qt::red);
-    pen.setCosmetic(true);
-    pen.setWidthF(2.0);
-    painter->setPen(pen);
-    painter->setBrush(Qt::red);
+    m_cursor.draw(painter, rect);
+    // // Draw cursor
+    // QPen pen(Qt::red);
+    // pen.setCosmetic(true);
+    // pen.setWidthF(2.0);
+    // painter->setPen(pen);
+    // painter->setBrush(Qt::red);
 
-    CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
-    Q_ASSERT((cardStack.size() - 1) >= m_cursor.m_cardNum);
-    CardItem* card = cardStack[m_cursor.m_cardNum];
-    const RowItem* rowItem = card->rowItem(m_cursor.m_row);
+    // CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
+    // Q_ASSERT((cardStack.size() - 1) >= m_cursor.m_cardNum);
+    // CardItem* card = cardStack[m_cursor.m_cardNum];
+    // const RowItem* rowItem = card->rowItem(m_cursor.m_row);
 
-    const qreal rowHeight_scn = rowItem->rowHeight_scn();
-    const qreal charHeight_scn = rowItem->charHeight_scn();
-    const qreal charWidth_scn = rowItem->charWidth_scn();
-    const qreal lineY_scn = card->rowLineY_scn(m_cursor.m_row);
+    // const qreal rowHeight_scn = rowItem->rowHeight_scn();
+    // const qreal charHeight_scn = rowItem->charHeight_scn();
+    // const qreal charWidth_scn = rowItem->charWidth_scn();
+    // const qreal lineY_scn = card->rowLineY_scn(m_cursor.m_row);
 
-    const QPointF points[3] = {
-        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn,
-                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
-        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn -
-                    charWidth_scn / 2.0,
-                lineY_scn),
-        QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn +
-                    charWidth_scn / 2.0,
-                lineY_scn)};
-
-    painter->drawPolygon(points, 3);
+    // const QPointF points[3] = {
+    //     QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn,
+    //             lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
+    //     QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn -
+    //                 charWidth_scn / 2.0,
+    //             lineY_scn),
+    //     QPointF(m_cursor.m_col * charWidth_scn + Card::kBorder_scn +
+    //                 charWidth_scn / 2.0,
+    //             lineY_scn)};
+    // 
+    // painter->drawPolygon(points, 3);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
@@ -105,6 +86,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     Enter: Go to first card (Index: <YEAR>)
     t: todo/completed/no todo
     e: edit - keyboard types
+    r: reading - up/down/left/right are for links, enter to go
     q: query - search
     1-9,0: Favorites
         - Hold to set current card as favorite
@@ -277,7 +259,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 
     QGraphicsView::resizeEvent(event);
 }
-
+#if 0
 CardItem* SquareGraphicsView::currentCard()
 {
     auto& cardStack = m_yearToCardStack[m_cursor.m_year];
@@ -390,7 +372,7 @@ void SquareGraphicsView::cursorPrevCard()
     else
         m_cursor.m_cardNum--;
 }
-
+#endif
 void SquareGraphicsView::paintEvent(QPaintEvent* event)
 {
     // Call the base class implementation to draw the view's content

@@ -1,0 +1,154 @@
+#include "cursor.h"
+#include "cardItem.h"
+#include "constants.h"
+#include "rowItem.h"
+#include <QGraphicsScene>
+#include <QPainter>
+#include <QPen>
+
+Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
+{
+    // Init
+    m_year = 2026;
+    m_cardNum = 0;
+    m_row = 1;
+    m_col = 0;
+
+    auto& cardStack = m_yearToCardStack[m_year];
+    CardItem* card = cardStack.emplaceBack(new CardItem(m_cardNum));
+    card->setText(0, QString::number(m_year) + " Index");
+    scene->addItem(card);
+
+    m_currentCard = card;
+    Q_ASSERT(m_currentCard);
+    Q_ASSERT(m_scene);
+}
+
+void Cursor::up()
+{
+    // TODO: Body to title...use proportion to keep cursor appox in same
+    // location
+    if (m_row == 0)
+    {
+        if (m_cardNum == 0)
+        {
+            // noop
+        }
+        else
+        {
+            prevCard();
+            m_row = m_currentCard->userRowsPerCard() - 1;
+        }
+    }
+    else
+        m_row--;
+}
+
+void Cursor::down()
+{
+    // TODO: Title to body...use proportion to keep cursor appox in same
+    // location
+    if (m_row == (m_currentCard->userRowsPerCard() - 1))
+    {
+        nextCard();
+        m_row = 0;
+    }
+    else
+        m_row++;
+}
+
+void Cursor::left()
+{
+    if (m_col == 0)
+    {
+        prevRow();
+        m_col = m_currentCard->colPerRow(m_row) - 1;
+    }
+    else
+        m_col--;
+}
+
+void Cursor::right()
+{
+    if (m_col == (m_currentCard->colPerRow(m_row) - 1))
+    {
+        nextRow();
+        m_col = 0;
+    }
+    else
+        m_col++;
+}
+
+void Cursor::nextRow()
+{
+    if (m_row == (m_currentCard->userRowsPerCard() - 1))
+    {
+        nextCard();
+        m_row = 0;
+    }
+    else
+        m_row++;
+}
+
+void Cursor::prevRow()
+{
+    if (m_row == 0)
+    {
+        prevCard();
+        m_row = m_currentCard->userRowsPerCard() - 1;
+    }
+    else
+        m_row--;
+}
+
+void Cursor::nextCard()
+{
+    m_currentCard->hide();
+    auto& cardStack = m_yearToCardStack[m_year];
+    if (m_cardNum == (cardStack.size() - 1))
+    {
+        CardItem* nextCard = cardStack.emplaceBack(new CardItem(m_cardNum + 1));
+        m_scene->addItem(nextCard);
+    }
+    m_cardNum++;
+
+    m_currentCard = cardStack[m_cardNum];
+}
+
+void Cursor::prevCard()
+{
+    if (m_cardNum == 0)
+    {
+        // noop
+    }
+    else
+        m_cardNum--;
+
+    auto& cardStack = m_yearToCardStack[m_year];
+    m_currentCard = cardStack[m_cardNum];
+}
+
+void Cursor::draw(QPainter* painter, const QRectF& rect)
+{
+    QPen pen(Qt::red);
+    pen.setCosmetic(true);
+    pen.setWidthF(2.0);
+    painter->setPen(pen);
+    painter->setBrush(Qt::red);
+
+    const RowItem* rowItem = m_currentCard->rowItem(m_row);
+
+    const qreal rowHeight_scn = rowItem->rowHeight_scn();
+    const qreal charHeight_scn = rowItem->charHeight_scn();
+    const qreal charWidth_scn = rowItem->charWidth_scn();
+    const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+
+    const QPointF points[3] = {
+        QPointF(m_col * charWidth_scn + Card::kBorder_scn,
+                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
+        QPointF(m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0,
+                lineY_scn),
+        QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
+                lineY_scn)};
+    painter->drawPolygon(points, 3);
+}
