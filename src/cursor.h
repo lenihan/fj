@@ -16,10 +16,13 @@ class Cursor
     void down();
     void left();
     void right();
+    void enter();
+    void backspace();
+    void charTyped(QChar c);
     void nextRow();
-    void prevRow();
+    bool prevRow();
     void nextCard();
-    void prevCard();
+    bool prevCard();
     void draw(QPainter* painter, const QRectF& rect);
 
   private:

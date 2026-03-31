@@ -28,41 +28,23 @@ void Cursor::up()
 {
     // TODO: Body to title...use proportion to keep cursor appox in same
     // location
-    if (m_row == 0)
-    {
-        if (m_cardNum == 0)
-        {
-            // noop
-        }
-        else
-        {
-            prevCard();
-            m_row = m_currentCard->userRowsPerCard() - 1;
-        }
-    }
-    else
-        m_row--;
+    prevRow();
 }
 
 void Cursor::down()
 {
     // TODO: Title to body...use proportion to keep cursor appox in same
     // location
-    if (m_row == (m_currentCard->userRowsPerCard() - 1))
-    {
-        nextCard();
-        m_row = 0;
-    }
-    else
-        m_row++;
+    nextRow();
 }
 
 void Cursor::left()
 {
     if (m_col == 0)
     {
-        prevRow();
-        m_col = m_currentCard->colPerRow(m_row) - 1;
+        const bool changedRow = prevRow();
+        if (changedRow)
+            m_col = m_currentCard->colPerRow(m_row) - 1;
     }
     else
         m_col--;
@@ -79,6 +61,33 @@ void Cursor::right()
         m_col++;
 }
 
+void Cursor::enter()
+{
+    nextRow();
+    m_col = 0;
+}
+
+void Cursor::backspace()
+{
+    if (m_col == 0)
+    {
+        // noop
+        // TODO: Alert user you can't backspace past first col
+    }
+    else
+    {
+        // Delete prev character
+        m_col--;
+        m_currentCard->setChar(' ', m_row, m_col);
+    }
+}
+
+void Cursor::charTyped(QChar c)
+{
+    m_currentCard->setChar(c, m_row, m_col);
+    right();
+}
+
 void Cursor::nextRow()
 {
     if (m_row == (m_currentCard->userRowsPerCard() - 1))
@@ -90,15 +99,24 @@ void Cursor::nextRow()
         m_row++;
 }
 
-void Cursor::prevRow()
+bool Cursor::prevRow()
 {
+    bool rowChanged = false;
     if (m_row == 0)
     {
-        prevCard();
-        m_row = m_currentCard->userRowsPerCard() - 1;
+        const bool cardChanged = prevCard();
+        if (cardChanged)
+        {
+            m_row = m_currentCard->userRowsPerCard() - 1;
+            rowChanged = true;
+        }
     }
     else
+    {
         m_row--;
+        rowChanged = true;
+    }
+    return rowChanged;
 }
 
 void Cursor::nextCard()
@@ -111,21 +129,23 @@ void Cursor::nextCard()
         m_scene->addItem(nextCard);
     }
     m_cardNum++;
-
     m_currentCard = cardStack[m_cardNum];
+    m_currentCard->show();
 }
 
-void Cursor::prevCard()
+bool Cursor::prevCard()
 {
-    if (m_cardNum == 0)
+    bool cardChanged = false;
+    if (m_cardNum != 0)
     {
-        // noop
-    }
-    else
+        m_currentCard->hide();
         m_cardNum--;
-
-    auto& cardStack = m_yearToCardStack[m_year];
-    m_currentCard = cardStack[m_cardNum];
+        cardChanged = true;
+        auto& cardStack = m_yearToCardStack[m_year];
+        m_currentCard = cardStack[m_cardNum];
+        m_currentCard->show();
+    }
+    return cardChanged;
 }
 
 void Cursor::draw(QPainter* painter, const QRectF& rect)

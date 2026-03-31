@@ -118,9 +118,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     */
     event->accept(); // Stop propagation if desired
 
-    CardStack& cardStack = m_yearToCardStack[m_cursor.m_year];
-    CardItem* card = cardStack[m_cursor.m_cardNum];
-
     const int k = event->key();
     m_lastKeyPress = k;
     if (k == Qt::Key_CapsLock)
@@ -135,22 +132,11 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     }
     else if (event->key() == Qt::Key_Return)
     {
-        m_cursor.m_row++;
-        m_cursor.m_col = 0;
+        m_cursor.enter();
     }
     else if (event->key() == Qt::Key_Backspace)
     {
-        if (m_cursor.m_col == 0)
-        {
-            // noop
-            // TODO: Alert user you can't backspace past first col
-        }
-        else
-        {
-            // Delete prev character
-            m_cursor.m_col--;
-            card->setChar(' ', m_cursor.m_row, m_cursor.m_col);
-        }
+        m_cursor.backspace();
     }
     else if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Delete ||
              event->key() == Qt::Key_Tab)
@@ -162,13 +148,13 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         if (m_actionMode || m_capsDown)
         {
             if (k == Qt::Key_I)
-                cursorUp();
+                m_cursor.up();
             else if (k == Qt::Key_K)
-                cursorDown();
+                m_cursor.down();
             else if (k == Qt::Key_J)
-                cursorLeft();
+                m_cursor.left();
             else if (k == Qt::Key_L)
-                cursorRight();
+                m_cursor.right();
             else if (k == Qt::Key_E)
                 m_actionMode = false;
         }
@@ -176,9 +162,8 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         {
             if (event->text().isEmpty())
                 return;
-            QChar c = event->text()[0];
-            card->setChar(c, m_cursor.m_row, m_cursor.m_col);
-            cursorRight();
+            const QChar c = event->text()[0];
+            m_cursor.charTyped(c);
         }
     }
     // Force redraw of cursor at new location
