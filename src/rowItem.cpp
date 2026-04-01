@@ -7,9 +7,9 @@
 #include <QPen>
 
 RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
-    : QGraphicsSimpleTextItem(parent), kFont(getFont()),
-      kFontCharWidth_fnt(getFontCharWidth_fnt()),
-      kFontCharHeight_fnt(getFontCharHeight_fnt()),
+    : QGraphicsSimpleTextItem(parent), kFont(font()),
+      kFontCharWidth_fnt(fontCharWidth_fnt()),
+      kFontCharHeight_fnt(fontCharHeight_fnt()),
       kColsPerRow(row == 0 ? Title::kColsPerRow : Body::kColsPerRow),
       kRowHeight_scn(row == 0 ? Title::kRowHeight_scn : Body::kRowHeight_scn),
       m_row(row)
@@ -66,7 +66,7 @@ qreal RowItem::charWidth_scn() const
 }
 
 // static
-QFont RowItem::getFont()
+QFont RowItem::font()
 {
     static const QFont font = []
     {
@@ -93,15 +93,15 @@ QFont RowItem::getFont()
 }
 
 // static
-qreal RowItem::getFontCharHeight_fnt()
+qreal RowItem::fontCharHeight_fnt()
 {
-    const QFontMetricsF fm(getFont());
+    const QFontMetricsF fm(font());
     return fm.height();
 }
 
 // static
-qreal RowItem::getFontCharWidth_fnt()
+qreal RowItem::fontCharWidth_fnt()
 {
-    const QFontMetricsF fm(getFont());
+    const QFontMetricsF fm(font());
     return fm.maxWidth();
 }

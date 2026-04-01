@@ -16,9 +16,9 @@ class RowItem : public QGraphicsSimpleTextItem
     qreal charWidth_scn() const;
 
   private:
-    static QFont getFont();
-    static qreal getFontCharHeight_fnt();
-    static qreal getFontCharWidth_fnt();
+    static QFont font();
+    static qreal fontCharHeight_fnt();
+    static qreal fontCharWidth_fnt();
 
     const QFont kFont;
     const qreal kFontCharHeight_fnt;

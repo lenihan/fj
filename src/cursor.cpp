@@ -26,21 +26,18 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 
 void Cursor::up()
 {
-    const bool rowChanged = prevRow();
-
-    if (m_row == 0 && rowChanged)
-        bodyToTitleColUpdate();
-    else if (m_row == m_currentCard->userRowsPerCard() - 1)
-        titleToBodyColUpdate();
+    const uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
+    prevRow();
+    const uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
+    m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
 }
 
 void Cursor::down()
 {
+    const uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
     nextRow();
-    if (m_row == 1)
-        titleToBodyColUpdate();
-    else if (m_row == 0)
-        bodyToTitleColUpdate();
+    const uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
+    m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
 }
 
 void Cursor::left()
@@ -176,20 +173,4 @@ void Cursor::draw(QPainter* painter, const QRectF& rect)
         QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
                 lineY_scn)};
     painter->drawPolygon(points, 3);
-}
-
-void Cursor::bodyToTitleColUpdate()
-{
-    const uint32_t col = m_col;
-    const uint32_t titleCols = Title::kColsPerRow;
-    const uint32_t bodyCols = Body::kColsPerRow;
-    m_col = static_cast<uint8_t>(col * titleCols / bodyCols);
-}
-
-void Cursor::titleToBodyColUpdate()
-{
-    const uint32_t col = m_col;
-    const uint32_t titleCols = Title::kColsPerRow;
-    const uint32_t bodyCols = Body::kColsPerRow;
-    m_col = static_cast<uint8_t>(col * bodyCols / titleCols);
 }
