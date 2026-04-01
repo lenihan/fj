@@ -4,7 +4,7 @@
 #include <QPen>
 
 CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
-    : QGraphicsRectItem(parent), m_page(page), m_currentRow(0), m_currentCol(0)
+    : QGraphicsRectItem(parent), m_page(page)
 {
     // Card background
     setRect(Card::kRect_scn);
@@ -43,13 +43,11 @@ CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
     m_rows[lastRow]->setText(centeredPageNum);
 }
 
-void CardItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
+void CardItem::setChar(const QChar c, const uint8_t row, const uint8_t col)
 {
     Q_ASSERT(row < Card::kNumRows);
-    m_rows[row]->setChar(ch, row, col);
+    m_rows[row]->setChar(c, row, col);
 }
-
-QString CardItem::text(const uint8_t row) const { return m_rows[row]->text(); }
 
 void CardItem::setText(const uint8_t row, const QString& text)
 {

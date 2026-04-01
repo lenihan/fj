@@ -39,10 +39,10 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
 
 uint8_t RowItem::colPerRow() const { return kColsPerRow; }
 
-void RowItem::setChar(const QChar ch, const uint8_t row, const uint8_t col)
+void RowItem::setChar(const QChar c, const uint8_t row, const uint8_t col)
 {
     Q_ASSERT(col < kColsPerRow);
-    m_text[col] = ch;
+    m_text[col] = c;
     setText(m_text);
 }
 

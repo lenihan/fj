@@ -26,6 +26,8 @@ class Cursor
     void draw(QPainter* painter, const QRectF& rect);
 
   private:
+    void bodyToTitleColUpdate();
+    void titleToBodyColUpdate();
     using CardStack = QList<CardItem*>;
     using YearToCardStack = QMap<uint16_t, CardStack>;
     YearToCardStack m_yearToCardStack;  

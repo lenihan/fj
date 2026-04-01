@@ -9,7 +9,7 @@ class RowItem : public QGraphicsSimpleTextItem
   public:
     explicit RowItem(uint8_t row, QGraphicsItem* parent = nullptr);
     uint8_t colPerRow() const;
-    void setChar(const QChar ch, const uint8_t row, const uint8_t col);
+    void setChar(const QChar c, const uint8_t row, const uint8_t col);
     void setText(const QString& text); // Not virtual, hides base class setText
     qreal rowHeight_scn() const;
     qreal charHeight_scn() const;
