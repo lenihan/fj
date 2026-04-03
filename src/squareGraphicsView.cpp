@@ -92,49 +92,40 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 
     const int k = event->key();
     m_lastKeyPress = k;
-    if (k == Qt::Key_CapsLock)
+    switch(k)
     {
-        m_capsDown = true;
-    }
-    else if (k == Qt::Key_Shift)
-    {
-        m_shiftDown = true;
-    }
-    else if (event->key() == Qt::Key_Return)
-    {
-        m_cursor.enter();
-    }
-    else if (event->key() == Qt::Key_Backspace)
-    {
-        m_cursor.backspace();
-    }
-    else if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Delete || event->key() == Qt::Key_Tab)
-    {
-        return; // noop
-    }
-    else
-    {
-        if (m_actionMode || m_capsDown)
+        case Qt::Key_CapsLock: m_capsDown = true; break;
+        case Qt::Key_Shift: m_shiftDown = true; break;
+        case Qt::Key_Return: m_cursor.enter(); break;
+        case Qt::Key_Backspace: m_cursor.backspace(); break;
+        case Qt::Key_Escape: 
+        case Qt::Key_Delete: 
+        case Qt::Key_Tab: return; break; // noop
+        default:
         {
-            switch (k)
+            if (m_actionMode || m_capsDown)
             {
-                case Qt::Key_I: m_cursor.up(); break;
-                case Qt::Key_K: m_cursor.down(); break;
-                case Qt::Key_J: m_cursor.left(); break;
-                case Qt::Key_L: m_cursor.right(); break;
-                case Qt::Key_E: m_actionMode = false; break;
-                case Qt::Key_U: m_cursor.prevCard(); break;
-                case Qt::Key_O: m_cursor.nextCard(); break;
+                switch (k)
+                {
+                    case Qt::Key_I: m_cursor.up(); break;
+                    case Qt::Key_K: m_cursor.down(); break;
+                    case Qt::Key_J: m_cursor.left(); break;
+                    case Qt::Key_L: m_cursor.right(); break;
+                    case Qt::Key_E: m_actionMode = false; break;
+                    case Qt::Key_U: m_cursor.prevCard(); break;
+                    case Qt::Key_O: m_cursor.nextCard(); break;
+                }
+            }
+            else
+            {
+                if (event->text().isEmpty())
+                    return;
+                const QChar c = event->text()[0];
+                m_cursor.charTyped(c);
             }
         }
-        else
-        {
-            if (event->text().isEmpty())
-                return;
-            const QChar c = event->text()[0];
-            m_cursor.charTyped(c);
-        }
     }
+    
     // Force redraw of cursor at new location
     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
