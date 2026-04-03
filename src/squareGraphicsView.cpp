@@ -38,7 +38,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     o: next card
     m: prev thread card
     .: next thread card
-    ,: Cycle through card links
     Space: Go to selected card link
     n: Create Index card:
         - Does NOT have lines after titles
@@ -69,6 +68,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     d: Delete card/undelete card (removes from thread/index as needed, draw with
     strikethrough via custom paint)
 
+    ,: Future
     tab: Future
     b: Future
     ~: Future
@@ -94,12 +94,10 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     m_lastKeyPress = k;
     if (k == Qt::Key_CapsLock)
     {
-        qDebug() << "CapsLock";
         m_capsDown = true;
     }
     else if (k == Qt::Key_Shift)
     {
-        qDebug() << "Shift";
         m_shiftDown = true;
     }
     else if (event->key() == Qt::Key_Return)
@@ -147,13 +145,11 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
     switch (event->key())
     {
     case Qt::Key_CapsLock:
-        qDebug() << "CapsLock up";
         m_capsDown = false;
         if (m_lastKeyPress == Qt::Key_CapsLock)
             m_actionMode = true;
         break;
     case Qt::Key_Shift:
-        qDebug() << "Shift up";
         m_shiftDown = false;
         break;
     }

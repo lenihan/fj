@@ -11,6 +11,8 @@ class RowItem : public QGraphicsSimpleTextItem
     uint8_t colPerRow() const;
     void setChar(const QChar c, const uint8_t row, const uint8_t col);
     void setText(const QString& text); // Not virtual, hides base class setText
+    void setReadOnly(bool readOnly);
+    bool readOnly() const;
     qreal rowHeight_scn() const;
     qreal charHeight_scn() const;
     qreal charWidth_scn() const;
@@ -30,4 +32,5 @@ class RowItem : public QGraphicsSimpleTextItem
     uint8_t m_row;
     qreal m_fontToScnScale;
     QString m_text;
+    bool m_readOnly{false};
 };

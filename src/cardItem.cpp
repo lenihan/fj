@@ -4,7 +4,7 @@
 #include <QPen>
 
 CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
-    : QGraphicsRectItem(parent), m_page(page)
+    : QGraphicsRectItem(parent), m_cardNum(page)
 {
     // Card background
     setRect(Card::kRect_scn);
@@ -34,7 +34,7 @@ CardItem::CardItem(uint16_t page, QGraphicsItem* parent)
     // Center page number on last line
     const uint8_t lastRow = Card::kNumRows - 1;
     const uint8_t cols = m_rows[lastRow]->colPerRow();
-    const QString pageNum = QString::number(m_page + 1);
+    const QString pageNum = QString::number(m_cardNum + 1);
     QString centeredPageNum(cols, ' ');
     const qsizetype position = (cols - pageNum.length()) / 2;
     const qsizetype n = pageNum.length();

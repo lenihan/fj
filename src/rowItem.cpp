@@ -53,6 +53,16 @@ void RowItem::setText(const QString& text)
     QGraphicsSimpleTextItem::setText(text);
 }
 
+void RowItem::setReadOnly(bool readOnly) 
+{
+    m_readOnly = readOnly;
+}
+
+bool RowItem::readOnly() const 
+{ 
+    return m_readOnly; 
+}
+
 qreal RowItem::rowHeight_scn() const { return kRowHeight_scn; }
 
 qreal RowItem::charHeight_scn() const

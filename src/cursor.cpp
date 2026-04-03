@@ -35,7 +35,8 @@ void Cursor::up()
 void Cursor::down()
 {
     const uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
-    nextRow();
+    const bool createCard = false;
+    nextRow(createCard);
     const uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
     m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
 }
@@ -56,8 +57,10 @@ void Cursor::right()
 {
     if (m_col == (m_currentCard->colPerRow(m_row) - 1))
     {
-        nextRow();
-        m_col = 0;
+        const bool createCard = false;
+        const bool rowUpdated = nextRow(createCard);
+        if (rowUpdated)
+            m_col = 0;
     }
     else
         m_col++;
@@ -65,7 +68,8 @@ void Cursor::right()
 
 void Cursor::enter()
 {
-    nextRow();
+    const bool createCard = true;
+    nextRow(createCard);
     m_col = 0;
 }
 
@@ -90,15 +94,19 @@ void Cursor::charTyped(QChar c)
     right();
 }
 
-void Cursor::nextRow()
+bool Cursor::nextRow(const bool createCard)
 {
     if (m_row == (m_currentCard->userRowsPerCard() - 1))
     {
-        nextCard();
-        m_row = 0;
+        const bool cardCreated = nextCard(createCard);
+        if (cardCreated)
+            m_row = 0;
+        else
+            return false; // rowUpdated
     }
     else
         m_row++;
+    return true; // rowUpdated
 }
 
 bool Cursor::prevRow()
@@ -121,18 +129,28 @@ bool Cursor::prevRow()
     return rowChanged;
 }
 
-void Cursor::nextCard()
+bool Cursor::nextCard(const bool createCard)
 {
-    m_currentCard->hide();
     auto& cardStack = m_yearToCardStack[m_year];
     if (m_cardNum == (cardStack.size() - 1))
     {
-        CardItem* nextCard = cardStack.emplaceBack(new CardItem(m_cardNum + 1));
-        m_scene->addItem(nextCard);
+        if (createCard)
+        {
+            CardItem* nextCard = cardStack.emplaceBack(new CardItem(m_cardNum + 1));
+            m_scene->addItem(nextCard);
+        }
+        else
+        {
+            // Last card...Stop!
+            // TODO: UI indicates at last card
+            return false; // cardCreated
+        }
     }
+    m_currentCard->hide();
     m_cardNum++;
-    m_currentCard = cardStack[m_cardNum];
+    m_currentCard = cardStack.at(m_cardNum);
     m_currentCard->show();
+    return true;  // cardCreated
 }
 
 bool Cursor::prevCard()

@@ -18,6 +18,16 @@ class CardItem : public QGraphicsRectItem
     const RowItem* rowItem(uint8_t row) const;
 
   private:
+    struct ThreadRef
+    {
+        uint16_t m_year;    // 0000–9999
+        uint16_t m_cardNum; // 0–9999
+    };
+    ThreadRef m_threadPrev;
+    ThreadRef m_threadNext;
     QList<RowItem*> m_rows;
-    uint16_t m_page;
+    uint16_t m_cardNum;
+    bool m_threadStart;
+    bool m_deleted;
+    bool m_readOnly;
 };
