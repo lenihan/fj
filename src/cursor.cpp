@@ -35,8 +35,7 @@ void Cursor::up()
 void Cursor::down()
 {
     const uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
-    const bool createCard = false;
-    nextRow(createCard);
+    nextRow();
     const uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
     m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
 }
@@ -136,8 +135,8 @@ bool Cursor::nextCard(const bool createCard)
     {
         if (createCard)
         {
-            CardItem* nextCard = cardStack.emplaceBack(new CardItem(m_cardNum + 1));
-            m_scene->addItem(nextCard);
+            CardItem* newCard = cardStack.emplaceBack(new CardItem(m_cardNum + 1));
+            m_scene->addItem(newCard);
         }
         else
         {

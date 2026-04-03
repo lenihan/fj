@@ -108,8 +108,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     {
         m_cursor.backspace();
     }
-    else if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Delete ||
-             event->key() == Qt::Key_Tab)
+    else if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Delete || event->key() == Qt::Key_Tab)
     {
         return; // noop
     }
@@ -117,16 +116,16 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     {
         if (m_actionMode || m_capsDown)
         {
-            if (k == Qt::Key_I)
-                m_cursor.up();
-            else if (k == Qt::Key_K)
-                m_cursor.down();
-            else if (k == Qt::Key_J)
-                m_cursor.left();
-            else if (k == Qt::Key_L)
-                m_cursor.right();
-            else if (k == Qt::Key_E)
-                m_actionMode = false;
+            switch (k)
+            {
+                case Qt::Key_I: m_cursor.up(); break;
+                case Qt::Key_K: m_cursor.down(); break;
+                case Qt::Key_J: m_cursor.left(); break;
+                case Qt::Key_L: m_cursor.right(); break;
+                case Qt::Key_E: m_actionMode = false; break;
+                case Qt::Key_U: m_cursor.prevCard(); break;
+                case Qt::Key_O: m_cursor.nextCard(); break;
+            }
         }
         else
         {
@@ -144,14 +143,12 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
 {
     switch (event->key())
     {
-    case Qt::Key_CapsLock:
-        m_capsDown = false;
-        if (m_lastKeyPress == Qt::Key_CapsLock)
-            m_actionMode = true;
-        break;
-    case Qt::Key_Shift:
-        m_shiftDown = false;
-        break;
+        case Qt::Key_CapsLock:
+            m_capsDown = false;
+            if (m_lastKeyPress == Qt::Key_CapsLock)
+                m_actionMode = true;
+            break;
+        case Qt::Key_Shift: m_shiftDown = false; break;
     }
 }
 
@@ -163,8 +160,7 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
     const qreal scene_width_in = sceneRect().width();
     const qreal scene_height_in = sceneRect().height();
 
-    const qreal scale =
-        qMin(width_px / scene_width_in, height_px / scene_height_in);
+    const qreal scale = qMin(width_px / scene_width_in, height_px / scene_height_in);
     const auto transform = QTransform::fromScale(scale, scale);
     setTransform(transform);
 

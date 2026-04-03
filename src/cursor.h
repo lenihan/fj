@@ -19,9 +19,9 @@ class Cursor
     void enter();
     void backspace();
     void charTyped(QChar c);
-    bool nextRow(const bool createCard);
+    bool nextRow(const bool createCard = false);
     bool prevRow();
-    bool nextCard(const bool createCard);
+    bool nextCard(const bool createCard = false);
     bool prevCard();
     void draw(QPainter* painter, const QRectF& rect);
 

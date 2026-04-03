@@ -1,5 +1,21 @@
-# https://releases.llvm.org/3.4/tools/clang/docs/ClangFormatStyleOptions.html
+BasedOnStyle: LLVM
 
 BreakBeforeBraces: Allman
 IndentWidth: 4
 PointerAlignment: Left
+
+# Short one-line case statements
+AllowShortCaseLabelsOnASingleLine: true
+
+# This is the most important one for your style
+IndentCaseLabels: true
+
+# Prevents extra indentation after the colon in short cases
+IndentCaseBlocks: false
+
+# Helps with Allman style in VS Code
+BraceWrapping:
+  AfterCaseLabel: false
+
+# Often needed in VS Code to prevent fallback interference
+ColumnLimit: 0
