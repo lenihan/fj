@@ -20,7 +20,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Set CMAKE_PREFIX_PATH to the Qt6 installation prefix
-set(CMAKE_PREFIX_PATH "../qt_v6.8.3/install")
+set(CMAKE_PREFIX_PATH "../qt_v6.8.3/install_${CMAKE_GENERATOR_PLATFORM}")
 
 # Need language set before find_package(Theads) is called
 project(TopLevelProject LANGUAGES CXX)

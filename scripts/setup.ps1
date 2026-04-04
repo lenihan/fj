@@ -2,10 +2,16 @@
 
 #Requires -Version 7
 
+param(
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('x86', 'x64', 'arm', 'arm64')]
+    [string]$TargetArch = $null
+)
 # Inputs
 $QT_TAG = "v6.8.3" # LTS - Long-Term Support
 if ($IsWindows) {
-    $VS_ENV_SCRIPT = Get-ChildItem -Recurse "$env:ProgramFiles\Microsoft Visual Studio\2022\*\Common7\Tools\Launch-VsDevShell.ps1"
+    # $VS_ENV_SCRIPT = Get-ChildItem -Recurse "$env:ProgramFiles\Microsoft Visual Studio\2022\*\Common7\Tools\Launch-VsDevShell.ps1"
+    $VS_ENV_SCRIPT = Get-ChildItem "$env:ProgramFiles\Microsoft Visual Studio\vcvarsall.bat" -Recurse
 }
 
 
@@ -14,14 +20,18 @@ $ROOT_DIR = Resolve-Path $PSScriptRoot/..
 $REPO_DIR = Resolve-Path $ROOT_DIR/..
 $PROCESSOR = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
 
+# What vcvarsall.bat uses
 switch ($PROCESSOR) {
-    "X64"   {$ARCH = 'amd64'}
-    "Arm64" {$ARCH = 'arm64'}  # ~20 min
-    "Arm"   {$ARCH = 'arm'}
-    "X86"   {$ARCH = 'x86'}
+    "X64"   {$HOST_ARCH = 'x64'}
+    "Arm64" {$HOST_ARCH = 'arm64'}  # ~20 min
+    "Arm"   {$HOST_ARCH = 'arm'}
+    "X86"   {$HOST_ARCH = 'x86'}
 }
+if (!$TargetArch) {$TARGET_ARCH = $HOST_ARCH}
+else {$TARGET_ARCH = $TargetArch}
 
-# $VCPKG_DIR = Join-Path $REPO_DIR "vcpkg_$VCPKG_TAG"
+if ($HOST_ARCH -eq $TARGET_ARCH) {$HOST_TARGET = $HOST_ARCH}
+else {$HOST_TARGET = $HOST_ARCH + "_" + $TARGET_ARCH}
 
 function echo_command($cmd) {
     Write-Host -ForegroundColor Cyan $cmd 
@@ -54,7 +64,11 @@ function check_prerequisites {
 function setup_build_environment {
     Write-Host -ForegroundColor Green "Setup build environment..." 
     if ($IsWindows) {
-        & $VS_ENV_SCRIPT -Arch $ARCH -SkipAutomaticLocation
+        cmd.exe /c "`"$VS_ENV_SCRIPT`" $HOST_TARGET & set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') {
+                [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], [System.EnvironmentVariableTarget]::Process)
+            }
+        }
     }
 }
 
@@ -70,8 +84,8 @@ function setup_dependencies {
     #     https://doc.qt.io/qt-6.8/build-sources.html
     $qt_dir = Join-Path $REPO_DIR "qt_$QT_TAG"
     $qt_source_dir = Join-Path $qt_dir "source"
-    $qt_build_dir = Join-Path $qt_dir "build"
-    $qt_install_dir = Join-Path $qt_dir "install"
+    $qt_build_dir = Join-Path $qt_dir ("build_" + $TARGET_ARCH)
+    $qt_install_dir = Join-Path $qt_dir ("install_" + $TARGET_ARCH)
 
     # Clone Qt
     Write-Host -ForegroundColor Green "    Clone Qt..."
