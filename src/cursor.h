@@ -24,16 +24,18 @@ class Cursor
     bool nextCard(const bool createCard = false);
     bool prevCard();
     void draw(QPainter* painter, const QRectF& rect);
+    void newCollection();
+    void continueCollection();
 
   private:
     using CardStack = QList<CardItem*>;
     using YearToCardStack = QMap<uint16_t, CardStack>;
     YearToCardStack m_yearToCardStack;
-    uint16_t m_year;    // 0000–9999
-    uint16_t m_cardNum; // 0–9999
-    uint8_t m_row;      // 0–10
-    uint8_t m_col;      // 0–60
+    uint16_t m_year{0};    // 0000–9999
+    uint16_t m_cardNum{0}; // 0–9999
+    uint8_t m_row{0};      // 0–10
+    uint8_t m_col{0};      // 0–60
 
-    CardItem* m_currentCard;
-    QGraphicsScene* m_scene;
+    CardItem* m_currentCard{nullptr};
+    QGraphicsScene* m_scene{nullptr};
 };

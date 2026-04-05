@@ -2,6 +2,7 @@
 #include "cardItem.h"
 #include "constants.h"
 #include "rowItem.h"
+#include <QDate>
 #include <QGraphicsScene>
 #include <QPainter>
 #include <QPen>
@@ -9,18 +10,12 @@
 Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 {
     // Init
-    m_year = 2026;
+    m_year = QDate::currentDate().year();
     m_cardNum = 0;
-    m_row = 1;
+    m_row = 0;
     m_col = 0;
 
-    auto& cardStack = m_yearToCardStack[m_year];
-    CardItem* card = cardStack.emplaceBack(new CardItem(m_cardNum));
-    card->setText(0, QString::number(m_year) + " Index");
-    scene->addItem(card);
-
-    m_currentCard = card;
-    Q_ASSERT(m_currentCard);
+    newCollection();
     Q_ASSERT(m_scene);
 }
 
@@ -95,13 +90,10 @@ void Cursor::charTyped(QChar c)
 
 bool Cursor::nextRow(const bool createCard)
 {
-    if (m_row == (m_currentCard->userRowsPerCard() - 1))
+    if (m_row == m_currentCard->lastEditableRow())
     {
-        const bool cardCreated = nextCard(createCard);
-        if (cardCreated)
-            m_row = 0;
-        else
-            return false; // rowUpdated
+        const bool rowUpdated = nextCard(createCard);
+        return rowUpdated;
     }
     else
         m_row++;
@@ -111,17 +103,18 @@ bool Cursor::nextRow(const bool createCard)
 bool Cursor::prevRow()
 {
     bool rowChanged = false;
-    if (m_row == 0)
+    if (m_row == m_currentCard->firstEditableRow())
     {
         const bool cardChanged = prevCard();
         if (cardChanged)
         {
-            m_row = m_currentCard->userRowsPerCard() - 1;
+            m_row = m_currentCard->lastEditableRow();
             rowChanged = true;
         }
     }
     else
     {
+
         m_row--;
         rowChanged = true;
     }
@@ -135,8 +128,8 @@ bool Cursor::nextCard(const bool createCard)
     {
         if (createCard)
         {
-            CardItem* newCard = cardStack.emplaceBack(new CardItem(m_cardNum + 1));
-            m_scene->addItem(newCard);
+            continueCollection();
+            return true; // nextCard
         }
         else
         {
@@ -149,7 +142,8 @@ bool Cursor::nextCard(const bool createCard)
     m_cardNum++;
     m_currentCard = cardStack.at(m_cardNum);
     m_currentCard->show();
-    return true;  // cardCreated
+    m_row = m_currentCard->firstEditableRow();
+    return true;  // nextCard
 }
 
 bool Cursor::prevCard()
@@ -190,4 +184,42 @@ void Cursor::draw(QPainter* painter, const QRectF& rect)
         QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
                 lineY_scn)};
     painter->drawPolygon(points, 3);
+}
+
+void Cursor::newCollection()
+{
+    auto& cardStack = m_yearToCardStack[m_year];
+    m_cardNum = cardStack.size();
+    m_col = 0;
+    m_row = 0;
+    CardItem* newCard = cardStack.emplaceBack(new CardItem(m_cardNum, m_year));
+    newCard->lastRow()->setReadOnly(true);
+    newCard->setThreadStart(true);
+    // TODO: newCard->setThreadPrev(index card num);
+    
+    m_scene->addItem(newCard);
+    if (m_currentCard) m_currentCard->hide();
+    m_currentCard = newCard;
+    m_currentCard->show();
+}
+
+void Cursor::continueCollection()
+{
+    auto& cardStack = m_yearToCardStack[m_year];
+    m_cardNum = cardStack.size();
+    m_row = 1;
+    m_col = 0;
+    CardItem* newCard = cardStack.emplaceBack(new CardItem(m_cardNum, m_year));
+    const QString title = m_currentCard->firstRow()->text();
+    newCard->firstRow()->setText(title);
+    newCard->firstRow()->setReadOnly(true);
+    newCard->lastRow()->setReadOnly(true);
+    newCard->setThreadStart(false);
+    m_currentCard->setThreadNext(m_cardNum, m_year);
+    newCard->setThreadPrev(m_currentCard->cardNum(), m_currentCard->year());
+
+    m_scene->addItem(newCard);
+    if (m_currentCard) m_currentCard->hide();
+    m_currentCard = newCard;
+    m_currentCard->show();
 }
