@@ -25,6 +25,8 @@ class CardItem : public QGraphicsRectItem
     void setThreadNext(uint16_t cardNum, uint16_t year = 0);
     uint8_t firstEditableRow() const;
     uint8_t lastEditableRow() const;
+    uint8_t lastCol(uint8_t row) const;
+    uint8_t firstCol(uint8_t row) const;
 
   private:
     struct ThreadRef

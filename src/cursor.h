@@ -26,6 +26,7 @@ class Cursor
     void draw(QPainter* painter, const QRectF& rect);
     void newCollection();
     void continueCollection();
+    uint16_t lastCardNum() const;
 
   private:
     using CardStack = QList<CardItem*>;

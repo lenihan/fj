@@ -123,6 +123,16 @@ uint8_t CardItem::lastEditableRow() const
     return lastRow - 1;
 }
 
+uint8_t CardItem::lastCol(uint8_t row) const
+{
+    return colPerRow(row) - 1;
+}
+
+uint8_t CardItem::firstCol(uint8_t row) const
+{
+    return 0;
+}
+
 const RowItem* CardItem::rowItem(uint8_t row) const
 {
     Q_ASSERT(row <= Card::kNumRows);

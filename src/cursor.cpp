@@ -37,11 +37,11 @@ void Cursor::down()
 
 void Cursor::left()
 {
-    if (m_col == 0)
+    if (m_col == m_currentCard->firstCol(m_row))
     {
         const bool changedRow = prevRow();
         if (changedRow)
-            m_col = m_currentCard->colPerRow(m_row) - 1;
+            m_col = m_currentCard->lastCol(m_row);
     }
     else
         m_col--;
@@ -49,7 +49,7 @@ void Cursor::left()
 
 void Cursor::right()
 {
-    if (m_col == (m_currentCard->colPerRow(m_row) - 1))
+    if (m_col == m_currentCard->lastCol(m_row))
     {
         const bool createCard = false;
         const bool rowUpdated = nextRow(createCard);
@@ -69,7 +69,7 @@ void Cursor::enter()
 
 void Cursor::backspace()
 {
-    if (m_col == 0)
+    if (m_col == m_currentCard->firstCol(m_row))
     {
         // noop
         // TODO: Alert user you can't backspace past first col
@@ -124,7 +124,7 @@ bool Cursor::prevRow()
 bool Cursor::nextCard(const bool createCard)
 {
     auto& cardStack = m_yearToCardStack[m_year];
-    if (m_cardNum == (cardStack.size() - 1))
+    if (m_cardNum == lastCardNum())
     {
         if (createCard)
         {
@@ -223,3 +223,10 @@ void Cursor::continueCollection()
     m_currentCard = newCard;
     m_currentCard->show();
 }
+
+uint16_t Cursor::lastCardNum() const
+{
+    const auto& cardStack = m_yearToCardStack[m_year];
+    return cardStack.size() - 1;
+}
+
