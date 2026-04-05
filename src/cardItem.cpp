@@ -97,16 +97,24 @@ uint16_t CardItem::year() const
     return m_year;
 }
 
-void CardItem::setThreadPrev(uint16_t cardNum, uint16_t year)
+void CardItem::setThreadPrev(CardItem* card)
 {
-    m_threadPrev.m_cardNum = cardNum;
-    m_threadPrev.m_year = year;
+    m_threadPrev = card;
 }
 
-void CardItem::setThreadNext(uint16_t cardNum, uint16_t year)
+CardItem* CardItem::threadPrev()
 {
-    m_threadNext.m_cardNum = cardNum;
-    m_threadNext.m_year = year;
+    return m_threadPrev;
+}
+
+void CardItem::setThreadNext(CardItem* card)
+{
+    m_threadNext = card;
+}
+
+CardItem* CardItem::threadNext()
+{
+    return m_threadNext;
 }
 
 uint8_t CardItem::firstEditableRow() const

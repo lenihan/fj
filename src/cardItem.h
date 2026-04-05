@@ -21,21 +21,18 @@ class CardItem : public QGraphicsRectItem
     bool threadStart() const;
     uint16_t cardNum() const;
     uint16_t year() const;
-    void setThreadPrev(uint16_t cardNum, uint16_t year = 0);
-    void setThreadNext(uint16_t cardNum, uint16_t year = 0);
+    void setThreadPrev(CardItem *card);
+    CardItem* threadPrev();
+    void setThreadNext(CardItem *card);
+    CardItem* threadNext();
     uint8_t firstEditableRow() const;
     uint8_t lastEditableRow() const;
     uint8_t lastCol(uint8_t row) const;
     uint8_t firstCol(uint8_t row) const;
 
   private:
-    struct ThreadRef
-    {
-        uint16_t m_year{0};    // 0000–9999
-        uint16_t m_cardNum{0}; // 0–9999
-    };
-    ThreadRef m_threadPrev;
-    ThreadRef m_threadNext;
+    CardItem* m_threadPrev{nullptr};
+    CardItem* m_threadNext{nullptr};
     QList<RowItem*> m_rows;
     uint16_t m_cardNum{0};
     uint16_t m_year{0};

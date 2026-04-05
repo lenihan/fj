@@ -27,6 +27,8 @@ class Cursor
     void newCollection();
     void continueCollection();
     uint16_t lastCardNum() const;
+    void nextThread();
+    void prevThread();
 
   private:
     using CardStack = QList<CardItem*>;

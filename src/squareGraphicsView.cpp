@@ -114,6 +114,9 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_E: m_actionMode = false; break;
                     case Qt::Key_U: m_cursor.prevCard(); break;
                     case Qt::Key_O: m_cursor.nextCard(); break;
+                    case Qt::Key_C: m_cursor.newCollection(); break;
+                    case Qt::Key_M: m_cursor.prevThread(); break;
+                    case Qt::Key_Comma: m_cursor.nextThread(); break;
                 }
             }
             else

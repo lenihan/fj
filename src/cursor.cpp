@@ -215,8 +215,8 @@ void Cursor::continueCollection()
     newCard->firstRow()->setReadOnly(true);
     newCard->lastRow()->setReadOnly(true);
     newCard->setThreadStart(false);
-    m_currentCard->setThreadNext(m_cardNum, m_year);
-    newCard->setThreadPrev(m_currentCard->cardNum(), m_currentCard->year());
+    m_currentCard->setThreadNext(newCard);
+    newCard->setThreadPrev(m_currentCard);
 
     m_scene->addItem(newCard);
     if (m_currentCard) m_currentCard->hide();
@@ -230,3 +230,26 @@ uint16_t Cursor::lastCardNum() const
     return cardStack.size() - 1;
 }
 
+void Cursor::nextThread()
+{
+    Q_ASSERT(m_currentCard);
+    CardItem* nextCard = m_currentCard->threadNext();
+    if (nextCard)
+    {
+        m_currentCard->hide();
+        m_currentCard = nextCard;
+        m_currentCard->show();  
+    }
+}
+
+void Cursor::prevThread()
+{
+    Q_ASSERT(m_currentCard);
+    CardItem* prevCard = m_currentCard->threadPrev();
+    if (prevCard)
+    {
+        m_currentCard->hide();
+        m_currentCard = prevCard;
+        m_currentCard->show();  
+    }
+}
