@@ -31,16 +31,7 @@ CardItem::CardItem(uint16_t cardNum, uint16_t year, QGraphicsItem* parent)
         m_rows.emplaceBack(new RowItem(static_cast<uint8_t>(i), this));
     }
 
-    // Center page number on last line
-    const uint8_t lastRow = Card::kNumRows - 1;
-    const uint8_t cols = m_rows[lastRow]->colPerRow();
-    const QString pageNum = QString::number(m_cardNum + 1);
-    QString centeredPageNum(cols, ' ');
-    const qsizetype position = (cols - pageNum.length()) / 2;
-    const qsizetype n = pageNum.length();
-    centeredPageNum.replace(position, n, pageNum);
-    Q_ASSERT(centeredPageNum.length() == cols);
-    m_rows[lastRow]->setText(centeredPageNum);
+    updateLastRow();
 }
 
 void CardItem::setChar(const QChar c, const uint8_t row, const uint8_t col)
@@ -100,6 +91,7 @@ uint16_t CardItem::year() const
 void CardItem::setThreadPrev(CardItem* card)
 {
     m_threadPrev = card;
+    updateLastRow();
 }
 
 CardItem* CardItem::threadPrev()
@@ -110,6 +102,7 @@ CardItem* CardItem::threadPrev()
 void CardItem::setThreadNext(CardItem* card)
 {
     m_threadNext = card;
+    updateLastRow();
 }
 
 CardItem* CardItem::threadNext()
@@ -146,14 +139,66 @@ QVariant CardItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QV
     if (change == ItemVisibleHasChanged)
     {
         if (value.toBool())
-        {                           // <-- just became visible
+        { // <-- just became visible
             Q_ASSERT(threadStart());
             const QString title = threadStart()->firstRow()->text();
             firstRow()->setText(title);
-            update();               // request repaint
+            update(); // request repaint
         }
     }
     return QGraphicsItem::itemChange(change, value);
+}
+
+QString CardItem::threadStr(CardItem *card)
+{
+    QString str;
+
+    if (!card)
+        return str;
+
+    if (m_threadStart == this && card == m_threadPrev)
+        str = "↑"; // Parent index
+    else
+        str = "→"; // Thread
+
+    if (m_year != card->year())
+        str += QString::number(card->year()) + ":";
+
+    str += QString::number(card->cardNum() + 1);
+
+    return str;
+}
+
+void CardItem::updateLastRow()
+{
+    // Last line: Prev thread       card num         next thread
+    const uint8_t lastRow = Card::kNumRows - 1;
+    const uint8_t cols = m_rows[lastRow]->colPerRow();
+    QString text(cols, ' ');
+    qsizetype pos;
+    qsizetype n;
+    
+    // prev
+    const QString prev = threadStr(m_threadPrev);
+    pos = 0;
+    n = prev.length();
+    text.replace(pos, n, prev);
+
+    // card num
+    const QString cardNumStr = QString::number(m_cardNum + 1);
+    pos = (cols - cardNumStr.length()) / 2;
+    n = cardNumStr.length();
+    text.replace(pos, n, cardNumStr);
+
+    // next
+    const QString next = threadStr(m_threadNext);
+    pos = cols - next.length();
+    n = next.length();
+    text.replace(pos, n, next);
+    
+    Q_ASSERT(text.length() == cols);
+    m_rows[lastRow]->setText(text);
+
 }
 
 const RowItem* CardItem::rowItem(uint8_t row) const

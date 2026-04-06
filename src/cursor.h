@@ -27,6 +27,7 @@ class Cursor
     void newCollection();
     void continueCollection();
     uint16_t lastThreadCard() const;
+    uint16_t lastCardNum() const;
     void nextThread();
     void prevThread();
 

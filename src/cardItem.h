@@ -34,6 +34,8 @@ class CardItem : public QGraphicsRectItem
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
 
   private:
+    QString threadStr(CardItem* card);
+    void updateLastRow();
     CardItem* m_threadPrev{nullptr};
     CardItem* m_threadNext{nullptr};
     CardItem* m_threadStart{nullptr};

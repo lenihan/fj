@@ -124,7 +124,7 @@ bool Cursor::prevRow()
 bool Cursor::nextCard(const bool createCard)
 {
     auto& cardStack = m_yearToCardStack[m_year];
-    if (m_cardNum == lastThreadCard())
+    if (m_cardNum == lastCardNum())
     {
         if (createCard)
         {
@@ -231,6 +231,12 @@ uint16_t Cursor::lastThreadCard() const
     while (CardItem* nextCard = lastCard->threadNext())
         lastCard = nextCard;
     return lastCard->cardNum();
+}
+
+uint16_t Cursor::lastCardNum() const
+{
+    const auto& cardStack = m_yearToCardStack[m_year];
+    return cardStack.size() - 1;
 }
 
 void Cursor::nextThread()
