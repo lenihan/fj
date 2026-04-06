@@ -77,12 +77,12 @@ RowItem* CardItem::lastRow()
     return m_rows[Card::kNumRows - 1];
 }
 
-void CardItem::setThreadStart(bool threadStart)
+void CardItem::setThreadStart(CardItem* threadStart)
 {
     m_threadStart = threadStart;
 }
 
-bool CardItem::threadStart() const
+CardItem* CardItem::threadStart() const
 {
     return m_threadStart;
 }
@@ -119,7 +119,7 @@ CardItem* CardItem::threadNext()
 
 uint8_t CardItem::firstEditableRow() const
 {
-    if (m_threadStart)
+    if (m_threadStart == this)
         return 0;
     else
         return 1;
@@ -139,6 +139,21 @@ uint8_t CardItem::lastCol(uint8_t row) const
 uint8_t CardItem::firstCol(uint8_t row) const
 {
     return 0;
+}
+
+QVariant CardItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value)
+{
+    if (change == ItemVisibleHasChanged)
+    {
+        if (value.toBool())
+        {                           // <-- just became visible
+            Q_ASSERT(threadStart());
+            const QString title = threadStart()->firstRow()->text();
+            firstRow()->setText(title);
+            update();               // request repaint
+        }
+    }
+    return QGraphicsItem::itemChange(change, value);
 }
 
 const RowItem* CardItem::rowItem(uint8_t row) const

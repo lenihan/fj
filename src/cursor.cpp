@@ -194,7 +194,7 @@ void Cursor::newCollection()
     m_row = 0;
     CardItem* newCard = cardStack.emplaceBack(new CardItem(m_cardNum, m_year));
     newCard->lastRow()->setReadOnly(true);
-    newCard->setThreadStart(true);
+    newCard->setThreadStart(newCard);
     // TODO: newCard->setThreadPrev(index card num);
 
     m_scene->addItem(newCard);
@@ -211,11 +211,9 @@ void Cursor::continueCollection()
     m_row = 1;
     m_col = 0;
     CardItem* newCard = cardStack.emplaceBack(new CardItem(m_cardNum, m_year));
-    const QString title = m_currentCard->firstRow()->text();
-    newCard->firstRow()->setText(title);
     newCard->firstRow()->setReadOnly(true);
     newCard->lastRow()->setReadOnly(true);
-    newCard->setThreadStart(false);
+    newCard->setThreadStart(m_currentCard->threadStart());
     m_currentCard->setThreadNext(newCard);
     newCard->setThreadPrev(m_currentCard);
 

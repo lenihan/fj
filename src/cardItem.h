@@ -17,26 +17,29 @@ class CardItem : public QGraphicsRectItem
     const RowItem* rowItem(uint8_t row) const;
     RowItem* firstRow();
     RowItem* lastRow();
-    void setThreadStart(bool threadStart);
-    bool threadStart() const;
+    void setThreadStart(CardItem* threadStart);
+    CardItem* threadStart() const;
     uint16_t cardNum() const;
     uint16_t year() const;
-    void setThreadPrev(CardItem *card);
+    void setThreadPrev(CardItem* card);
     CardItem* threadPrev();
-    void setThreadNext(CardItem *card);
+    void setThreadNext(CardItem* card);
     CardItem* threadNext();
     uint8_t firstEditableRow() const;
     uint8_t lastEditableRow() const;
     uint8_t lastCol(uint8_t row) const;
     uint8_t firstCol(uint8_t row) const;
 
+  protected:
+    QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
+
   private:
     CardItem* m_threadPrev{nullptr};
     CardItem* m_threadNext{nullptr};
+    CardItem* m_threadStart{nullptr};
     QList<RowItem*> m_rows;
     uint16_t m_cardNum{0};
     uint16_t m_year{0};
-    bool m_threadStart{false};
     bool m_deleted{false};
     bool m_readOnly{false};
 };
