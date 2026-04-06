@@ -138,10 +138,9 @@ bool Cursor::nextCard(const bool createCard)
             return false; // cardCreated
         }
     }
-    m_currentCard->hide();
-    m_cardNum++;
-    m_currentCard = cardStack.at(m_cardNum);
-    m_currentCard->show();
+
+    CardItem* nextCard = cardStack.at(m_cardNum + 1);
+    showCard(nextCard);
     m_row = m_currentCard->firstEditableRow();
     return true; // nextCard
 }
@@ -149,14 +148,13 @@ bool Cursor::nextCard(const bool createCard)
 bool Cursor::prevCard()
 {
     bool cardChanged = false;
+    Q_ASSERT(m_cardNum == m_currentCard->cardNum());
     if (m_cardNum != 0)
     {
-        m_currentCard->hide();
-        m_cardNum--;
-        cardChanged = true;
         auto& cardStack = m_yearToCardStack[m_year];
-        m_currentCard = cardStack[m_cardNum];
-        m_currentCard->show();
+        CardItem* prevCard = cardStack[m_cardNum - 1];
+        showCard(prevCard);
+        cardChanged = true;
     }
     return cardChanged;
 }
@@ -198,10 +196,7 @@ void Cursor::newCollection()
     // TODO: newCard->setThreadPrev(index card num);
 
     m_scene->addItem(newCard);
-    if (m_currentCard)
-        m_currentCard->hide();
-    m_currentCard = newCard;
-    m_currentCard->show();
+    showCard(newCard);
 }
 
 void Cursor::continueCollection()
@@ -218,10 +213,7 @@ void Cursor::continueCollection()
     newCard->setThreadPrev(m_currentCard);
 
     m_scene->addItem(newCard);
-    if (m_currentCard)
-        m_currentCard->hide();
-    m_currentCard = newCard;
-    m_currentCard->show();
+    showCard(newCard);
 }
 
 uint16_t Cursor::lastThreadCard() const
@@ -245,9 +237,7 @@ void Cursor::nextThread()
     CardItem* nextCard = m_currentCard->threadNext();
     if (nextCard)
     {
-        m_currentCard->hide();
-        m_currentCard = nextCard;
-        m_currentCard->show();
+        showCard(nextCard);
     }
 }
 
@@ -257,8 +247,15 @@ void Cursor::prevThread()
     CardItem* prevCard = m_currentCard->threadPrev();
     if (prevCard)
     {
-        m_currentCard->hide();
-        m_currentCard = prevCard;
-        m_currentCard->show();
+        showCard(prevCard);
     }
+}
+
+void Cursor::showCard(CardItem* card)
+{
+    if (m_currentCard)
+        m_currentCard->hide();
+    m_currentCard = card;
+    m_cardNum = m_currentCard->cardNum();
+    m_currentCard->show();
 }

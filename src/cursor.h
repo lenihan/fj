@@ -32,6 +32,7 @@ class Cursor
     void prevThread();
 
   private:
+    void showCard(CardItem* card);
     using CardStack = QList<CardItem*>;
     using YearToCardStack = QMap<uint16_t, CardStack>;
     YearToCardStack m_yearToCardStack;
