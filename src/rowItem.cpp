@@ -15,11 +15,8 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
       m_row(row)
 {
     setFont(kFont);
-
-    // setBrush(QColor(64, 64, 64));
-    setPen(QPen(Qt::black));
+    setBrush(Qt::black);
     setPen(Qt::NoPen);
-    // setPen(QColor(128, 128, 128));
 
     // Calc font to scene scale
     const qreal rowWidth_fnt = kFontCharWidth_fnt * kColsPerRow;
@@ -53,14 +50,22 @@ void RowItem::setText(const QString& text)
     QGraphicsSimpleTextItem::setText(text);
 }
 
-void RowItem::setReadOnly(bool readOnly) 
+void RowItem::setReadOnly(bool readOnly)
 {
     m_readOnly = readOnly;
+    if (m_readOnly)
+    {
+        setBrush(Qt::lightGray);
+    }
+    else
+    {
+        setBrush(Qt::black);
+    }
 }
 
-bool RowItem::readOnly() const 
-{ 
-    return m_readOnly; 
+bool RowItem::readOnly() const
+{
+    return m_readOnly;
 }
 
 qreal RowItem::rowHeight_scn() const { return kRowHeight_scn; }
