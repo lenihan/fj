@@ -124,7 +124,7 @@ bool Cursor::prevRow()
 bool Cursor::nextCard(const bool createCard)
 {
     auto& cardStack = m_yearToCardStack[m_year];
-    if (m_cardNum == lastCardNum())
+    if (m_cardNum == lastThreadCard())
     {
         if (createCard)
         {
@@ -143,7 +143,7 @@ bool Cursor::nextCard(const bool createCard)
     m_currentCard = cardStack.at(m_cardNum);
     m_currentCard->show();
     m_row = m_currentCard->firstEditableRow();
-    return true;  // nextCard
+    return true; // nextCard
 }
 
 bool Cursor::prevCard()
@@ -196,9 +196,10 @@ void Cursor::newCollection()
     newCard->lastRow()->setReadOnly(true);
     newCard->setThreadStart(true);
     // TODO: newCard->setThreadPrev(index card num);
-    
+
     m_scene->addItem(newCard);
-    if (m_currentCard) m_currentCard->hide();
+    if (m_currentCard)
+        m_currentCard->hide();
     m_currentCard = newCard;
     m_currentCard->show();
 }
@@ -219,15 +220,19 @@ void Cursor::continueCollection()
     newCard->setThreadPrev(m_currentCard);
 
     m_scene->addItem(newCard);
-    if (m_currentCard) m_currentCard->hide();
+    if (m_currentCard)
+        m_currentCard->hide();
     m_currentCard = newCard;
     m_currentCard->show();
 }
 
-uint16_t Cursor::lastCardNum() const
+uint16_t Cursor::lastThreadCard() const
 {
-    const auto& cardStack = m_yearToCardStack[m_year];
-    return cardStack.size() - 1;
+    Q_ASSERT(m_currentCard);
+    CardItem* lastCard = m_currentCard;
+    while (CardItem* nextCard = lastCard->threadNext())
+        lastCard = nextCard;
+    return lastCard->cardNum();
 }
 
 void Cursor::nextThread()
@@ -238,7 +243,7 @@ void Cursor::nextThread()
     {
         m_currentCard->hide();
         m_currentCard = nextCard;
-        m_currentCard->show();  
+        m_currentCard->show();
     }
 }
 
@@ -250,6 +255,6 @@ void Cursor::prevThread()
     {
         m_currentCard->hide();
         m_currentCard = prevCard;
-        m_currentCard->show();  
+        m_currentCard->show();
     }
 }

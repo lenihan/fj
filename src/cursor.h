@@ -26,7 +26,7 @@ class Cursor
     void draw(QPainter* painter, const QRectF& rect);
     void newCollection();
     void continueCollection();
-    uint16_t lastCardNum() const;
+    uint16_t lastThreadCard() const;
     void nextThread();
     void prevThread();
 
