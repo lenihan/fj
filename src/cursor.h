@@ -20,6 +20,7 @@ class Cursor
     void right();
     void enter();
     void backspace();
+    void charTyped(QChar c);
     bool nextRow(const bool createCard = false);
     bool prevRow();
     bool nextCard(const bool createCard = false);
@@ -28,7 +29,6 @@ class Cursor
     void prevThread();
     void newCollection();
     void continueCollection();
-    void charTyped(QChar c);
     void draw(QPainter* painter, const QRectF& rect);
 
   private:

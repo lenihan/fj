@@ -97,6 +97,12 @@ void Cursor::backspace()
     }
 }
 
+void Cursor::charTyped(QChar c)
+{
+    m_currentCard->setChar(c, m_row, m_col);
+    right();
+}
+
 bool Cursor::nextRow(const bool createCard)
 {
     if (m_row == m_currentCard->lastEditableRow())
@@ -218,12 +224,6 @@ void Cursor::continueCollection()
 
     m_scene->addItem(newCard);
     showCard(newCard);
-}
-
-void Cursor::charTyped(QChar c)
-{
-    m_currentCard->setChar(c, m_row, m_col);
-    right();
 }
 
 void Cursor::draw(QPainter* painter, const QRectF& rect)
