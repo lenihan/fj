@@ -19,6 +19,21 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     Q_ASSERT(m_scene);
 }
 
+uint16_t Cursor::lastThreadCard() const
+{
+    Q_ASSERT(m_currentCard);
+    CardItem* lastCard = m_currentCard;
+    while (CardItem* nextCard = lastCard->threadNext())
+        lastCard = nextCard;
+    return lastCard->cardNum();
+}
+
+uint16_t Cursor::lastCardNum() const
+{
+    const auto& cardStack = m_yearToCardStack[m_year];
+    return cardStack.size() - 1;
+}
+
 void Cursor::up()
 {
     const uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
@@ -80,12 +95,6 @@ void Cursor::backspace()
         m_col--;
         m_currentCard->setChar(' ', m_row, m_col);
     }
-}
-
-void Cursor::charTyped(QChar c)
-{
-    m_currentCard->setChar(c, m_row, m_col);
-    right();
 }
 
 bool Cursor::nextRow(const bool createCard)
@@ -159,29 +168,24 @@ bool Cursor::prevCard()
     return cardChanged;
 }
 
-void Cursor::draw(QPainter* painter, const QRectF& rect)
+void Cursor::nextThread()
 {
-    QPen pen(Qt::red);
-    pen.setCosmetic(true);
-    pen.setWidthF(2.0);
-    painter->setPen(pen);
-    painter->setBrush(Qt::red);
+    Q_ASSERT(m_currentCard);
+    CardItem* nextCard = m_currentCard->threadNext();
+    if (nextCard)
+    {
+        showCard(nextCard);
+    }
+}
 
-    const RowItem* rowItem = m_currentCard->rowItem(m_row);
-
-    const qreal rowHeight_scn = rowItem->rowHeight_scn();
-    const qreal charHeight_scn = rowItem->charHeight_scn();
-    const qreal charWidth_scn = rowItem->charWidth_scn();
-    const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
-
-    const QPointF points[3] = {
-        QPointF(m_col * charWidth_scn + Card::kBorder_scn,
-                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
-        QPointF(m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0,
-                lineY_scn),
-        QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
-                lineY_scn)};
-    painter->drawPolygon(points, 3);
+void Cursor::prevThread()
+{
+    Q_ASSERT(m_currentCard);
+    CardItem* prevCard = m_currentCard->threadPrev();
+    if (prevCard)
+    {
+        showCard(prevCard);
+    }
 }
 
 void Cursor::newCollection()
@@ -216,39 +220,35 @@ void Cursor::continueCollection()
     showCard(newCard);
 }
 
-uint16_t Cursor::lastThreadCard() const
+void Cursor::charTyped(QChar c)
 {
-    Q_ASSERT(m_currentCard);
-    CardItem* lastCard = m_currentCard;
-    while (CardItem* nextCard = lastCard->threadNext())
-        lastCard = nextCard;
-    return lastCard->cardNum();
+    m_currentCard->setChar(c, m_row, m_col);
+    right();
 }
 
-uint16_t Cursor::lastCardNum() const
+void Cursor::draw(QPainter* painter, const QRectF& rect)
 {
-    const auto& cardStack = m_yearToCardStack[m_year];
-    return cardStack.size() - 1;
-}
+    QPen pen(Qt::red);
+    pen.setCosmetic(true);
+    pen.setWidthF(2.0);
+    painter->setPen(pen);
+    painter->setBrush(Qt::red);
 
-void Cursor::nextThread()
-{
-    Q_ASSERT(m_currentCard);
-    CardItem* nextCard = m_currentCard->threadNext();
-    if (nextCard)
-    {
-        showCard(nextCard);
-    }
-}
+    const RowItem* rowItem = m_currentCard->rowItem(m_row);
 
-void Cursor::prevThread()
-{
-    Q_ASSERT(m_currentCard);
-    CardItem* prevCard = m_currentCard->threadPrev();
-    if (prevCard)
-    {
-        showCard(prevCard);
-    }
+    const qreal rowHeight_scn = rowItem->rowHeight_scn();
+    const qreal charHeight_scn = rowItem->charHeight_scn();
+    const qreal charWidth_scn = rowItem->charWidth_scn();
+    const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+
+    const QPointF points[3] = {
+        QPointF(m_col * charWidth_scn + Card::kBorder_scn,
+                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
+        QPointF(m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0,
+                lineY_scn),
+        QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
+                lineY_scn)};
+    painter->drawPolygon(points, 3);
 }
 
 void Cursor::showCard(CardItem* card)

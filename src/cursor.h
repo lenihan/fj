@@ -12,24 +12,24 @@ class Cursor
 {
   public:
     Cursor(QGraphicsScene* scene);
+    uint16_t lastThreadCard() const;
+    uint16_t lastCardNum() const;
     void up();
     void down();
     void left();
     void right();
     void enter();
     void backspace();
-    void charTyped(QChar c);
     bool nextRow(const bool createCard = false);
     bool prevRow();
     bool nextCard(const bool createCard = false);
     bool prevCard();
-    void draw(QPainter* painter, const QRectF& rect);
-    void newCollection();
-    void continueCollection();
-    uint16_t lastThreadCard() const;
-    uint16_t lastCardNum() const;
     void nextThread();
     void prevThread();
+    void newCollection();
+    void continueCollection();
+    void charTyped(QChar c);
+    void draw(QPainter* painter, const QRectF& rect);
 
   private:
     void showCard(CardItem* card);
