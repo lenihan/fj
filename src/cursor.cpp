@@ -17,11 +17,11 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 
     newCollection();
     Q_ASSERT(m_scene);
+    Q_ASSERT(m_currentCard);
 }
 
 uint16_t Cursor::lastThreadCard() const
 {
-    Q_ASSERT(m_currentCard);
     CardItem* lastCard = m_currentCard;
     while (CardItem* nextCard = lastCard->threadNext())
         lastCard = nextCard;
@@ -54,8 +54,9 @@ void Cursor::left()
 {
     if (m_col == m_currentCard->firstCol(m_row))
     {
-        const bool changedRow = prevRow();
-        if (changedRow)
+        uint8_t oldRow = m_row;
+        prevRow();
+        if (oldRow != m_row)
             m_col = m_currentCard->lastCol(m_row);
     }
     else
@@ -66,9 +67,9 @@ void Cursor::right()
 {
     if (m_col == m_currentCard->lastCol(m_row))
     {
-        const bool createCard = false;
-        const bool rowUpdated = nextRow(createCard);
-        if (rowUpdated)
+        const uint8_t oldRow = m_row;
+        nextRow();
+        if (oldRow != m_row)
             m_col = 0;
     }
     else
@@ -77,8 +78,7 @@ void Cursor::right()
 
 void Cursor::enter()
 {
-    const bool createCard = true;
-    nextRow(createCard);
+    nextRowCreateCard();
     m_col = 0;
 }
 
@@ -103,95 +103,91 @@ void Cursor::charTyped(QChar c)
     right();
 }
 
-bool Cursor::nextRow(const bool createCard)
+void Cursor::nextRow()
 {
     if (m_row == m_currentCard->lastEditableRow())
     {
-        const bool rowUpdated = nextCard(createCard);
-        return rowUpdated;
+        const uint16_t oldCardNum = m_cardNum;
+        nextThreadCard();
+        if (oldCardNum != m_cardNum)
+            m_row = m_currentCard->firstEditableRow();
     }
     else
         m_row++;
-    return true; // rowUpdated
 }
 
-bool Cursor::prevRow()
+void Cursor::nextRowCreateCard()
 {
-    bool rowChanged = false;
+    if (m_row == m_currentCard->lastEditableRow())
+        nextThreadCardCreateCard();
+    else
+        m_row++;
+}
+
+void Cursor::prevRow()
+{
     if (m_row == m_currentCard->firstEditableRow())
     {
-        const bool cardChanged = prevCard();
-        if (cardChanged)
-        {
+        const uint16_t oldCardNum = m_cardNum;
+        prevThreadCard();
+        if (oldCardNum != m_cardNum)
             m_row = m_currentCard->lastEditableRow();
-            rowChanged = true;
-        }
+    }
+    else
+        m_row--;
+}
+
+void Cursor::nextCard()
+{
+    if (m_cardNum == lastCardNum())
+    {
+        // Last card...Stop!
+        // TODO: UI indicates at last card
     }
     else
     {
-
-        m_row--;
-        rowChanged = true;
-    }
-    return rowChanged;
-}
-
-bool Cursor::nextCard(const bool createCard)
-{
-    auto& cardStack = m_yearToCardStack[m_year];
-    if (m_cardNum == lastCardNum())
-    {
-        if (createCard)
-        {
-            continueCollection();
-            return true; // nextCard
-        }
-        else
-        {
-            // Last card...Stop!
-            // TODO: UI indicates at last card
-            return false; // cardCreated
-        }
-    }
-
-    CardItem* nextCard = cardStack.at(m_cardNum + 1);
-    showCard(nextCard);
-    m_row = m_currentCard->firstEditableRow();
-    return true; // nextCard
-}
-
-bool Cursor::prevCard()
-{
-    bool cardChanged = false;
-    Q_ASSERT(m_cardNum == m_currentCard->cardNum());
-    if (m_cardNum != 0)
-    {
         auto& cardStack = m_yearToCardStack[m_year];
-        CardItem* prevCard = cardStack[m_cardNum - 1];
-        showCard(prevCard);
-        cardChanged = true;
-    }
-    return cardChanged;
-}
-
-void Cursor::nextThread()
-{
-    Q_ASSERT(m_currentCard);
-    CardItem* nextCard = m_currentCard->threadNext();
-    if (nextCard)
-    {
+        CardItem* nextCard = cardStack.at(m_cardNum + 1);
         showCard(nextCard);
     }
 }
 
-void Cursor::prevThread()
+void Cursor::prevCard()
 {
-    Q_ASSERT(m_currentCard);
-    CardItem* prevCard = m_currentCard->threadPrev();
-    if (prevCard)
+    if (m_cardNum == 0)
     {
+        // Last card...Stop!
+        // TODO: UI indicates at last card
+    }
+    else
+    {
+        auto& cardStack = m_yearToCardStack[m_year];
+        CardItem* prevCard = cardStack[m_cardNum - 1];
         showCard(prevCard);
     }
+}
+
+void Cursor::prevThreadCard()
+{
+    CardItem* prevCard = m_currentCard->threadPrev();
+    if (prevCard)
+        showCard(prevCard);
+}
+
+void Cursor::nextThreadCard()
+{
+    CardItem* nextCard = m_currentCard->threadNext();
+    if (nextCard)
+        showCard(nextCard);
+}
+
+void Cursor::nextThreadCardCreateCard()
+{
+    CardItem* nextCard = m_currentCard->threadNext();
+    if (nextCard)
+        showCard(nextCard);
+    else
+        continueCollection();
 }
 
 void Cursor::newCollection()
@@ -206,6 +202,7 @@ void Cursor::newCollection()
     // TODO: newCard->setThreadPrev(index card num);
 
     m_scene->addItem(newCard);
+    m_currentCard = newCard;
     showCard(newCard);
 }
 
@@ -253,8 +250,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect)
 
 void Cursor::showCard(CardItem* card)
 {
-    if (m_currentCard)
-        m_currentCard->hide();
+    Q_ASSERT(m_currentCard);
+    m_currentCard->hide();
     m_currentCard = card;
     m_cardNum = m_currentCard->cardNum();
     m_currentCard->show();
