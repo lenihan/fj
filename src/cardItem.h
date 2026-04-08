@@ -44,4 +44,5 @@ class CardItem : public QGraphicsRectItem
     uint16_t m_year{0};
     bool m_deleted{false};
     bool m_readOnly{false};
+    bool m_isIndex{false};
 };
