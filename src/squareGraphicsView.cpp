@@ -22,7 +22,8 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 {
-    m_cursor.draw(painter, rect);
+    const bool typing = !(m_actionMode || m_capsDown);
+    m_cursor.draw(painter, rect, typing);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
@@ -140,7 +141,11 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
         case Qt::Key_CapsLock:
             m_capsDown = false;
             if (m_lastKeyPress == Qt::Key_CapsLock)
+            {
                 m_actionMode = true;
+            }
+            // Force redraw of cursor at new location
+            scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
             break;
         case Qt::Key_Shift: m_shiftDown = false; break;
     }

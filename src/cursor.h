@@ -31,7 +31,7 @@ class Cursor
     void nextThreadCardCreateCard();
     void newCollection();
     void continueCollection();
-    void draw(QPainter* painter, const QRectF& rect);
+    void draw(QPainter* painter, const QRectF& rect, const bool typing);
 
   private:
     void showCard(CardItem* card);

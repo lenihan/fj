@@ -223,41 +223,85 @@ void Cursor::continueCollection()
     showCard(newCard);
 }
 
-void Cursor::draw(QPainter* painter, const QRectF& rect)
+void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 {
-    QPen pen(Qt::red);
-    pen.setCosmetic(true);
-    pen.setWidthF(5.0);
-    painter->setPen(pen);
-    painter->setBrush(Qt::transparent);
-
+    Q_ASSERT(m_currentCard);
     const RowItem* rowItem = m_currentCard->rowItem(m_row);
+    Q_ASSERT(rowItem);
 
-    const qreal rowHeight_scn = rowItem->rowHeight_scn();
-    const qreal charHeight_scn = rowItem->charHeight_scn();
-    const qreal charWidth_scn = rowItem->charWidth_scn();
-    const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+    // Darken all but current row
+    if (typing)
+    {
+        //QPen pen(Qt::blue);
+        //pen.setCosmetic(true);
+        //pen.setWidthF(5.0);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(0, 0, 0, 15));
 
-    const QPointF topLeft(
-        m_col * charWidth_scn + Card::kBorder_scn,
-        lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0
-    );
-    const QPointF bottomRight(
-        topLeft.x() + charWidth_scn,
-        lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0
-    );
-    const QRectF cursorRect(topLeft, bottomRight);
-    painter->drawRoundedRect(cursorRect, 25.0, 25.0, Qt::RelativeSize);
-    // painter->drawRect(cursorRect);
+        const qreal rowHeight_scn = rowItem->rowHeight_scn();
+        const qreal charHeight_scn = rowItem->charHeight_scn();
+        const qreal charWidth_scn = rowItem->charWidth_scn();
+        const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-    // const QPointF points[3] = {
-    //     QPointF(m_col * charWidth_scn + Card::kBorder_scn,
-    //             lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
-    //     QPointF(m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0,
-    //             lineY_scn),
-    //     QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
-    //             lineY_scn)};
-    // painter->drawPolygon(points, 3);
+        //const QRectF row_itm = rowItem->boundingRect();
+        //const QPolygonF row_scn = rowItem->mapToScene(row_itm)
+        //painter->drawPolygon(row_scn);
+        const qreal x = Card::kLeft_scn;
+        const qreal y = lineY_scn - rowHeight_scn;
+        const qreal w = Card::kRight_scn - Card::kLeft_scn;
+        const qreal h = rowHeight_scn;
+        const QRectF row_scn(x, y, w, h);
+
+        const QRectF card_itm = m_currentCard->boundingRect();
+        const QPolygonF card_scn = m_currentCard->mapRectToScene(card_itm);
+        //painter->drawPolygon(card_scn);
+
+        // Build a path: outer rect minus inner rect
+        QPainterPath path;
+        path.addPolygon(card_scn); // outer
+        path.addRoundedRect(row_scn, 5.0, 5.0, Qt::RelativeSize);  // inner (will be subtracted)
+
+        // Set fill rule so the inner area becomes a "hole"
+        path.setFillRule(Qt::OddEvenFill); // or WindingFill; OddEven usually works best for holes
+        painter->drawPath(path);           // draws only the outline with hole
+    }
+
+    // Draw cursor as red empty rounded square
+    {
+        QPen pen(QColor(227, 59,36)); // dark orangish-red
+        //QPen pen(Qt::red);
+        pen.setCosmetic(true);
+        pen.setWidthF(1.0);
+        painter->setPen(pen);
+        painter->setBrush(Qt::transparent);
+
+        const qreal rowHeight_scn = rowItem->rowHeight_scn();
+        const qreal charHeight_scn = rowItem->charHeight_scn();
+        const qreal charWidth_scn = rowItem->charWidth_scn();
+        const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+
+        const QPointF topLeft(
+            m_col * charWidth_scn + Card::kBorder_scn,
+            lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0
+        );
+        const QPointF bottomRight(
+            topLeft.x() + charWidth_scn,
+            lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0
+        );
+        const QRectF cursorRect(topLeft, bottomRight);
+        painter->drawRoundedRect(cursorRect, 25.0, 25.0, Qt::RelativeSize);
+        // painter->drawRect(cursorRect);
+
+        // const QPointF points[3] = {
+        //     QPointF(m_col * charWidth_scn + Card::kBorder_scn,
+        //             lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
+        //     QPointF(m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0,
+        //             lineY_scn),
+        //     QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
+        //             lineY_scn)};
+        // painter->drawPolygon(points, 3);
+
+    }
 }
 
 void Cursor::showCard(CardItem* card)
