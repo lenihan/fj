@@ -271,7 +271,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
         QPen pen(QColor(227, 59,36)); // dark orangish-red
         //QPen pen(Qt::red);
         pen.setCosmetic(true);
-        pen.setWidthF(1.0);
+        pen.setWidthF(2.0);
         painter->setPen(pen);
         painter->setBrush(Qt::transparent);
 
