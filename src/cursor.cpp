@@ -232,20 +232,12 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
     // Darken all but current row
     if (typing)
     {
-        //QPen pen(Qt::blue);
-        //pen.setCosmetic(true);
-        //pen.setWidthF(5.0);
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(0, 0, 0, 15));
 
         const qreal rowHeight_scn = rowItem->rowHeight_scn();
-        const qreal charHeight_scn = rowItem->charHeight_scn();
-        const qreal charWidth_scn = rowItem->charWidth_scn();
         const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-        //const QRectF row_itm = rowItem->boundingRect();
-        //const QPolygonF row_scn = rowItem->mapToScene(row_itm)
-        //painter->drawPolygon(row_scn);
         const qreal x = Card::kLeft_scn;
         const qreal y = lineY_scn - rowHeight_scn;
         const qreal w = Card::kRight_scn - Card::kLeft_scn;
@@ -254,7 +246,6 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 
         const QRectF card_itm = m_currentCard->boundingRect();
         const QPolygonF card_scn = m_currentCard->mapRectToScene(card_itm);
-        //painter->drawPolygon(card_scn);
 
         // Build a path: outer rect minus inner rect
         QPainterPath path;
@@ -268,8 +259,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 
     // Draw cursor as red empty rounded square
     {
-        QPen pen(QColor(227, 59,36)); // dark orangish-red
-        //QPen pen(Qt::red);
+        const QColor orangishRed(227, 59,36);
+        QPen pen(orangishRed);
         pen.setCosmetic(true);
         pen.setWidthF(2.0);
         painter->setPen(pen);
@@ -280,27 +271,37 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
         const qreal charWidth_scn = rowItem->charWidth_scn();
         const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-        const QPointF topLeft(
-            m_col * charWidth_scn + Card::kBorder_scn,
-            lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0
-        );
-        const QPointF bottomRight(
-            topLeft.x() + charWidth_scn,
-            lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0
-        );
-        const QRectF cursorRect(topLeft, bottomRight);
-        painter->drawRoundedRect(cursorRect, 25.0, 25.0, Qt::RelativeSize);
-        // painter->drawRect(cursorRect);
+        if (typing)
+        {
+            const QPointF topLeft(
+                m_col * charWidth_scn + Card::kBorder_scn,
+                lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0
+            );
+            const QPointF bottomRight(
+                topLeft.x() + charWidth_scn,
+                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0
+            );
+            const QRectF cursorRect(topLeft, bottomRight);
+            painter->drawRoundedRect(cursorRect, 25.0, 25.0, Qt::RelativeSize);
+        }
+        else
+        {
+            painter->setBrush(orangishRed);
+            const qreal deltaCharRow = rowHeight_scn - charHeight_scn;
+            const qreal centerX = m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0;
+            const qreal x1 = centerX;
+            const qreal y1 = lineY_scn - deltaCharRow / 2.0; 
+            const qreal x2 = centerX - charWidth_scn / 2.0;
+            const qreal y2 = lineY_scn - deltaCharRow / 10.0;
+            const qreal x3 = centerX + charWidth_scn / 2.0;
+            const qreal y3 = lineY_scn - deltaCharRow / 10.0;
 
-        // const QPointF points[3] = {
-        //     QPointF(m_col * charWidth_scn + Card::kBorder_scn,
-        //             lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0),
-        //     QPointF(m_col * charWidth_scn + Card::kBorder_scn - charWidth_scn / 2.0,
-        //             lineY_scn),
-        //     QPointF(m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0,
-        //             lineY_scn)};
-        // painter->drawPolygon(points, 3);
-
+            const QPointF points[3] = {
+                QPointF(x1, y1),
+                QPointF(x2, y2),
+                QPointF(x3, y3)};
+            painter->drawPolygon(points, 3);
+        }
     }
 }
 
