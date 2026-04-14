@@ -1,5 +1,5 @@
 #include "squareGraphicsView.h"
-#include "constants.h"
+#include "common.h"
 #include "capsLockModifier.h"
 #include <QApplication>
 #include <QGraphicsScene>

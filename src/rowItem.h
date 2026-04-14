@@ -1,15 +1,19 @@
 #pragma once
 
-#include "constants.h"
+#include "common.h"
 #include <QFont>
 #include <QGraphicsSimpleTextItem>
+
+// TODO: Make this a QGraphicsItem and use paint w/ drawText
+// Then you can share QString for title more efficiently
+// Bounding box can be static
 
 class RowItem : public QGraphicsSimpleTextItem
 {
   public:
-    explicit RowItem(uint8_t row, QGraphicsItem* parent = nullptr);
-    uint8_t colPerRow() const;
-    void setChar(const QChar c, const uint8_t row, const uint8_t col);
+    explicit RowItem(Row row, QGraphicsItem* parent = nullptr);
+    Col colPerRow() const;
+    void setChar(QChar c, Row row, Col col);
     void setText(const QString& text); // Not virtual, hides base class setText
     void setReadOnly(bool readOnly);
     bool readOnly() const;
@@ -26,10 +30,10 @@ class RowItem : public QGraphicsSimpleTextItem
     const qreal kFontCharHeight_fnt;
     const qreal kFontCharWidth_fnt;
 
-    const uint8_t kColsPerRow;
+    const Col kColsPerRow;
     const qreal kRowHeight_scn;
 
-    uint8_t m_row;
+    Row m_row;
     qreal m_fontToScnScale;
     QString m_text;
     bool m_readOnly{false};

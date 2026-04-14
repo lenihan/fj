@@ -1,6 +1,6 @@
 #pragma once
 
-#include "constants.h"
+#include "common.h"
 
 #include <QGraphicsRectItem>
 
@@ -9,29 +9,33 @@ class RowItem;
 class CardItem : public QGraphicsRectItem
 {
   public:
-    CardItem(uint16_t cardNum, uint16_t year, QGraphicsItem* parent = nullptr);
-    void setChar(const QChar c, const uint8_t row, const uint8_t col);
-    void setText(const uint8_t row, const QString& text);
-    uint8_t colPerRow(uint8_t row) const;
-    qreal rowLineY_scn(uint8_t row) const;
-    const RowItem* rowItem(uint8_t row) const;
+    CardItem(CardNum cardNum, Year year, QGraphicsItem* parent = nullptr);
+    void setChar(QChar c, Row row, Col col);
+    void setText(Row row, const QString& text);
+    Col colPerRow(Row row) const;
+    qreal rowLineY_scn(Row row) const;
+    const RowItem* rowItem(Row row) const;
+    RowItem* rowItem(Row row);
     RowItem* firstRow();
     RowItem* lastRow();
     void setThreadStart(CardItem* threadStart);
     CardItem* threadStart() const;
-    uint16_t cardNum() const;
-    uint16_t year() const;
+    CardNum cardNum() const;
+    Year year() const;
     void setThreadPrev(CardItem* card);
     CardItem* threadPrev();
     void setThreadNext(CardItem* card);
     CardItem* threadNext();
-    uint8_t firstEditableRow() const;
-    uint8_t lastEditableRow() const;
-    uint8_t lastCol(uint8_t row) const;
-    uint8_t firstCol(uint8_t row) const;
+    Row firstEditableRow() const;
+    Row lastEditableRow() const;
+    Col lastCol(Row row) const;
+    Col firstCol(Row row) const;
+    bool isIndex() const;
+    CardItem* index();
 
   protected:
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
+    bool m_isIndex{false};
 
   private:
     QString threadStr(CardItem* card);
@@ -40,9 +44,8 @@ class CardItem : public QGraphicsRectItem
     CardItem* m_threadNext{nullptr};
     CardItem* m_threadStart{nullptr};
     QList<RowItem*> m_rows;
-    uint16_t m_cardNum{0};
-    uint16_t m_year{0};
+    CardNum m_cardNum{0};
+    Year m_year{0};
     bool m_deleted{false};
     bool m_readOnly{false};
-    bool m_isIndex{false};
 };

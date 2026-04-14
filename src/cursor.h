@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QList>
+#include "cardStack.h"
 #include <QMap>
 
 class QPainter;
@@ -12,8 +12,8 @@ class Cursor
 {
   public:
     Cursor(QGraphicsScene* scene);
-    uint16_t lastThreadCard() const;
-    uint16_t lastCardNum() const;
+    CardNum lastThreadCardNm() const;
+    CardNum lastCardNum() const;
     void up();
     void down();
     void left();
@@ -31,17 +31,16 @@ class Cursor
     void nextThreadCardCreateCard();
     void newCollection();
     void continueCollection();
+    void newIndex();
+    void continueIndex();
     void draw(QPainter* painter, const QRectF& rect, const bool typing);
 
   private:
     void showCard(CardItem* card);
-    using CardStack = QList<CardItem*>;
-    using YearToCardStack = QMap<uint16_t, CardStack>;
-    YearToCardStack m_yearToCardStack;
-    uint16_t m_year{0};    // 0000–9999
-    uint16_t m_cardNum{0}; // 0–9999
-    uint8_t m_row{0};      // 0–10
-    uint8_t m_col{0};      // 0–60
+    QMap<Year, CardStack>  m_yearToCardStack;
+    Year m_year{0};    
+    Row m_row{0};      
+    Col m_col{0};      
 
     CardItem* m_currentCard{nullptr};
     QGraphicsScene* m_scene{nullptr};

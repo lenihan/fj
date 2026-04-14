@@ -1,6 +1,6 @@
 #include "squareGraphicsView.h"
 #include "cardItem.h"
-#include "constants.h"
+#include "common.h"
 #include "cursor.h"
 #include "rowItem.h"
 #include <QResizeEvent>
@@ -116,6 +116,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_U: m_cursor.prevCard(); break;
                     case Qt::Key_O: m_cursor.nextCard(); break;
                     case Qt::Key_C: m_actionMode = false; m_cursor.newCollection(); break;
+                    case Qt::Key_N: m_actionMode = false; m_cursor.newIndex(); break;
                     case Qt::Key_M: m_cursor.prevThreadCard(); break;
                     case Qt::Key_Period: m_cursor.nextThreadCard(); break;
                 }

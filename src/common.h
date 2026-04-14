@@ -4,6 +4,12 @@
 #include <qrect.h>
 #include <qtypes.h>
 
+using Year = uint16_t;    // 0000–9999
+using CardNum = uint16_t; // 0–9999
+using Row = uint8_t;      // 0–10
+using Col = uint8_t;      // 0–60
+
+
 struct Screen
 {
     // Coordsys is scene (_scn) which is in inches
@@ -26,7 +32,10 @@ struct Card
     static inline constexpr qreal kTop_scn = Screen::kTop_scn;
     static inline constexpr qreal kBottom_scn = 3.0;
     static inline constexpr qreal kBorder_scn = 0.1;
-    static inline constexpr uint8_t kNumRows = 11;
+    static inline constexpr Row kNumRows = 11;
+    static inline constexpr Row kNumTitleRows = 1;
+    static inline constexpr Row kNumBodyNavigationRows = 1;
+    static inline constexpr Row kNumUserBodyRows = kNumRows - kNumTitleRows - kNumBodyNavigationRows;
     static inline constexpr char kColor[] = "#fdf9f0";
 
     inline static const auto kTopLeftPt_scn = QPointF(kLeft_scn, kTop_scn);
@@ -42,16 +51,21 @@ struct Card
 
 struct Title
 {
-    inline static constexpr uint8_t kColsPerRow = 30;
+    inline static constexpr Col kColsPerRow = 30;
     inline static constexpr qreal kRowHeight_scn = 0.5;
     inline static constexpr char kLineColor[] = "#C9A1AE";
 };
 
 struct Body
 {
-    inline static constexpr uint8_t kColsPerRow = 60;
+    inline static constexpr Col kColsPerRow = 60;
     inline static constexpr qreal kRowHeight_scn = 0.25;
     inline static constexpr char kLineColor[] = "#7d93eaff";
+};
+
+struct Master
+{
+    inline static constexpr Year kYear = 0;
 };
 
 struct UI

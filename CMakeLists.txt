@@ -45,13 +45,17 @@ project(fj)
 
 set(SOURCES
     resources/resources.qrc
-    src/constants.h
+    src/common.h
     src/cardItem.cpp
     src/cardItem.h
+    src/cardStack.cpp
+    src/cardStack.h
     src/capsLockModifier.cpp
     src/capsLockModifier.h
     src/cursor.cpp
     src/cursor.h
+    src/indexItem.cpp
+    src/indexItem.h
     src/main.cpp
     src/rowItem.cpp
     src/rowItem.h
@@ -62,3 +66,7 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME} Qt6::Widgets)
+
+if(MSVC)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
+endif()

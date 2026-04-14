@@ -6,7 +6,7 @@
 #include <QPainter>
 #include <QPen>
 
-RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
+RowItem::RowItem(Row row, QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent), kFont(font()),
       kFontCharWidth_fnt(fontCharWidth_fnt()),
       kFontCharHeight_fnt(fontCharHeight_fnt()),
@@ -19,14 +19,14 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     setPen(Qt::NoPen);
 
     // Calc font to scene scale
-    const qreal rowWidth_fnt = kFontCharWidth_fnt * kColsPerRow;
+    qreal rowWidth_fnt = kFontCharWidth_fnt * kColsPerRow;
     m_fontToScnScale = Card::kUseabledWidth_scn / rowWidth_fnt;
     setScale(m_fontToScnScale);
 
     // Calc y offset to center text
-    const qreal y = Title::kRowHeight_scn + ((m_row - 1) * kRowHeight_scn);
-    const qreal fontHeight_scn = kFontCharHeight_fnt * m_fontToScnScale;
-    const qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
+    qreal y = Title::kRowHeight_scn + ((m_row - 1) * kRowHeight_scn);
+    qreal fontHeight_scn = kFontCharHeight_fnt * m_fontToScnScale;
+    qreal yOffset_scn = (kRowHeight_scn - fontHeight_scn) / 2.0;
     setPos(Card::kLeft_scn + Card::kBorder_scn, y + yOffset_scn);
 
     // Initialize row filled with spaces (empty)
@@ -34,9 +34,9 @@ RowItem::RowItem(uint8_t row, QGraphicsItem* parent)
     setText(m_text);
 }
 
-uint8_t RowItem::colPerRow() const { return kColsPerRow; }
+Col RowItem::colPerRow() const { return kColsPerRow; }
 
-void RowItem::setChar(const QChar c, const uint8_t row, const uint8_t col)
+void RowItem::setChar(QChar c, Row row, Col col)
 {
     Q_ASSERT(col < kColsPerRow);
     m_text[col] = c;
@@ -87,7 +87,7 @@ QFont RowItem::font()
     {
         // Load the font from the resource
         QFontDatabase fontDatabase;
-        const int fontId =
+        int fontId =
             fontDatabase.addApplicationFont(":/fonts/Hack-Regular.ttf");
         Q_ASSERT(fontId != -1);
 
@@ -110,13 +110,13 @@ QFont RowItem::font()
 // static
 qreal RowItem::fontCharHeight_fnt()
 {
-    const QFontMetricsF fm(font());
+    QFontMetricsF fm(font());
     return fm.height();
 }
 
 // static
 qreal RowItem::fontCharWidth_fnt()
 {
-    const QFontMetricsF fm(font());
+    QFontMetricsF fm(font());
     return fm.maxWidth();
 }
