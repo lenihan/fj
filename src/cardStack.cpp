@@ -10,6 +10,8 @@ CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(s
     Q_ASSERT(m_scene);
     IndexItem* index = new IndexItem(0, m_year);
     m_cards.append(index);
+    index->setThreadStart(index);
+    index->setThreadPrev(index);
 }
 
 CardItem* CardStack::card(CardNum cardNum)
@@ -75,10 +77,9 @@ void CardStack::add(CardItem* currentCard, bool addIndex)
         newCard = new CardItem(nextCardNum, m_year);
     m_cards.append(newCard);
 
-    newCard->lastRow()->setReadOnly(true);
     newCard->setThreadStart(newCard);
     
-    auto* index = static_cast<IndexItem*>(currentCard->index());
+    auto* index = dynamic_cast<IndexItem*>(currentCard->index());
     newCard->setThreadPrev(index);
     index->addToIndex(newCard);
 

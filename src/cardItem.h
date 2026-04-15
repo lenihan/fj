@@ -36,10 +36,11 @@ class CardItem : public QGraphicsRectItem
   protected:
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
     bool m_isIndex{false};
+    void updateLastRow();
+    virtual void drawLines();
 
   private:
     QString threadStr(CardItem* card);
-    void updateLastRow();
     CardItem* m_threadPrev{nullptr};
     CardItem* m_threadNext{nullptr};
     CardItem* m_threadStart{nullptr};

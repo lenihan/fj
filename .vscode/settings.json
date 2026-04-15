@@ -11,5 +11,8 @@
         "qresizeevent": "cpp",
         "qscreen": "cpp",
         "qapplication": "cpp"
+    },
+    "cmake.debugConfig": {
+        "justMyCode": false
     }
 }

@@ -10,18 +10,7 @@ CardItem::CardItem(CardNum cardNum, Year year, QGraphicsItem* parent)
     setPen(Qt::NoPen);
     setBrush(QBrush(Card::kColor));
 
-    // Row lines
-    for (int i = 0; i < Card::kNumRows - 1; ++i)
-    {
-        auto* line = new QGraphicsLineItem(this);
-        qreal y_scn = rowLineY_scn(i);
-        line->setLine(Card::kLeft_scn, y_scn, Card::kRight_scn, y_scn);
-
-        QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
-        pen.setWidthF(3.0);
-        pen.setCosmetic(true);
-        line->setPen(pen);
-    }
+    drawLines();
 
     // Reserve space for rows
     m_rows.reserve(Card::kNumRows);
@@ -213,6 +202,21 @@ void CardItem::updateLastRow()
 
     Q_ASSERT(text.length() == cols);
     row->setText(text);
+}
+
+void CardItem::drawLines()
+{
+    for (int i = 0; i < Card::kNumRows - 1; ++i)
+    {
+        auto* line = new QGraphicsLineItem(this);
+        qreal y_scn = rowLineY_scn(i);
+        line->setLine(Card::kLeft_scn, y_scn, Card::kRight_scn, y_scn);
+
+        QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
+        pen.setWidthF(3.0);
+        pen.setCosmetic(true);
+        line->setPen(pen);
+    }
 }
 
 const RowItem* CardItem::rowItem(Row row) const

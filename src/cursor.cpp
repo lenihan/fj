@@ -24,8 +24,8 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     m_yearToCardStack.insert(Master::kYear, CardStack{Master::kYear, m_scene});
     Q_ASSERT(m_yearToCardStack.contains(Master::kYear));
     CardStack& masterCS = m_yearToCardStack[Master::kYear];
-    CardItem* currentCard = nullptr;
-    masterCS.addCollection(nullptr);
+    CardItem* currentCard = masterCS.index();
+    masterCS.addCollection(currentCard);
     masterCS.lastCard()->firstRow()->setText("Help");
 
     // Setup current year card stack
@@ -33,7 +33,6 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     Q_ASSERT(!m_yearToCardStack.contains(currentYear));
     m_yearToCardStack.insert(currentYear, CardStack{currentYear, m_scene});
     Q_ASSERT(m_yearToCardStack.contains(currentYear));
-    CardStack& currentCS = m_yearToCardStack[currentYear];
 
     // Init
     m_year = QDate::currentDate().year();
