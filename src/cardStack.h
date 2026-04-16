@@ -22,7 +22,7 @@ class CardStack
     CardNum lastCardNum() const;
     void setReadOnly(bool readOnly);
     bool readOnly() const;    void add(CardItem *card);
-    void addTopic(CardItem* currentCard);
+    void addContent(CardItem* currentCard);
     void addTOC(CardItem* currentCard);
 
 

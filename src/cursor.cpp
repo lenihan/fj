@@ -2,13 +2,13 @@
 #include "cardItem.h"
 #include "cardStack.h"
 #include "common.h"
-#include "tocItem.h"
 #include "rowItem.h"
+#include "tocItem.h"
 #include <QDate>
 #include <QGraphicsScene>
+#include <QMap>
 #include <QPainter>
 #include <QPen>
-#include <QMap>
 
 Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 {
@@ -209,11 +209,11 @@ void Cursor::nextThreadCardCreateCard()
     if (nextCard)
         showCard(nextCard);
     else
-        continueTopic();
+        continueContent();
 }
 
-void Cursor::newTopic()
-{    
+void Cursor::newContent()
+{
     auto& cardStack = m_yearToCardStack[m_year];
     CardNum newCardNum = cardStack.lastCardNum() + 1;
     m_col = 0;
@@ -221,27 +221,27 @@ void Cursor::newTopic()
     CardItem* newCard = new TOCItem(newCardNum, m_year);
     cardStack.add(newCard);
     newCard->setThreadStart(newCard);
-    
-    if(dynamic_cast<TOCItem*>(m_currentCard))
+
+    if (m_currentCard->isTOC())
         newCard->setThreadPrev(m_currentCard);
-    // else // TODO
-    //     newCard->setThreadPrev(m_yearIndex);
+    else if (m_currentCard->isContent())
+        newCard->setThreadPrev(m_currentCard->TOC());
 
     m_scene->addItem(newCard);
     showCard(newCard);
 }
 
-void Cursor::continueTopic()
+void Cursor::continueContent()
 {
     auto& cardStack = m_yearToCardStack[m_year];
     CardNum newCardNum = cardStack.lastCardNum() + 1;
-    m_row = 1;                                                  // !!!
+    m_row = 1; // !!!
     m_col = 0;
     auto* newCard = new TOCItem(newCardNum, m_year);
     cardStack.add(newCard);
-    newCard->setThreadStart(m_currentCard->threadStart());      // !!!
-    m_currentCard->setThreadNext(newCard);                      // !!!
-    newCard->setThreadPrev(m_currentCard);                      // !!!
+    newCard->setThreadStart(m_currentCard->threadStart()); // !!!
+    m_currentCard->setThreadNext(newCard);                 // !!!
+    newCard->setThreadPrev(m_currentCard);                 // !!!
 
     m_scene->addItem(newCard);
     showCard(newCard);
@@ -265,14 +265,14 @@ void Cursor::newTOC()
 
     if (!m_currentCard)
     {
-        newCard->setThreadPrev(nullptr); 
+        newCard->setThreadPrev(nullptr);
     }
     else
     {
-        if(dynamic_cast<TOCItem*>(m_currentCard))
-            newCard->setThreadPrev(m_currentCard);  // sub TOC
-        else
-            newCard->setThreadPrev(m_currentCard->toc());     
+        if (m_currentCard->isTOC())
+            newCard->setThreadPrev(m_currentCard); // sub TOC
+        else if (m_currentCard->isContent())
+            newCard->setThreadPrev(m_currentCard->TOC());
     }
 
     m_scene->addItem(newCard);
@@ -310,8 +310,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 
         // Build a path: outer rect minus inner rect
         QPainterPath path;
-        path.addPolygon(card_scn); // outer
-        path.addRoundedRect(row_scn, 5.0, 5.0, Qt::RelativeSize);  // inner (will be subtracted)
+        path.addPolygon(card_scn);                                // outer
+        path.addRoundedRect(row_scn, 5.0, 5.0, Qt::RelativeSize); // inner (will be subtracted)
 
         // Set fill rule so the inner area becomes a "hole"
         path.setFillRule(Qt::OddEvenFill); // or WindingFill; OddEven usually works best for holes
@@ -320,7 +320,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 
     // Draw cursor as red empty rounded square
     {
-        const QColor orangishRed(227, 59,36);
+        const QColor orangishRed(227, 59, 36);
         QPen pen(orangishRed);
         pen.setCosmetic(true);
         pen.setWidthF(2.0);
@@ -336,12 +336,10 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
         {
             const QPointF topLeft(
                 m_col * charWidth_scn + Card::kBorder_scn,
-                lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0
-            );
+                lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
             const QPointF bottomRight(
                 topLeft.x() + charWidth_scn,
-                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0
-            );
+                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
             const QRectF cursorRect(topLeft, bottomRight);
             painter->drawRoundedRect(cursorRect, 25.0, 25.0, Qt::RelativeSize);
         }
@@ -351,7 +349,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
             const qreal deltaCharRow = rowHeight_scn - charHeight_scn;
             const qreal centerX = m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0;
             const qreal x1 = centerX;
-            const qreal y1 = lineY_scn - deltaCharRow / 2.0; 
+            const qreal y1 = lineY_scn - deltaCharRow / 2.0;
             const qreal x2 = centerX - charWidth_scn / 2.0;
             const qreal y2 = lineY_scn - deltaCharRow / 10.0;
             const qreal x3 = centerX + charWidth_scn / 2.0;

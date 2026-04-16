@@ -40,23 +40,23 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     m: prev thread card
     .: next thread card
     Space: Go to selected card link
-    n: Create TOC card:
+    t: Create TOC card:
         - Does NOT have lines after titles
         - Cursor goes to first blank line
         - Only options:
             - Modify title
             - up/down to select a row
             - , to follow card for that row
-        - Index row will update to point to new collection/row
+        - Index row will update to point to new content/row
         - Left thread points to parent toc
-    c: New collection card
+    c: New content card
         - Has lines
-        - Title is editable on first card of collection
+        - Title is editable on first card of content
         - Continue to new card by pressing return until you pass last row
         - left thread points to parent iIndex
 
     Enter: Go to first card (Index: <YEAR>)
-    t: todo/completed/no todo
+    x: todo/completed/no todo
     e: edit - keyboard types
     r: reading - up/down/left/right are for links, enter to go
     q: query - search
@@ -86,7 +86,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     ': Future
     y: Future
     z: Future
-    x: Future
+    n: Future
     v: Future
     */
     event->accept(); // Stop propagation if desired
@@ -115,7 +115,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_E: m_actionMode = false; break;
                     case Qt::Key_U: m_cursor.prevCard(); break;
                     case Qt::Key_O: m_cursor.nextCard(); break;
-                    case Qt::Key_C: m_actionMode = false; m_cursor.newTopic(); break;
+                    case Qt::Key_C: m_actionMode = false; m_cursor.newContent(); break;
                     case Qt::Key_N: m_actionMode = false; m_cursor.newTOC(); break;
                     case Qt::Key_M: m_cursor.prevThreadCard(); break;
                     case Qt::Key_Period: m_cursor.nextThreadCard(); break;

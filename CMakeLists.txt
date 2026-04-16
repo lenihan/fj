@@ -50,6 +50,8 @@ set(SOURCES
     src/cardStack.cpp
     src/cardStack.h
     src/common.h
+    src/contentItem.cpp
+    src/contentItem.h
     src/cursor.cpp
     src/cursor.h
     src/main.cpp
@@ -59,8 +61,6 @@ set(SOURCES
     src/squareGraphicsView.h
     src/tocItem.cpp
     src/tocItem.h
-    src/topicItem.cpp
-    src/topicItem.h
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

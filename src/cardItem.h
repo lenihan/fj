@@ -8,7 +8,19 @@ class RowItem;
 class CardItem : public QGraphicsRectItem
 {
   public:
+    enum class Type
+    {
+        Unknown,
+        TOC,
+        Content
+    };
+
     CardItem(CardNum cardNum, Year year, QGraphicsItem* parent = nullptr);
+
+    virtual Type cardType() const { return Type::Unknown; }
+    bool isTOC() const { return cardType() == Type::TOC; }
+    bool isContent() const { return cardType() == Type::Content; }
+
     void setChar(QChar c, Row row, Col col);
     void setText(Row row, const QString& text);
     Col colPerRow(Row row) const;
@@ -29,7 +41,7 @@ class CardItem : public QGraphicsRectItem
     Row lastEditableRow() const;
     Col lastCol(Row row) const;
     Col firstCol(Row row) const;
-    CardItem* toc();
+    CardItem* TOC();
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 

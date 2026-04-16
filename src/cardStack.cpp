@@ -1,6 +1,6 @@
 #include "cardStack.h"
 #include "tocItem.h"
-#include "topicItem.h"
+#include "contentItem.h"
 #include "rowItem.h"
 
 #include <QGraphicsScene>
@@ -15,6 +15,7 @@ CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(s
     m_cards.append(toc);
     toc->setThreadStart(toc);
     toc->setThreadPrev(nullptr);
+    m_scene->addItem(toc);
 }
 
 CardItem* CardStack::card(CardNum cardNum)
@@ -51,7 +52,7 @@ bool CardStack::readOnly() const
     return m_readOnly;
 }
 
-void CardStack::addTopic(CardItem* currentCard)
+void CardStack::addContent(CardItem* currentCard)
 {
     bool addTOC = false;
     add(currentCard, addTOC);
@@ -76,12 +77,12 @@ void CardStack::add(CardItem* currentCard, bool addTOC)
     if (addTOC)
         newCard = new TOCItem(nextCardNum, m_year);
     else
-        newCard = new TopicItem(nextCardNum, m_year);
+        newCard = new ContentItem(nextCardNum, m_year);
     m_cards.append(newCard);
 
     newCard->setThreadStart(newCard);
     
-    auto* toc = dynamic_cast<TOCItem*>(currentCard->toc());
+    auto* toc = dynamic_cast<TOCItem*>(currentCard->TOC());
     newCard->setThreadPrev(toc);
     toc->addToTOC(newCard);
 

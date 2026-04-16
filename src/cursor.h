@@ -29,8 +29,8 @@ class Cursor
     void prevThreadCard();
     void nextThreadCard();
     void nextThreadCardCreateCard();
-    void newTopic();
-    void continueTopic();
+    void newContent();
+    void continueContent();
     void newTOC();
     void continueTOC();
     void draw(QPainter* painter, const QRectF& rect, const bool typing);

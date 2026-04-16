@@ -117,7 +117,7 @@ Col CardItem::firstCol(Row row) const
     return 0;
 }
 
-CardItem* CardItem::toc()
+CardItem* CardItem::TOC()
 {
     Q_ASSERT(m_threadStart);
     return m_threadStart->threadPrev();

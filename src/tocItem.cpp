@@ -3,14 +3,14 @@
 TOCItem::TOCItem(CardNum cardNum, Year year, QGraphicsItem* parent)
     : CardItem(cardNum, year, parent)
 {
-    m_topics.reserve(Card::kNumUserBodyRows);
+    m_content.reserve(Card::kNumUserBodyRows);
 }
 
 void TOCItem::addToTOC(CardItem* card)
 {
     Q_ASSERT(card);
-    Q_ASSERT(m_topics.size() < Card::kNumUserBodyRows);
-    m_topics.push_back(card);
+    Q_ASSERT(m_content.size() < Card::kNumUserBodyRows);
+    m_content.push_back(card);
 
     // TODO: Update rows
 }
