@@ -29,7 +29,7 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
     /*
-    First card is year/index card
+    First card is year/toc card
 
     i: up row
     k: down row
@@ -48,7 +48,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
             - up/down to select a row
             - , to follow card for that row
         - Index row will update to point to new collection/row
-        - Left thread points to parent index
+        - Left thread points to parent toc
     c: New collection card
         - Has lines
         - Title is editable on first card of collection
@@ -66,7 +66,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     p: Print to PDF
     /: Help - go to help card stack
     Backspace: Go to last card
-    d: Delete card/undelete card (removes from thread/index as needed, draw with
+    d: Delete card/undelete card (removes from thread/toc as needed, draw with
     strikethrough via custom paint)
 
     ,: Future

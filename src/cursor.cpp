@@ -2,7 +2,7 @@
 #include "cardItem.h"
 #include "cardStack.h"
 #include "common.h"
-#include "indexItem.h"
+#include "tocItem.h"
 #include "rowItem.h"
 #include <QDate>
 #include <QGraphicsScene>
@@ -15,16 +15,16 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     Q_ASSERT(m_scene);
 
     // TODO
-    // Create master cardstack with empty index
+    // Create master cardstack with empty toc
     // Add help collection
-    // Create current year cardstack with empty index, connect to master cardstack
+    // Create current year cardstack with empty toc, connect to master cardstack
 
     // Setup master card stack
     Q_ASSERT(!m_yearToCardStack.contains(Master::kYear));
     m_yearToCardStack.insert(Master::kYear, CardStack{Master::kYear, m_scene});
     Q_ASSERT(m_yearToCardStack.contains(Master::kYear));
     CardStack& masterCS = m_yearToCardStack[Master::kYear];
-    CardItem* currentCard = masterCS.index();
+    CardItem* currentCard = masterCS.toc();
     masterCS.addCollection(currentCard);
     masterCS.lastCard()->firstRow()->setText("Help");
 
@@ -36,7 +36,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 
     // Init
     m_year = QDate::currentDate().year();
-    m_currentCard = masterCS.index();
+    m_currentCard = masterCS.toc();
     m_row = m_currentCard->firstEditableRow();
     m_col = 0;
 
@@ -249,7 +249,7 @@ void Cursor::newIndex()
     CardNum newCardNum = cardStack.lastCardNum() + 1;
     m_col = 0;
     m_row = 0;
-    IndexItem* newCard = new IndexItem(newCardNum, m_year);
+    TOCItem* newCard = new TOCItem(newCardNum, m_year);
     cardStack.add(newCard);
 
     for (int i = 1; i < Card::kNumRows; ++i)
@@ -267,7 +267,7 @@ void Cursor::newIndex()
         if(m_currentCard->isIndex())
             newCard->setThreadPrev(m_currentCard);  // subindex
         else
-            newCard->setThreadPrev(m_currentCard->index());     
+            newCard->setThreadPrev(m_currentCard->toc());     
     }
 
     m_scene->addItem(newCard);

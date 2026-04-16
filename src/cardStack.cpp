@@ -1,5 +1,5 @@
 #include "cardStack.h"
-#include "indexItem.h"
+#include "tocItem.h"
 #include "cardItem.h"
 #include "rowItem.h"
 
@@ -8,10 +8,10 @@
 CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(scene)
 {
     Q_ASSERT(m_scene);
-    IndexItem* index = new IndexItem(0, m_year);
-    m_cards.append(index);
-    index->setThreadStart(index);
-    index->setThreadPrev(index);
+    TOCItem* toc = new TOCItem(0, m_year);
+    m_cards.append(toc);
+    toc->setThreadStart(toc);
+    toc->setThreadPrev(toc);
 }
 
 CardItem* CardStack::card(CardNum cardNum)
@@ -20,13 +20,13 @@ CardItem* CardStack::card(CardNum cardNum)
     return m_cards[cardNum];
 }
 
-IndexItem* CardStack::index()
+TOCItem* CardStack::toc()
 {
     CardItem* first = m_cards.at(0);
     Q_ASSERT(first->isIndex());
-    IndexItem* index = dynamic_cast<IndexItem*>(first);
-    Q_ASSERT(index);
-    return index;
+    TOCItem* toc = dynamic_cast<TOCItem*>(first);
+    Q_ASSERT(toc);
+    return toc;
 }
 
 CardItem* CardStack::lastCard()
@@ -72,16 +72,16 @@ void CardStack::add(CardItem* currentCard, bool addIndex)
     const CardNum nextCardNum = lastCardNum() + 1;
     CardItem* newCard = nullptr;
     if (addIndex)
-        newCard = new IndexItem(nextCardNum, m_year);
+        newCard = new TOCItem(nextCardNum, m_year);
     else
         newCard = new CardItem(nextCardNum, m_year);
     m_cards.append(newCard);
 
     newCard->setThreadStart(newCard);
     
-    auto* index = dynamic_cast<IndexItem*>(currentCard->index());
-    newCard->setThreadPrev(index);
-    index->addToIndex(newCard);
+    auto* toc = dynamic_cast<TOCItem*>(currentCard->toc());
+    newCard->setThreadPrev(toc);
+    toc->addToTOC(newCard);
 
     m_scene->addItem(newCard);
 }

@@ -31,11 +31,11 @@ class CardItem : public QGraphicsRectItem
     Col lastCol(Row row) const;
     Col firstCol(Row row) const;
     bool isIndex() const;
-    CardItem* index();
+    CardItem* toc();
 
   protected:
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
-    bool m_isIndex{false};
+    bool m_isTOC{false};
     void updateLastRow();
     virtual void drawLines();
 

@@ -6,7 +6,7 @@
 #include <QMap>
 
 class CardItem;
-class IndexItem;
+class TOCItem;
 class QGraphicsScene;
 
 using CardList = QList<CardItem*>;
@@ -17,7 +17,7 @@ class CardStack
     CardStack() = default;
     CardStack(Year year, QGraphicsScene* scene);
     CardItem* card(CardNum cardNum);
-    IndexItem* index();
+    TOCItem* toc();
     CardItem* lastCard();
     CardNum lastCardNum() const;
     void setReadOnly(bool readOnly);

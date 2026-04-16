@@ -126,10 +126,10 @@ Col CardItem::firstCol(Row row) const
 
 bool CardItem::isIndex() const
 {
-    return m_isIndex;
+    return m_isTOC;
 }
 
-CardItem* CardItem::index()
+CardItem* CardItem::toc()
 {
     Q_ASSERT(m_threadStart);
     return m_threadStart->threadPrev();
@@ -158,7 +158,7 @@ QString CardItem::threadStr(CardItem* card)
         return str;
 
     if (m_threadStart == this && card == m_threadPrev)
-        str = "↑"; // Parent index
+        str = "↑"; // Parent TOC
     else
         str = "→"; // Thread
 

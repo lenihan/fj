@@ -54,8 +54,8 @@ set(SOURCES
     src/capsLockModifier.h
     src/cursor.cpp
     src/cursor.h
-    src/indexItem.cpp
-    src/indexItem.h
+    src/tocItem.cpp
+    src/tocItem.h
     src/main.cpp
     src/rowItem.cpp
     src/rowItem.h
