@@ -24,7 +24,12 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     m_yearToCardStack.insert(Master::kYear, CardStack{Master::kYear, m_scene});
     Q_ASSERT(m_yearToCardStack.contains(Master::kYear));
     CardStack& masterCS = m_yearToCardStack[Master::kYear];
-    CardItem* currentCard = masterCS.toc();
+    m_currentCard = masterCS.toc();
+    m_year = Master::kYear;
+    m_row = m_currentCard->firstEditableRow();
+    m_col = 0;
+
+#if 0   
     masterCS.addCollection(currentCard);
     masterCS.lastCard()->firstRow()->setText("Help");
 
@@ -33,12 +38,12 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     Q_ASSERT(!m_yearToCardStack.contains(currentYear));
     m_yearToCardStack.insert(currentYear, CardStack{currentYear, m_scene});
     Q_ASSERT(m_yearToCardStack.contains(currentYear));
-
     // Init
     m_year = QDate::currentDate().year();
     m_currentCard = masterCS.toc();
     m_row = m_currentCard->firstEditableRow();
     m_col = 0;
+#endif
 
     Q_ASSERT(m_currentCard);
 }
@@ -204,20 +209,20 @@ void Cursor::nextThreadCardCreateCard()
     if (nextCard)
         showCard(nextCard);
     else
-        continueCollection();
+        continueTopic();
 }
 
-void Cursor::newCollection()
+void Cursor::newTopic()
 {    
     auto& cardStack = m_yearToCardStack[m_year];
     CardNum newCardNum = cardStack.lastCardNum() + 1;
     m_col = 0;
     m_row = 0;
-    CardItem* newCard = new CardItem(newCardNum, m_year);
+    CardItem* newCard = new TOCItem(newCardNum, m_year);
     cardStack.add(newCard);
     newCard->setThreadStart(newCard);
     
-    if(m_currentCard->isIndex())
+    if(dynamic_cast<TOCItem*>(m_currentCard))
         newCard->setThreadPrev(m_currentCard);
     // else // TODO
     //     newCard->setThreadPrev(m_yearIndex);
@@ -226,13 +231,13 @@ void Cursor::newCollection()
     showCard(newCard);
 }
 
-void Cursor::continueCollection()
+void Cursor::continueTopic()
 {
     auto& cardStack = m_yearToCardStack[m_year];
     CardNum newCardNum = cardStack.lastCardNum() + 1;
     m_row = 1;                                                  // !!!
     m_col = 0;
-    CardItem* newCard = new CardItem(newCardNum, m_year);
+    auto* newCard = new TOCItem(newCardNum, m_year);
     cardStack.add(newCard);
     newCard->setThreadStart(m_currentCard->threadStart());      // !!!
     m_currentCard->setThreadNext(newCard);                      // !!!
@@ -242,7 +247,7 @@ void Cursor::continueCollection()
     showCard(newCard);
 }
 
-void Cursor::newIndex()
+void Cursor::newTOC()
 {
     auto& cardStack = m_yearToCardStack[m_year];
     Q_ASSERT(!cardStack.readOnly());
@@ -264,8 +269,8 @@ void Cursor::newIndex()
     }
     else
     {
-        if(m_currentCard->isIndex())
-            newCard->setThreadPrev(m_currentCard);  // subindex
+        if(dynamic_cast<TOCItem*>(m_currentCard))
+            newCard->setThreadPrev(m_currentCard);  // sub TOC
         else
             newCard->setThreadPrev(m_currentCard->toc());     
     }
@@ -275,10 +280,9 @@ void Cursor::newIndex()
     showCard(newCard);
 }
 
-void Cursor::continueIndex()
+void Cursor::continueTOC()
 {
 }
-
 
 void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 {

@@ -5,13 +5,6 @@
 CardItem::CardItem(CardNum cardNum, Year year, QGraphicsItem* parent)
     : QGraphicsRectItem(parent), m_cardNum(cardNum), m_year(year)
 {
-    // Card background
-    setRect(Card::kRect_scn);
-    setPen(Qt::NoPen);
-    setBrush(QBrush(Card::kColor));
-
-    drawLines();
-
     // Reserve space for rows
     m_rows.reserve(Card::kNumRows);
     for (int i = 0; i < Card::kNumRows; ++i)
@@ -124,15 +117,20 @@ Col CardItem::firstCol(Row row) const
     return 0;
 }
 
-bool CardItem::isIndex() const
-{
-    return m_isTOC;
-}
-
 CardItem* CardItem::toc()
 {
     Q_ASSERT(m_threadStart);
     return m_threadStart->threadPrev();
+}
+
+void CardItem::setReadOnly(bool readOnly)
+{
+    m_readOnly = readOnly;
+}
+
+bool CardItem::readOnly() const
+{
+    return m_readOnly;
 }
 
 QVariant CardItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value)
@@ -148,6 +146,28 @@ QVariant CardItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QV
         }
     }
     return QGraphicsItem::itemChange(change, value);
+}
+
+void CardItem::setupBackground()
+{
+    setRect(Card::kRect_scn);
+    setPen(Qt::NoPen);
+    setBrush(QBrush(Card::kColor));
+}
+
+void CardItem::setupLines()
+{
+    for (int i = 0; i < Card::kNumRows - 1; ++i)
+    {
+        auto* line = new QGraphicsLineItem(this);
+        qreal y_scn = rowLineY_scn(i);
+        line->setLine(Card::kLeft_scn, y_scn, Card::kRight_scn, y_scn);
+
+        QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
+        pen.setWidthF(3.0);
+        pen.setCosmetic(true);
+        line->setPen(pen);
+    }
 }
 
 QString CardItem::threadStr(CardItem* card)
@@ -202,21 +222,6 @@ void CardItem::updateLastRow()
 
     Q_ASSERT(text.length() == cols);
     row->setText(text);
-}
-
-void CardItem::drawLines()
-{
-    for (int i = 0; i < Card::kNumRows - 1; ++i)
-    {
-        auto* line = new QGraphicsLineItem(this);
-        qreal y_scn = rowLineY_scn(i);
-        line->setLine(Card::kLeft_scn, y_scn, Card::kRight_scn, y_scn);
-
-        QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
-        pen.setWidthF(3.0);
-        pen.setCosmetic(true);
-        line->setPen(pen);
-    }
 }
 
 const RowItem* CardItem::rowItem(Row row) const

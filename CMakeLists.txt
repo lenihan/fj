@@ -41,26 +41,26 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 project(fj)
 
-
-
 set(SOURCES
     resources/resources.qrc
-    src/common.h
+    src/capsLockModifier.cpp
+    src/capsLockModifier.h
     src/cardItem.cpp
     src/cardItem.h
     src/cardStack.cpp
     src/cardStack.h
-    src/capsLockModifier.cpp
-    src/capsLockModifier.h
+    src/common.h
     src/cursor.cpp
     src/cursor.h
-    src/tocItem.cpp
-    src/tocItem.h
     src/main.cpp
     src/rowItem.cpp
     src/rowItem.h
     src/squareGraphicsView.cpp
     src/squareGraphicsView.h
+    src/tocItem.cpp
+    src/tocItem.h
+    src/topicItem.cpp
+    src/topicItem.h
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

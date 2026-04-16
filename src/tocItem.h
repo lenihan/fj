@@ -12,9 +12,9 @@ class TOCItem : public CardItem
     TOCItem(CardNum cardNum, Year year, QGraphicsItem* parent = nullptr);
     void addToTOC(CardItem* card);
 
-  protected:
-    void drawLines() override;
+  private:
+    void setupVisuals() override;
 
   private:
-    std::vector<CardItem*> m_entries;
+    std::vector<CardItem*> m_topics;
 };

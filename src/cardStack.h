@@ -22,12 +22,12 @@ class CardStack
     CardNum lastCardNum() const;
     void setReadOnly(bool readOnly);
     bool readOnly() const;    void add(CardItem *card);
-    void addCollection(CardItem* currentCard);
-    void addEntry(CardItem* currentCard);
+    void addTopic(CardItem* currentCard);
+    void addTOC(CardItem* currentCard);
 
 
   private:
-    void add(CardItem* currentCard, bool addIndex);
+    void add(CardItem* currentCard, bool addTOC);
     Year m_year;
     CardList m_cards;
     QGraphicsScene* m_scene;

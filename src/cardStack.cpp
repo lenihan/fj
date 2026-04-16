@@ -1,6 +1,6 @@
 #include "cardStack.h"
 #include "tocItem.h"
-#include "cardItem.h"
+#include "topicItem.h"
 #include "rowItem.h"
 
 #include <QGraphicsScene>
@@ -9,9 +9,12 @@ CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(s
 {
     Q_ASSERT(m_scene);
     TOCItem* toc = new TOCItem(0, m_year);
+    QString title = m_year == Master::kYear ? "Master TOC" : QString::number(m_year) = " TOC";
+    toc->setText(0, title);
+    toc->setReadOnly(true);
     m_cards.append(toc);
     toc->setThreadStart(toc);
-    toc->setThreadPrev(toc);
+    toc->setThreadPrev(nullptr);
 }
 
 CardItem* CardStack::card(CardNum cardNum)
@@ -23,7 +26,6 @@ CardItem* CardStack::card(CardNum cardNum)
 TOCItem* CardStack::toc()
 {
     CardItem* first = m_cards.at(0);
-    Q_ASSERT(first->isIndex());
     TOCItem* toc = dynamic_cast<TOCItem*>(first);
     Q_ASSERT(toc);
     return toc;
@@ -49,16 +51,16 @@ bool CardStack::readOnly() const
     return m_readOnly;
 }
 
-void CardStack::addCollection(CardItem* currentCard)
+void CardStack::addTopic(CardItem* currentCard)
 {
-    bool addIndex = false;
-    add(currentCard, addIndex);
+    bool addTOC = false;
+    add(currentCard, addTOC);
 }
 
-void CardStack::addEntry(CardItem* currentCard)
+void CardStack::addTOC(CardItem* currentCard)
 {
-    bool addIndex = true;
-    add(currentCard, addIndex);
+    bool addTOC = true;
+    add(currentCard, addTOC);
 }
 
 void CardStack::add(CardItem* card)
@@ -66,15 +68,15 @@ void CardStack::add(CardItem* card)
     m_cards.append(card);
 }
 
-void CardStack::add(CardItem* currentCard, bool addIndex)
+void CardStack::add(CardItem* currentCard, bool addTOC)
 {
     Q_ASSERT(currentCard);
     const CardNum nextCardNum = lastCardNum() + 1;
     CardItem* newCard = nullptr;
-    if (addIndex)
+    if (addTOC)
         newCard = new TOCItem(nextCardNum, m_year);
     else
-        newCard = new CardItem(nextCardNum, m_year);
+        newCard = new TopicItem(nextCardNum, m_year);
     m_cards.append(newCard);
 
     newCard->setThreadStart(newCard);

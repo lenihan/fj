@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.h"
-
 #include <QGraphicsRectItem>
 
 class RowItem;
@@ -30,14 +29,16 @@ class CardItem : public QGraphicsRectItem
     Row lastEditableRow() const;
     Col lastCol(Row row) const;
     Col firstCol(Row row) const;
-    bool isIndex() const;
     CardItem* toc();
+    void setReadOnly(bool readOnly);
+    bool readOnly() const;
 
   protected:
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
-    bool m_isTOC{false};
     void updateLastRow();
-    virtual void drawLines();
+    virtual void setupVisuals() = 0;
+    void setupBackground();
+    void setupLines();
 
   private:
     QString threadStr(CardItem* card);

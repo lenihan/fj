@@ -29,10 +29,10 @@ class Cursor
     void prevThreadCard();
     void nextThreadCard();
     void nextThreadCardCreateCard();
-    void newCollection();
-    void continueCollection();
-    void newIndex();
-    void continueIndex();
+    void newTopic();
+    void continueTopic();
+    void newTOC();
+    void continueTOC();
     void draw(QPainter* painter, const QRectF& rect, const bool typing);
 
   private:
