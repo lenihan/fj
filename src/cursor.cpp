@@ -25,6 +25,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     Q_ASSERT(m_yearToCardStack.contains(Master::kYear));
     CardStack& masterCS = m_yearToCardStack[Master::kYear];
     m_currentCard = masterCS.toc();
+    // m_scene->addItem(m_currentCard);
     m_year = Master::kYear;
     m_row = m_currentCard->firstEditableRow();
     m_col = 0;
@@ -289,7 +290,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
     Q_ASSERT(m_currentCard);
     const RowItem* rowItem = m_currentCard->rowItem(m_row);
     Q_ASSERT(rowItem);
-
+    
     // Darken all but current row
     if (typing)
     {

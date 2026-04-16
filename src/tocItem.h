@@ -14,8 +14,5 @@ class TOCItem : public CardItem
     void addToTOC(CardItem* card);
 
   private:
-    void setupVisuals() override;
-
-  private:
     std::vector<CardItem*> m_content;
 };

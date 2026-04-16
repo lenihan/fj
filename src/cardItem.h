@@ -47,8 +47,7 @@ class CardItem : public QGraphicsRectItem
 
   protected:
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
-    void updateLastRow();
-    virtual void setupVisuals() = 0;
+    void setupLastRow();
     void setupBackground();
     void setupLines();
 

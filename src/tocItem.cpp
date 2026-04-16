@@ -4,6 +4,7 @@ TOCItem::TOCItem(CardNum cardNum, Year year, QGraphicsItem* parent)
     : CardItem(cardNum, year, parent)
 {
     m_content.reserve(Card::kNumUserBodyRows);
+    setupBackground();
 }
 
 void TOCItem::addToTOC(CardItem* card)
@@ -14,9 +15,3 @@ void TOCItem::addToTOC(CardItem* card)
 
     // TODO: Update rows
 }
-
-void TOCItem::setupVisuals()
-{
-    setupBackground();
-}
-

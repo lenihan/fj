@@ -7,12 +7,11 @@ CardItem::CardItem(CardNum cardNum, Year year, QGraphicsItem* parent)
 {
     // Reserve space for rows
     m_rows.reserve(Card::kNumRows);
-    for (int i = 0; i < Card::kNumRows; ++i)
-    {
-        m_rows.emplaceBack(new RowItem(static_cast<Row>(i), this));
-    }
 
-    updateLastRow();
+    for (int i = 0; i < Card::kNumRows; ++i)
+        m_rows.emplaceBack(new RowItem(static_cast<Row>(i), this));
+
+    setupLastRow();
 }
 
 void CardItem::setChar(const QChar c, Row row, Col col)
@@ -74,7 +73,7 @@ Year CardItem::year() const
 void CardItem::setThreadPrev(CardItem* card)
 {
     m_threadPrev = card;
-    updateLastRow();
+    setupLastRow();
 }
 
 CardItem* CardItem::threadPrev()
@@ -85,7 +84,7 @@ CardItem* CardItem::threadPrev()
 void CardItem::setThreadNext(CardItem* card)
 {
     m_threadNext = card;
-    updateLastRow();
+    setupLastRow();
 }
 
 CardItem* CardItem::threadNext()
@@ -190,7 +189,7 @@ QString CardItem::threadStr(CardItem* card)
     return str;
 }
 
-void CardItem::updateLastRow()
+void CardItem::setupLastRow()
 {
     RowItem* row = lastRow();
     row->setReadOnly(true);

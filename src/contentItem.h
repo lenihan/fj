@@ -8,7 +8,4 @@ class ContentItem : public CardItem
   public:
     ContentItem(CardNum cardNum, Year year, QGraphicsItem* parent = nullptr);
     Type cardType() const override { return Type::Content; }
-
-  private:
-    void setupVisuals() override;
 };
