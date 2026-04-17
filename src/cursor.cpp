@@ -24,10 +24,10 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     m_yearToCardStack.insert(Master::kYear, CardStack{Master::kYear, m_scene});
     Q_ASSERT(m_yearToCardStack.contains(Master::kYear));
     CardStack& masterCS = m_yearToCardStack[Master::kYear];
-    m_currentCard = masterCS.toc();
-    Q_ASSERT(m_currentCard->cardNum() == 0);
+    m_currentCard = masterCS.tableOfContents();
+    Q_ASSERT(m_currentCard->cardNumber() == 0);
     m_year = Master::kYear;
-    m_row = m_currentCard->firstEditableRowNum();
+    m_row = m_currentCard->firstEditableRow();
     m_col = 0;
 
     masterCS.addNewContent(m_currentCard);
@@ -49,10 +49,10 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     Q_ASSERT(m_currentCard);
 }
 
-CardNum Cursor::lastCardNum() const
+CardNumber Cursor::lastCard() const
 {
     const auto& cardStack = m_yearToCardStack[m_year];
-    return cardStack.lastCardNum();
+    return cardStack.lastCard();
 }
 
 void Cursor::up()
@@ -73,12 +73,12 @@ void Cursor::down()
 
 void Cursor::left()
 {
-    if (m_col == m_currentCard->firstColNum(m_row))
+    if (m_col == m_currentCard->firstColAt(m_row))
     {
-        RowNum oldRow = m_row;
+        Row oldRow = m_row;
         prevRow();
         if (oldRow != m_row)
-            m_col = m_currentCard->lastColNum(m_row);
+            m_col = m_currentCard->lastColAt(m_row);
     }
     else
         m_col--;
@@ -86,9 +86,9 @@ void Cursor::left()
 
 void Cursor::right()
 {
-    if (m_col == m_currentCard->lastColNum(m_row))
+    if (m_col == m_currentCard->lastColAt(m_row))
     {
-        RowNum oldRow = m_row;
+        Row oldRow = m_row;
         nextRow();
         if (oldRow != m_row)
             m_col = 0;
@@ -105,7 +105,7 @@ void Cursor::enter()
 
 void Cursor::backspace()
 {
-    if (m_col == m_currentCard->firstColNum(m_row))
+    if (m_col == m_currentCard->firstColAt(m_row))
     {
         // noop
         // TODO: Alert user you can't backspace past first col
@@ -126,12 +126,12 @@ void Cursor::charTyped(QChar c)
 
 void Cursor::nextRow()
 {
-    if (m_row == m_currentCard->lastEditableRowNum())
+    if (m_row == m_currentCard->lastEditableRow())
     {
         CardItem* oldCard = m_currentCard;
         nextThreadCard();
         if (oldCard != m_currentCard)
-            m_row = m_currentCard->firstEditableRowNum();
+            m_row = m_currentCard->firstEditableRow();
     }
     else
         m_row++;
@@ -139,7 +139,7 @@ void Cursor::nextRow()
 
 void Cursor::nextRowCreateCard()
 {
-    if (m_row == m_currentCard->lastEditableRowNum())
+    if (m_row == m_currentCard->lastEditableRow())
         nextThreadCardCreateCard();
     else
         m_row++;
@@ -147,12 +147,12 @@ void Cursor::nextRowCreateCard()
 
 void Cursor::prevRow()
 {
-    if (m_row == m_currentCard->firstEditableRowNum())
+    if (m_row == m_currentCard->firstEditableRow())
     {
         CardItem* oldCard = m_currentCard;
         prevThreadCard();
         if (oldCard != m_currentCard)
-            m_row = m_currentCard->lastEditableRowNum();
+            m_row = m_currentCard->lastEditableRow();
     }
     else
         m_row--;
@@ -160,7 +160,7 @@ void Cursor::prevRow()
 
 void Cursor::nextCard()
 {
-    if (m_currentCard->cardNum() == lastCardNum())
+    if (m_currentCard->cardNumber() == lastCard())
     {
         // Last card...Stop!
         // TODO: UI indicates at last card
@@ -168,15 +168,15 @@ void Cursor::nextCard()
     else
     {
         auto& cardStack = m_yearToCardStack[m_year];
-        CardNum cardNum = m_currentCard->cardNum();
-        CardItem* nextCard = cardStack.cardItem(cardNum + 1);
+        CardNumber cardNum = m_currentCard->cardNumber();
+        CardItem* nextCard = cardStack.cardItemAt(cardNum + 1);
         showCard(nextCard);
     }
 }
 
 void Cursor::prevCard()
 {
-    if (m_currentCard->cardNum() == 0)
+    if (m_currentCard->cardNumber() == 0)
     {
         // First card...Stop!
         // TODO: UI indicates at last card
@@ -184,8 +184,8 @@ void Cursor::prevCard()
     else
     {
         auto& cardStack = m_yearToCardStack[m_year];
-        CardNum cardNum = m_currentCard->cardNum();
-        CardItem* prevCard = cardStack.cardItem(cardNum - 1);
+        CardNumber cardNum = m_currentCard->cardNumber();
+        CardItem* prevCard = cardStack.cardItemAt(cardNum - 1);
         showCard(prevCard);
     }
 }
@@ -292,7 +292,7 @@ void Cursor::continueTOC()
 void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 {
     Q_ASSERT(m_currentCard);
-    const RowItem* rowItem = m_currentCard->rowItem(m_row);
+    const RowItem* rowItem = m_currentCard->rowItemAt(m_row);
     Q_ASSERT(rowItem);
     
     // Darken all but current row

@@ -9,7 +9,7 @@ class QGraphicsItem;
 class TOCItem : public CardItem
 {
   public:
-    TOCItem(CardNum cardNum, Year year, QGraphicsItem* parent = nullptr);
+    TOCItem(CardNumber cardNumber, Year year, QGraphicsItem* parent = nullptr);
     Type cardType() const override { return Type::TOC; }
     void addToTOC(CardItem* card);
 

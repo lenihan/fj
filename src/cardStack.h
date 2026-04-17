@@ -16,12 +16,14 @@ class CardStack
   public:
     CardStack() = default;
     CardStack(Year year, QGraphicsScene* scene);
-    CardItem* cardItem(CardNum cardNum);
-    TOCItem* toc();
+    CardItem* cardItemAt(CardNumber cardNumber);
+    TOCItem* tableOfContents();
     CardItem* lastCardItem();
-    CardNum lastCardNum() const;
+    CardNumber lastCard() const;
+    
     void setReadOnly(bool readOnly);
-    bool readOnly() const;    void add(CardItem *card);
+    bool readOnly() const;    
+    
     void addNewContent(CardItem* currentCard);
     void addNewTOC(CardItem* currentCard);
 

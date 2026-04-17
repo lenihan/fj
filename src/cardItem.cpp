@@ -2,36 +2,36 @@
 #include "rowItem.h"
 #include <QPen>
 
-CardItem::CardItem(CardNum cardNum, Year year, QGraphicsItem* parent)
-    : QGraphicsRectItem(parent), m_cardNum(cardNum), m_year(year)
+CardItem::CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
+    : QGraphicsRectItem(parent), m_cardNum(cardNumber), m_year(year)
 {
     // Reserve space for rows
     m_rows.reserve(Card::kNumRows);
 
     for (int i = 0; i < Card::kNumRows; ++i)
-        m_rows.emplaceBack(new RowItem(static_cast<RowNum>(i), this));
+        m_rows.emplaceBack(new RowItem(static_cast<Row>(i), this));
 
     setupLastRow();
 }
 
-void CardItem::setChar(const QChar c, RowNum row, ColNum col)
+void CardItem::setChar(const QChar c, Row row, Col col)
 {
     Q_ASSERT(row < Card::kNumRows);
     m_rows[row]->setChar(c, row, col);
 }
 
-void CardItem::setText(RowNum row, const QString& text)
+void CardItem::setText(Row row, const QString& text)
 {
     m_rows[row]->setText(text);
 }
 
-ColNum CardItem::colPerRow(RowNum row) const
+ColCount CardItem::colPerRow(Row row) const
 {
     Q_ASSERT(row <= Card::kNumRows);
     return m_rows[row]->colPerRow();
 }
 
-qreal CardItem::rowLineY_scn(RowNum row) const
+qreal CardItem::rowLineY_scn(Row row) const
 {
     qreal y_scn =
         Card::kTop_scn + Title::kRowHeight_scn + (row * Body::kRowHeight_scn);
@@ -60,7 +60,7 @@ CardItem* CardItem::threadStart() const
     return m_threadStart;
 }
 
-CardNum CardItem::cardNum() const
+CardNumber CardItem::cardNumber() const
 {
     return m_cardNum;
 }
@@ -92,7 +92,7 @@ CardItem* CardItem::threadNext()
     return m_threadNext;
 }
 
-RowNum CardItem::firstEditableRowNum() const
+Row CardItem::firstEditableRow() const
 {
     if (m_threadStart == this)
         return 0;
@@ -100,23 +100,23 @@ RowNum CardItem::firstEditableRowNum() const
         return 1;
 }
 
-RowNum CardItem::lastEditableRowNum() const
+Row CardItem::lastEditableRow() const
 {
-    RowNum lastRow = Card::kNumRows - 1;
+    Row lastRow = Card::kNumRows - 1;
     return lastRow - 1;
 }
 
-ColNum CardItem::lastColNum(RowNum row) const
+Col CardItem::lastColAt(Row row) const
 {
     return colPerRow(row) - 1;
 }
 
-ColNum CardItem::firstColNum(RowNum row) const
+Col CardItem::firstColAt(Row row) const
 {
     return 0;
 }
 
-CardItem* CardItem::TOC()
+CardItem* CardItem::tableOfContents()
 {
     Q_ASSERT(m_threadStart);
     CardItem* toc = m_threadStart->isTOC() ? m_threadStart : m_threadStart->threadPrev();
@@ -186,7 +186,7 @@ QString CardItem::threadStr(CardItem* card)
     if (m_year != card->year())
         str += QString::number(card->year()) + ":";
 
-    str += QString::number(card->cardNum() + 1);
+    str += QString::number(card->cardNumber() + 1);
 
     return str;
 }
@@ -197,8 +197,8 @@ void CardItem::setupLastRow()
     lastRow->setReadOnly(true);
 
     // Last line: Prev thread       card num         next thread
-    ColNum colTotal = lastRow->colPerRow();
-    QString text(colTotal, ' ');
+    ColCount colCount = lastRow->colPerRow();
+    QString text(colCount, ' ');
     qsizetype pos;
     qsizetype n;
 
@@ -210,27 +210,27 @@ void CardItem::setupLastRow()
 
     // card num
     QString cardNumStr = QString::number(m_cardNum + 1);
-    pos = (colTotal - cardNumStr.length()) / 2;
+    pos = (colCount - cardNumStr.length()) / 2;
     n = cardNumStr.length();
     text.replace(pos, n, cardNumStr);
 
     // next
     QString next = threadStr(m_threadNext);
-    pos = colTotal - next.length();
+    pos = colCount - next.length();
     n = next.length();
     text.replace(pos, n, next);
 
-    Q_ASSERT(text.length() == colTotal);
+    Q_ASSERT(text.length() == colCount);
     lastRow->setText(text);
 }
 
-const RowItem* CardItem::rowItem(RowNum row) const
+const RowItem* CardItem::rowItem(Row row) const
 {
     Q_ASSERT(row <= Card::kNumRows);
     return m_rows[row];
 }
 
-RowItem* CardItem::rowItem(RowNum row)
+RowItem* CardItem::rowItemAt(Row row)
 {
     Q_ASSERT(row <= Card::kNumRows);
     return m_rows[row];

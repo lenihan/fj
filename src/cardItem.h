@@ -15,33 +15,42 @@ class CardItem : public QGraphicsRectItem
         Content
     };
 
-    CardItem(CardNum cardNum, Year year, QGraphicsItem* parent = nullptr);
+    CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent = nullptr);
 
     virtual Type cardType() const { return Type::Unknown; }
     bool isTOC() const { return cardType() == Type::TOC; }
     bool isContent() const { return cardType() == Type::Content; }
 
-    void setChar(QChar c, RowNum row, ColNum col);
-    void setText(RowNum row, const QString& text);
-    ColNum colPerRow(RowNum row) const;
-    qreal rowLineY_scn(RowNum row) const;
-    const RowItem* rowItem(RowNum row) const;
-    RowItem* rowItem(RowNum row);
+    void setChar(QChar c, Row row, Col col);
+    void setText(Row row, const QString& text);
+    
+    ColCount colPerRow(Row row) const;
+    qreal rowLineY_scn(Row row) const;
+    const RowItem* rowItem(Row row) const;
+    CardNumber cardNumber() const;
+    Year year() const;
+    
+    RowItem* rowItemAt(Row row);
     RowItem* firstRowItem();
     RowItem* lastRowItem();
+
+    Row firstEditableRow() const;
+    Row lastEditableRow() const;
+
+    Col lastColAt(Row row) const;
+    Col firstColAt(Row row) const;
+
+    CardItem* tableOfContents();
+
     void setThreadStart(CardItem* threadStart);
     CardItem* threadStart() const;
-    CardNum cardNum() const;
-    Year year() const;
+    
     void setThreadPrev(CardItem* card);
     CardItem* threadPrev();
+
     void setThreadNext(CardItem* card);
     CardItem* threadNext();
-    RowNum firstEditableRowNum() const;
-    RowNum lastEditableRowNum() const;
-    ColNum lastColNum(RowNum row) const;
-    ColNum firstColNum(RowNum row) const;
-    CardItem* TOC();
+
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 
@@ -57,7 +66,7 @@ class CardItem : public QGraphicsRectItem
     CardItem* m_threadNext{nullptr};
     CardItem* m_threadStart{nullptr};
     QList<RowItem*> m_rows;
-    CardNum m_cardNum{0};
+    CardNumber m_cardNum{0};
     Year m_year{0};
     bool m_deleted{false};
     bool m_readOnly{false};

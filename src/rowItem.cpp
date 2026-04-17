@@ -6,7 +6,7 @@
 #include <QPainter>
 #include <QPen>
 
-RowItem::RowItem(RowNum row, QGraphicsItem* parent)
+RowItem::RowItem(Row row, QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent), kFont(font()),
       kFontCharWidth_fnt(fontCharWidth_fnt()),
       kFontCharHeight_fnt(fontCharHeight_fnt()),
@@ -34,9 +34,9 @@ RowItem::RowItem(RowNum row, QGraphicsItem* parent)
     setText(m_text);
 }
 
-ColNum RowItem::colPerRow() const { return kColsPerRow; }
+ColCount RowItem::colPerRow() const { return kColsPerRow; }
 
-void RowItem::setChar(QChar c, RowNum row, ColNum col)
+void RowItem::setChar(QChar c, Row row, Col col)
 {
     Q_ASSERT(col < kColsPerRow);
     m_text[col] = c;

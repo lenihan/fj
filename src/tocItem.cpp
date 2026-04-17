@@ -1,8 +1,8 @@
 #include "tocItem.h"
 #include "rowItem.h"
 
-TOCItem::TOCItem(CardNum cardNum, Year year, QGraphicsItem* parent)
-    : CardItem(cardNum, year, parent)
+TOCItem::TOCItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
+    : CardItem(cardNumber, year, parent)
 {
     m_content.reserve(Card::kNumUserBodyRows);
     setupBackground();
@@ -14,17 +14,17 @@ void TOCItem::addToTOC(CardItem* card)
     Q_ASSERT(m_content.size() <= Card::kNumUserBodyRows);
     if (m_content.size() == Card::kNumUserBodyRows)
     {
-        auto* newTOC = new TOCItem(cardNum(), year());
+        auto* newTOC = new TOCItem(cardNumber(), year());
         newTOC->addToTOC(card);
         return;
     }
     m_content.push_back(card);
 
-    RowNum row = m_content.size();
-    RowItem* rowItem = card->rowItem(row);
-    ColNum cols = rowItem->colPerRow();
+    Row row = m_content.size();
+    RowItem* rowItem = card->rowItemAt(row);
+    ColCount colCount = rowItem->colPerRow();
     QString text = "HOWDY HOWDY!";
     
-    Q_ASSERT(text.length() == cols);
+    Q_ASSERT(text.length() == colCount);
     rowItem->setText(text);
 }

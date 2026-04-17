@@ -18,13 +18,13 @@ CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(s
     m_scene->addItem(toc);
 }
 
-CardItem* CardStack::cardItem(CardNum cardNum)
+CardItem* CardStack::cardItemAt(CardNumber cardNumber)
 {
-    Q_ASSERT(cardNum <= lastCardNum());
-    return m_cards[cardNum];
+    Q_ASSERT(cardNumber <= lastCard());
+    return m_cards[cardNumber];
 }
 
-TOCItem* CardStack::toc()
+TOCItem* CardStack::tableOfContents()
 {
     CardItem* first = m_cards.at(0);
     TOCItem* toc = dynamic_cast<TOCItem*>(first);
@@ -37,7 +37,7 @@ CardItem* CardStack::lastCardItem()
     return m_cards.last();
 }
 
-CardNum CardStack::lastCardNum() const
+CardNumber CardStack::lastCard() const
 {
     return m_cards.size() - 1;
 }
@@ -54,13 +54,13 @@ bool CardStack::readOnly() const
 
 void CardStack::addNewContent(CardItem* currentCard)
 {
-    auto* newCard = new TOCItem(lastCardNum() + 1, m_year);
+    auto* newCard = new TOCItem(lastCard() + 1, m_year);
     addNewCard(currentCard, newCard);
 }
 
 void CardStack::addNewTOC(CardItem* currentCard)
 {
-    auto* newCard = new ContentItem(lastCardNum() + 1, m_year);
+    auto* newCard = new ContentItem(lastCard() + 1, m_year);
     addNewCard(currentCard, newCard);
 }
 
@@ -73,7 +73,7 @@ void CardStack::addNewCard(CardItem* currentCard, CardItem* newCard)
 
     newCard->setThreadStart(newCard);
     
-    auto* toc = dynamic_cast<TOCItem*>(currentCard->TOC());
+    auto* toc = dynamic_cast<TOCItem*>(currentCard->tableOfContents());
     Q_ASSERT(toc);
     newCard->setThreadPrev(toc);
     toc->addToTOC(newCard);

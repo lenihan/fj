@@ -28,6 +28,7 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
+    // TODO: Disable caps modifier when app does not have focus/not active
     /*
     First card is year/toc card
 
