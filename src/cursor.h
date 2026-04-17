@@ -39,8 +39,8 @@ class Cursor
     void showCard(CardItem* card);
     QMap<Year, CardStack>  m_yearToCardStack;
     Year m_year{0};    
-    Row m_row{0};      
-    Col m_col{0};      
+    RowNum m_row{0};      
+    ColNum m_col{0};      
 
     CardItem* m_currentCard{nullptr};
     QGraphicsScene* m_scene{nullptr};

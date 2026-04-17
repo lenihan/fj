@@ -21,14 +21,14 @@ class CardItem : public QGraphicsRectItem
     bool isTOC() const { return cardType() == Type::TOC; }
     bool isContent() const { return cardType() == Type::Content; }
 
-    void setChar(QChar c, Row row, Col col);
-    void setText(Row row, const QString& text);
-    Col colPerRow(Row row) const;
-    qreal rowLineY_scn(Row row) const;
-    const RowItem* rowItem(Row row) const;
-    RowItem* rowItem(Row row);
-    RowItem* firstRow();
-    RowItem* lastRow();
+    void setChar(QChar c, RowNum row, ColNum col);
+    void setText(RowNum row, const QString& text);
+    ColNum colPerRow(RowNum row) const;
+    qreal rowLineY_scn(RowNum row) const;
+    const RowItem* rowItem(RowNum row) const;
+    RowItem* rowItem(RowNum row);
+    RowItem* firstRowItem();
+    RowItem* lastRowItem();
     void setThreadStart(CardItem* threadStart);
     CardItem* threadStart() const;
     CardNum cardNum() const;
@@ -37,10 +37,10 @@ class CardItem : public QGraphicsRectItem
     CardItem* threadPrev();
     void setThreadNext(CardItem* card);
     CardItem* threadNext();
-    Row firstEditableRow() const;
-    Row lastEditableRow() const;
-    Col lastCol(Row row) const;
-    Col firstCol(Row row) const;
+    RowNum firstEditableRowNum() const;
+    RowNum lastEditableRowNum() const;
+    ColNum lastColNum(RowNum row) const;
+    ColNum firstColNum(RowNum row) const;
     CardItem* TOC();
     void setReadOnly(bool readOnly);
     bool readOnly() const;

@@ -11,9 +11,9 @@
 class RowItem : public QGraphicsSimpleTextItem
 {
   public:
-    explicit RowItem(Row row, QGraphicsItem* parent = nullptr);
-    Col colPerRow() const;
-    void setChar(QChar c, Row row, Col col);
+    explicit RowItem(RowNum row, QGraphicsItem* parent = nullptr);
+    ColNum colPerRow() const;
+    void setChar(QChar c, RowNum row, ColNum col);
     void setText(const QString& text); // Not virtual, hides base class setText
     void setReadOnly(bool readOnly);
     bool readOnly() const;
@@ -30,10 +30,10 @@ class RowItem : public QGraphicsSimpleTextItem
     const qreal kFontCharHeight_fnt;
     const qreal kFontCharWidth_fnt;
 
-    const Col kColsPerRow;
+    const ColNum kColsPerRow;
     const qreal kRowHeight_scn;
 
-    Row m_row;
+    RowNum m_row;
     qreal m_fontToScnScale;
     QString m_text;
     bool m_readOnly{false};

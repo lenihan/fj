@@ -16,18 +16,18 @@ class CardStack
   public:
     CardStack() = default;
     CardStack(Year year, QGraphicsScene* scene);
-    CardItem* card(CardNum cardNum);
+    CardItem* cardItem(CardNum cardNum);
     TOCItem* toc();
-    CardItem* lastCard();
+    CardItem* lastCardItem();
     CardNum lastCardNum() const;
     void setReadOnly(bool readOnly);
     bool readOnly() const;    void add(CardItem *card);
-    void addContent(CardItem* currentCard);
-    void addTOC(CardItem* currentCard);
+    void addNewContent(CardItem* currentCard);
+    void addNewTOC(CardItem* currentCard);
 
 
   private:
-    void add(CardItem* currentCard, bool addTOC);
+    void addNewCard(CardItem* currentCard, CardItem* newCard);
     Year m_year;
     CardList m_cards;
     QGraphicsScene* m_scene;
