@@ -46,7 +46,7 @@ QVariant TOCItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVa
 void TOCItem::setupRowAt(Row row)
 {
     CardItem* card = m_cards[row - 1];
-    RowItem* rowItem = card->rowItemAt(row);
+    RowItem* rowItem = rowItemAt(row);
     ColCount totalCol = rowItem->colPerRow();
 
     QString title = card->firstRowItem()->text();
