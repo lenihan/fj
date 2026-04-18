@@ -12,7 +12,9 @@ class TOCItem : public CardItem
     TOCItem(CardNumber cardNumber, Year year, QGraphicsItem* parent = nullptr);
     Type cardType() const override { return Type::TOC; }
     void addToTOC(CardItem* card);
+    QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
 
   private:
-    std::vector<CardItem*> m_content;
+    void setupRowAt(Row row);
+    std::vector<CardItem*> m_cards;
 };

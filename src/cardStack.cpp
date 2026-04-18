@@ -54,13 +54,13 @@ bool CardStack::readOnly() const
 
 void CardStack::addNewContent(CardItem* currentCard)
 {
-    auto* newCard = new TOCItem(lastCard() + 1, m_year);
+    auto* newCard = new ContentItem(lastCard() + 1, m_year);
     addNewCard(currentCard, newCard);
 }
 
 void CardStack::addNewTOC(CardItem* currentCard)
 {
-    auto* newCard = new ContentItem(lastCard() + 1, m_year);
+    auto* newCard = new TOCItem(lastCard() + 1, m_year);
     addNewCard(currentCard, newCard);
 }
 
