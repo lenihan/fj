@@ -1,11 +1,11 @@
 #pragma once
 
+#include "cardItem.h"
 #include "common.h"
-#include <cstdint>
 #include <QList>
 #include <QMap>
+#include <cstdint>
 
-class CardItem;
 class TOCItem;
 class QGraphicsScene;
 
@@ -14,22 +14,21 @@ using CardList = QList<CardItem*>;
 class CardStack
 {
   public:
+    enum class ThreadMode { New, Continue };
+
     CardStack() = default;
     CardStack(Year year, QGraphicsScene* scene);
     CardItem* cardItemAt(CardNumber cardNumber);
     TOCItem* tableOfContents();
     CardItem* lastCardItem();
-    CardNumber lastCard() const;
-    
-    void setReadOnly(bool readOnly);
-    bool readOnly() const;    
-    
-    void addNewContent(CardItem* currentCard);
-    void addNewTOC(CardItem* currentCard);
+    CardNumber lastCardNumber() const;
 
+    void setReadOnly(bool readOnly);
+    bool readOnly() const;
+
+    CardItem* add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard);
 
   private:
-    void addNewCard(CardItem* currentCard, CardItem* newCard);
     Year m_year;
     CardList m_cards;
     QGraphicsScene* m_scene;

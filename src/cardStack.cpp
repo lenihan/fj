@@ -1,7 +1,7 @@
 #include "cardStack.h"
-#include "tocItem.h"
 #include "contentItem.h"
 #include "rowItem.h"
+#include "tocItem.h"
 
 #include <QGraphicsScene>
 
@@ -12,6 +12,8 @@ CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(s
     QString title = m_year == Master::kYear ? "Master TOC" : QString::number(m_year) = " TOC";
     toc->setText(0, title);
     toc->setReadOnly(true);
+    if (m_year == Master::kYear)
+        toc->firstRowItem()->setReadOnly(true);
     m_cards.append(toc);
     toc->setThreadStart(toc);
     toc->setThreadPrev(nullptr);
@@ -20,7 +22,7 @@ CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(s
 
 CardItem* CardStack::cardItemAt(CardNumber cardNumber)
 {
-    Q_ASSERT(cardNumber <= lastCard());
+    Q_ASSERT(cardNumber <= lastCardNumber());
     return m_cards[cardNumber];
 }
 
@@ -37,7 +39,7 @@ CardItem* CardStack::lastCardItem()
     return m_cards.last();
 }
 
-CardNumber CardStack::lastCard() const
+CardNumber CardStack::lastCardNumber() const
 {
     return m_cards.size() - 1;
 }
@@ -52,29 +54,35 @@ bool CardStack::readOnly() const
     return m_readOnly;
 }
 
-void CardStack::addNewContent(CardItem* currentCard)
-{
-    auto* newCard = new ContentItem(lastCard() + 1, m_year);
-    addNewCard(currentCard, newCard);
-}
-
-void CardStack::addNewTOC(CardItem* currentCard)
-{
-    auto* newCard = new TOCItem(lastCard() + 1, m_year);
-    addNewCard(currentCard, newCard);
-}
-
-void CardStack::addNewCard(CardItem* currentCard, CardItem* newCard)
+CardItem* CardStack::add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard)
 {
     Q_ASSERT(currentCard);
-    Q_ASSERT(newCard);
-    m_cards.append(newCard);
-    m_scene->addItem(newCard);
 
-    newCard->setThreadStart(newCard);
+    // Create
+    CardNumber newCardNumber = lastCardNumber() + 1;
+    CardItem* newCard = nullptr;
+    if (type == CardItem::Type::Content)
+        newCard = new ContentItem(newCardNumber, m_year);
+    else if (type == CardItem::Type::TOC)
+        newCard = new TOCItem(newCardNumber, m_year);
     
+    // Add to card stack
+    m_cards.append(newCard);
+
+    // Thread
+    newCard->setThreadStart(newCard);
+
+    // Update TOC connections
     auto* toc = dynamic_cast<TOCItem*>(currentCard->tableOfContents());
     Q_ASSERT(toc);
     newCard->setThreadPrev(toc);
     toc->addToTOC(newCard);
+
+    // Show
+    m_scene->addItem(newCard);
+    currentCard->hide();
+    currentCard = newCard;
+    newCard->show();
+
+    return newCard;
 }

@@ -56,7 +56,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         - Continue to new card by pressing return until you pass last row
         - left thread points to parent iIndex
 
-    Enter: Go to first card (Index: <YEAR>)
+    Enter: continue content card, nothing on toc
     x: todo/completed/no todo
     e: edit - keyboard types
     r: reading - up/down/left/right are for links, enter to go
