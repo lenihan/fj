@@ -51,8 +51,6 @@ RowItem* CardItem::lastRowItem()
 void CardItem::setThreadStart(CardItem* threadStart)
 {
     m_threadStart = threadStart;
-    bool titleReadOnly = threadStart != this;
-    firstRowItem()->setReadOnly(titleReadOnly);
 }
 
 CardItem* CardItem::threadStart() const
