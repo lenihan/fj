@@ -121,7 +121,6 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_N: m_cursor.newTOC(); break;
                     case Qt::Key_M: m_cursor.prevThreadCard(); break;
                     case Qt::Key_Period: m_cursor.nextThreadCard(); break;
-                    case Qt::Key_Space: m_cursor.space(); break;
                 }
             }
             else

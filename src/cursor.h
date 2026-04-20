@@ -39,7 +39,6 @@ class Cursor
 
     void enter();
     void backspace();
-    void space();
 
     void charTyped(QChar c);
 

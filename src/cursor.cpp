@@ -160,7 +160,16 @@ void Cursor::left()
 void Cursor::right()
 {
     if (m_currentCard->isTOC())
-        ; // noop
+    {
+        auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
+        Q_ASSERT(toc);
+        if (toc->numberContent() > 0)
+        {
+            CardItem* newCard = toc->cardAtRow(m_row);
+            Q_ASSERT(newCard);
+            showCard(newCard);
+        }
+    }
     else if (m_currentCard->isContent())
     {
         if (m_col == m_currentCard->lastColAt(m_row))
@@ -207,21 +216,6 @@ void Cursor::backspace()
             // Delete prev character
             m_col--;
             m_currentCard->setChar(' ', m_row, m_col);
-        }
-    }
-}
-
-void Cursor::space()
-{
-    if (m_currentCard->isTOC())
-    {
-        auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
-        Q_ASSERT(toc);
-        if (toc->numberContent() > 0)
-        {
-            CardItem* newCard = toc->cardAtRow(m_row);
-            Q_ASSERT(newCard);
-            showCard(newCard);
         }
     }
 }
