@@ -48,6 +48,13 @@ RowCount TOCItem::numberContent() const
     return m_content.size();
 }
 
+CardItem* TOCItem::cardAtRow(Row row)
+{
+    Q_ASSERT(row >= 1);
+    Q_ASSERT(row <= m_content.size());
+    return m_content[row - 1];
+}
+
 void TOCItem::setupRowAt(Row row)
 {
     CardItem* card = m_content[row - 1];

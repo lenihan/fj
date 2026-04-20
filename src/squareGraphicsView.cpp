@@ -47,7 +47,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         - Only options:
             - Modify title
             - up/down to select a row
-            - , to follow card for that row
+            - Space to follow link, to follow card for that row
         - Index row will update to point to new content/row
         - Left thread points to parent toc
     c: New content card
@@ -85,6 +85,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     g: Future
     ;: Future
     ': Future
+    ,: Future
     y: Future
     z: Future
     n: Future
@@ -120,6 +121,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_N: m_cursor.newTOC(); break;
                     case Qt::Key_M: m_cursor.prevThreadCard(); break;
                     case Qt::Key_Period: m_cursor.nextThreadCard(); break;
+                    case Qt::Key_Space: m_cursor.space(); break;
                 }
             }
             else

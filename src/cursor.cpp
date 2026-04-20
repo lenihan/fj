@@ -211,6 +211,21 @@ void Cursor::backspace()
     }
 }
 
+void Cursor::space()
+{
+    if (m_currentCard->isTOC())
+    {
+        auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
+        Q_ASSERT(toc);
+        if (toc->numberContent() > 0)
+        {
+            CardItem* newCard = toc->cardAtRow(m_row);
+            Q_ASSERT(newCard);
+            showCard(newCard);
+        }
+    }
+}
+
 void Cursor::charTyped(QChar c)
 {
     if (m_currentCard->isTOC())
