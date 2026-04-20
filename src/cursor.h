@@ -29,6 +29,9 @@ class Cursor
     CardItem* currentCard();
     void setCurrentCard(CardItem* card);
 
+    bool actionMode() const;
+    void setActionMode(bool actionMode);
+
     void up();
     void down();
     void left();
@@ -61,6 +64,7 @@ class Cursor
     Row m_row{0};
     Col m_col{0};
     CardItem* m_currentCard{nullptr};
+    bool m_actionMode{true};
 
     QMap<Year, CardStack*> m_yearToCardStack;
     QGraphicsScene* m_scene{nullptr};

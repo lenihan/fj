@@ -103,6 +103,16 @@ void Cursor::setCurrentCard(CardItem* card)
     m_currentCard = card;
 }
 
+bool Cursor::actionMode() const
+{
+    return m_actionMode;
+}
+
+void Cursor::setActionMode(bool actionMode)
+{
+    m_actionMode = actionMode;
+}
+
 void Cursor::up()
 {
     if (m_currentCard->isTOC())
@@ -298,6 +308,12 @@ void Cursor::nextCard()
         auto* cardStack = m_yearToCardStack[m_year];
         CardNumber cardNum = m_currentCard->cardNumber();
         CardItem* nextCard = cardStack->cardItemAt(cardNum + 1);
+        if (nextCard->isTOC())
+        {
+            m_row = 1;
+            m_col = 0;
+            m_actionMode = true;
+        }
         showCard(nextCard);
     }
 }
@@ -315,6 +331,12 @@ void Cursor::prevCard()
         auto* cardStack = m_yearToCardStack[m_year];
         CardNumber cardNumber = m_currentCard->cardNumber();
         CardItem* prevCard = cardStack->cardItemAt(cardNumber - 1);
+        if (prevCard->isTOC())
+        {
+            m_row = 1;
+            m_col = 0;
+            m_actionMode = true;
+        }
         showCard(prevCard);
     }
 }
@@ -323,14 +345,30 @@ void Cursor::prevThreadCard()
 {
     CardItem* prevCard = m_currentCard->threadPrev();
     if (prevCard)
+    {
+        if (prevCard->isTOC())
+        {
+            m_row = 1;
+            m_col = 0;
+            m_actionMode = true;
+        }
         showCard(prevCard);
+    }
 }
 
 void Cursor::nextThreadCard()
 {
     CardItem* nextCard = m_currentCard->threadNext();
     if (nextCard)
+    {
+        if (nextCard->isTOC())
+        {
+            m_row = 1;
+            m_col = 0;
+            m_actionMode = true;
+        }
         showCard(nextCard);
+    }
 }
 
 void Cursor::nextThreadCardCreateCard()
@@ -348,12 +386,14 @@ void Cursor::newContent()
 {
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     m_yearToCardStack[m_year]->add(CardItem::Type::Content, CardStack::ThreadMode::New);
+    m_actionMode = false;
 }
 
 void Cursor::newTOC()
 {
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     m_yearToCardStack[m_year]->add(CardItem::Type::TOC, CardStack::ThreadMode::New);
+    m_actionMode = false;
 }
 
 #if 0

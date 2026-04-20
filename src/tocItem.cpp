@@ -54,10 +54,12 @@ void TOCItem::setupRowAt(Row row)
     RowItem* rowItem = rowItemAt(row);
     ColCount totalCol = rowItem->colPerRow();
 
+    rowItem->setReadOnly(true);
+
     QString title = card->firstRowItem()->text();
     title = rtrim(title);
 
-        bool includeYear = card->year() != year();
+    bool includeYear = card->year() != year();
     QString fullCardNum = QString::number(card->cardNumber());
     if (includeYear)
     {

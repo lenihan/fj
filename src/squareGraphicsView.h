@@ -22,7 +22,6 @@ class SquareGraphicsView : public QGraphicsView
     Cursor m_cursor;
 
     bool m_capsDown{false};
-    bool m_actionMode{true};
     bool m_shiftDown{false};  
     int m_lastKeyPress{0};
 };
