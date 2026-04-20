@@ -55,8 +55,9 @@ void TOCItem::setupRowAt(Row row)
     ColCount totalCol = rowItem->colPerRow();
 
     QString title = card->firstRowItem()->text();
+    title = rtrim(title);
 
-    bool includeYear = card->year() != year();
+        bool includeYear = card->year() != year();
     QString fullCardNum = QString::number(card->cardNumber());
     if (includeYear)
     {
@@ -70,4 +71,16 @@ void TOCItem::setupRowAt(Row row)
     QString text = title + " " + dots + " " + fullCardNum;
     Q_ASSERT(text.length() == totalCol);
     rowItem->setText(text);
+}
+
+QString TOCItem::rtrim(const QString& str) const
+{
+    if (str.isEmpty())
+        return str;
+
+    int i = str.size() - 1;
+    while (i >= 0 && str.at(i).isSpace())
+        --i;
+
+    return str.left(i + 1);
 }

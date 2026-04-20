@@ -17,5 +17,6 @@ class TOCItem : public CardItem
 
   private:
     void setupRowAt(Row row);
+    QString rtrim(const QString& str) const;
     std::vector<CardItem*> m_content;
 };
