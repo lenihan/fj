@@ -4,23 +4,23 @@
 TOCItem::TOCItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
     : CardItem(cardNumber, year, parent)
 {
-    m_cards.reserve(Card::kNumUserBodyRows);
+    m_content.reserve(Card::kNumUserBodyRows);
     setupBackground();
 }
 
 void TOCItem::addToTOC(CardItem* card)
 {
     Q_ASSERT(card);
-    Q_ASSERT(m_cards.size() <= Card::kNumUserBodyRows);
-    if (m_cards.size() == Card::kNumUserBodyRows)
+    Q_ASSERT(m_content.size() <= Card::kNumUserBodyRows);
+    if (m_content.size() == Card::kNumUserBodyRows)
     {
         auto* newTOC = new TOCItem(cardNumber(), year());
         newTOC->addToTOC(card);
         return;
     }
-    m_cards.push_back(card);
+    m_content.push_back(card);
 
-    Row row = m_cards.size();
+    Row row = m_content.size();
     setupRowAt(row);
     update();
 }
@@ -32,8 +32,8 @@ QVariant TOCItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVa
         if (value.toBool())
         { // <-- just became visible
 
-            Q_ASSERT(m_cards.size() <= Card::kNumUserBodyRows);
-            for (int i = 0; i < m_cards.size(); ++i)
+            Q_ASSERT(m_content.size() <= Card::kNumUserBodyRows);
+            for (int i = 0; i < m_content.size(); ++i)
             {
                 setupRowAt(i + 1);
             }
@@ -43,9 +43,14 @@ QVariant TOCItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVa
     return QGraphicsItem::itemChange(change, value);
 }
 
+RowCount TOCItem::numberContent() const
+{
+    return m_content.size();
+}
+
 void TOCItem::setupRowAt(Row row)
 {
-    CardItem* card = m_cards[row - 1];
+    CardItem* card = m_content[row - 1];
     RowItem* rowItem = rowItemAt(row);
     ColCount totalCol = rowItem->colPerRow();
 

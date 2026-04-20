@@ -6,8 +6,8 @@
 #include <QMap>
 #include <cstdint>
 
+class Cursor;
 class TOCItem;
-class QGraphicsScene;
 
 using CardList = QList<CardItem*>;
 
@@ -16,8 +16,7 @@ class CardStack
   public:
     enum class ThreadMode { New, Continue };
 
-    CardStack() = default;
-    CardStack(Year year, QGraphicsScene* scene);
+    CardStack(Year year, Cursor* cursor);
     CardItem* cardItemAt(CardNumber cardNumber);
     TOCItem* tableOfContents();
     CardItem* lastCardItem();
@@ -26,11 +25,11 @@ class CardStack
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 
-    CardItem* add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard);
+    void add(CardItem::Type type, ThreadMode threadMode);
 
   private:
     Year m_year;
     CardList m_cards;
-    QGraphicsScene* m_scene;
+    Cursor *m_cursor;
     bool m_readOnly{false};
 };

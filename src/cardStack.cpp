@@ -1,23 +1,40 @@
 #include "cardStack.h"
 #include "contentItem.h"
+#include "cursor.h"
 #include "rowItem.h"
 #include "tocItem.h"
 
 #include <QGraphicsScene>
 
-CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(scene)
+CardStack::CardStack(Year year, Cursor* cursor) : m_year(year), m_cursor(cursor)
 {
-    Q_ASSERT(m_scene);
+    Q_ASSERT(m_cursor);
+    Q_ASSERT(m_cursor->scene());
+    
+    // Create cardstack's TOC
     TOCItem* toc = new TOCItem(0, m_year);
-    QString title = m_year == Master::kYear ? "Master TOC" : QString::number(m_year) = " TOC";
-    toc->setText(0, title);
     toc->setReadOnly(true);
-    if (m_year == Master::kYear)
-        toc->firstRowItem()->setReadOnly(true);
-    m_cards.append(toc);
+    
+    // Title
+    QString title = m_year == Master::kYear ? "Master TOC" : QString::number(m_year) = " TOC";
+    toc->firstRowItem()->setText(title);
+    toc->firstRowItem()->setReadOnly(true);
+    
+    // Threads
     toc->setThreadStart(toc);
     toc->setThreadPrev(nullptr);
-    m_scene->addItem(toc);
+    
+    // Add to cardstack
+    m_cards.append(toc);
+    
+    // Add to scene
+    m_cursor->scene()->addItem(toc);
+
+    // Current
+    m_cursor->setYear(m_year);
+    m_cursor->setRow(1);
+    m_cursor->setCol(0);
+    m_cursor->setCurrentCard(toc);
 }
 
 CardItem* CardStack::cardItemAt(CardNumber cardNumber)
@@ -54,10 +71,8 @@ bool CardStack::readOnly() const
     return m_readOnly;
 }
 
-CardItem* CardStack::add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard)
+void CardStack::add(CardItem::Type type, ThreadMode threadMode)
 {
-    Q_ASSERT(currentCard);
-
     // Create
     CardNumber newCardNumber = lastCardNumber() + 1;
     CardItem* newCard = nullptr;
@@ -69,20 +84,37 @@ CardItem* CardStack::add(CardItem::Type type, ThreadMode threadMode, CardItem* c
     // Add to card stack
     m_cards.append(newCard);
 
-    // Thread
-    newCard->setThreadStart(newCard);
-
-    // Update TOC connections
-    auto* toc = dynamic_cast<TOCItem*>(currentCard->tableOfContents());
-    Q_ASSERT(toc);
-    newCard->setThreadPrev(toc);
-    toc->addToTOC(newCard);
+    // Connections
+    CardItem* currentCard = m_cursor->currentCard();
+    if (threadMode == ThreadMode::New)
+    {
+        // newCard
+        newCard->setThreadStart(newCard);
+        auto* toc = dynamic_cast<TOCItem*>(currentCard->tableOfContents());
+        Q_ASSERT(toc);
+        newCard->setThreadPrev(toc);
+        
+        // TOC
+        toc->addToTOC(newCard);
+    }
+    else if (threadMode == ThreadMode::Continue)
+    {
+        // newCard
+        newCard->setThreadStart(currentCard->threadStart());
+        newCard->setThreadPrev(currentCard);
+        
+        // currentCard
+        currentCard->setThreadNext(newCard);
+    }
 
     // Show
-    m_scene->addItem(newCard);
+    m_cursor->scene()->addItem(newCard);
     currentCard->hide();
-    currentCard = newCard;
     newCard->show();
 
-    return newCard;
+    // Current
+    m_cursor->setYear(newCard->year());
+    m_cursor->setRow(0);
+    m_cursor->setCol(0);
+    m_cursor->setCurrentCard(newCard);
 }

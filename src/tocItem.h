@@ -13,8 +13,9 @@ class TOCItem : public CardItem
     Type cardType() const override { return Type::TOC; }
     void addToTOC(CardItem* card);
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
+    RowCount numberContent() const;
 
   private:
     void setupRowAt(Row row);
-    std::vector<CardItem*> m_cards;
+    std::vector<CardItem*> m_content;
 };

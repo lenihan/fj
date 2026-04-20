@@ -34,8 +34,8 @@ class CardItem : public QGraphicsRectItem
     RowItem* firstRowItem();
     RowItem* lastRowItem();
 
-    Row firstEditableRow() const;
-    Row lastEditableRow() const;
+    Row firstUserRow() const;
+    Row lastUserRow() const;
 
     Col lastColAt(Row row) const;
     Col firstColAt(Row row) const;

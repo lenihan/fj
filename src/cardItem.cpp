@@ -92,15 +92,12 @@ CardItem* CardItem::threadNext()
     return m_threadNext;
 }
 
-Row CardItem::firstEditableRow() const
+Row CardItem::firstUserRow() const
 {
-    if (m_threadStart == this)
-        return 0;
-    else
-        return 1;
+    return 1;
 }
 
-Row CardItem::lastEditableRow() const
+Row CardItem::lastUserRow() const
 {
     Row lastRow = Card::kNumRows - 1;
     return lastRow - 1;
