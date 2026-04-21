@@ -15,6 +15,7 @@ class TOCItem : public CardItem
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
     RowCount numberContent() const;
     CardItem* cardAtRow(Row row);
+    bool empty() const;
 
   private:
     void setupRowAt(Row row);

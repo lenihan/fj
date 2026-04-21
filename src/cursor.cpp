@@ -427,7 +427,7 @@ void Cursor::continueContent()
 void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 {
     Q_ASSERT(m_currentCard);
-    const RowItem* rowItem = m_currentCard->rowItemAt(m_row);
+    RowItem* rowItem = m_currentCard->rowItemAt(m_row);
     Q_ASSERT(rowItem);
 
     // Darken all but current row
@@ -436,17 +436,17 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(0, 0, 0, 15));
 
-        const qreal rowHeight_scn = rowItem->rowHeight_scn();
-        const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+        qreal rowHeight_scn = rowItem->rowHeight_scn();
+        qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-        const qreal x = Card::kLeft_scn;
-        const qreal y = lineY_scn - rowHeight_scn;
-        const qreal w = Card::kRight_scn - Card::kLeft_scn;
-        const qreal h = rowHeight_scn;
-        const QRectF row_scn(x, y, w, h);
+        qreal x = Card::kLeft_scn;
+        qreal y = lineY_scn - rowHeight_scn;
+        qreal w = Card::kRight_scn - Card::kLeft_scn;
+        qreal h = rowHeight_scn;
+        QRectF row_scn(x, y, w, h);
 
-        const QRectF card_itm = m_currentCard->boundingRect();
-        const QPolygonF card_scn = m_currentCard->mapRectToScene(card_itm);
+        QRectF card_itm = m_currentCard->boundingRect();
+        QPolygonF card_scn = m_currentCard->mapRectToScene(card_itm);
 
         // Build a path: outer rect minus inner rect
         QPainterPath path;
@@ -459,46 +459,58 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
     }
 
     // Draw cursor as red empty rounded square
+
     {
-        const QColor orangishRed(227, 59, 36);
+        QColor orangishRed(227, 59, 36);
         QPen pen(orangishRed);
         pen.setCosmetic(true);
         pen.setWidthF(2.0);
         painter->setPen(pen);
         painter->setBrush(Qt::transparent);
 
-        const qreal rowHeight_scn = rowItem->rowHeight_scn();
-        const qreal charHeight_scn = rowItem->charHeight_scn();
-        const qreal charWidth_scn = rowItem->charWidth_scn();
-        const qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+        qreal rowHeight_scn = rowItem->rowHeight_scn();
+        qreal charHeight_scn = rowItem->charHeight_scn();
+        qreal charWidth_scn = rowItem->charWidth_scn();
+        qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-        if (typing)
+        if (m_currentCard->isTOC())
         {
-            const QPointF topLeft(
-                m_col * charWidth_scn + Card::kBorder_scn,
-                lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
-            const QPointF bottomRight(
-                topLeft.x() + charWidth_scn,
-                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
-            const QRectF cursorRect(topLeft, bottomRight);
+            auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
+            Q_ASSERT(toc);
+            if (!toc->empty())
+            {
+                QPointF topLeft(Card::kBorder_scn,
+                                lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
+                QPointF bottomRight(Card::kRect_scn.width() - Card::kBorder_scn,
+                                    lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
+                QRectF cursorRect(topLeft, bottomRight);
+                painter->drawRect(cursorRect);
+            }
+        }
+        else if (typing) // hollow square
+        {
+            QPointF topLeft(m_col * charWidth_scn + Card::kBorder_scn,
+                            lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
+            QPointF bottomRight(topLeft.x() + charWidth_scn,
+                                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
+            QRectF cursorRect(topLeft, bottomRight);
             painter->drawRoundedRect(cursorRect, 25.0, 25.0, Qt::RelativeSize);
         }
-        else
+        else // arrow pointing up under current character
         {
             painter->setBrush(orangishRed);
-            const qreal deltaCharRow = rowHeight_scn - charHeight_scn;
-            const qreal centerX = m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0;
-            const qreal x1 = centerX;
-            const qreal y1 = lineY_scn - deltaCharRow / 2.0;
-            const qreal x2 = centerX - charWidth_scn / 2.0;
-            const qreal y2 = lineY_scn - deltaCharRow / 10.0;
-            const qreal x3 = centerX + charWidth_scn / 2.0;
-            const qreal y3 = lineY_scn - deltaCharRow / 10.0;
+            qreal deltaCharRow = rowHeight_scn - charHeight_scn;
+            qreal centerX = m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0;
+            qreal x1 = centerX;
+            qreal y1 = lineY_scn - deltaCharRow / 2.0;
+            qreal x2 = centerX - charWidth_scn / 2.0;
+            qreal y2 = lineY_scn - deltaCharRow / 10.0;
+            qreal x3 = centerX + charWidth_scn / 2.0;
+            qreal y3 = lineY_scn - deltaCharRow / 10.0;
 
-            const QPointF points[3] = {
-                QPointF(x1, y1),
-                QPointF(x2, y2),
-                QPointF(x3, y3)};
+            QPointF points[3] = {QPointF(x1, y1),
+                                 QPointF(x2, y2),
+                                 QPointF(x3, y3)};
             painter->drawPolygon(points, 3);
         }
     }

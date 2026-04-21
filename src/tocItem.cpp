@@ -55,6 +55,11 @@ CardItem* TOCItem::cardAtRow(Row row)
     return m_content[row - 1];
 }
 
+bool TOCItem::empty() const
+{
+    return m_content.empty();
+}
+
 void TOCItem::setupRowAt(Row row)
 {
     CardItem* card = m_content[row - 1];
