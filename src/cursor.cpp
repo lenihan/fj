@@ -186,11 +186,7 @@ void Cursor::right()
 
 void Cursor::enter()
 {
-    if (m_currentCard->isTOC())
-    {
-        Q_ASSERT(false); // TODO: Goto this row's contents
-    }
-    else if (m_currentCard->isContent())
+    if (m_currentCard->isContent())
     {
         if (m_currentCard->readOnly())
             Q_ASSERT(false); // TODO: Add new content to m_year, connected to this thread
@@ -484,7 +480,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
                 QPointF bottomRight(Card::kRect_scn.width() - Card::kBorder_scn,
                                     lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
                 QRectF cursorRect(topLeft, bottomRight);
-                painter->drawRect(cursorRect);
+                qreal percentage = 5.0;
+                painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
             }
         }
         else if (typing) // hollow square
