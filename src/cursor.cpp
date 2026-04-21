@@ -119,6 +119,11 @@ void Cursor::up()
         prevRow();
     else if (m_currentCard->isContent())
     {
+        if (m_row == 0)
+            return; //  can't leave title via up
+        if (m_row == 1 && m_currentCard == m_currentCard->threadStart())
+            return; // can't use up to go to TOC
+
         uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
         prevRow();
         uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
@@ -147,6 +152,8 @@ void Cursor::left()
         ; // noop
     else if (m_currentCard->isContent())
     {
+        if (m_row == 0 && m_col == 0)
+            return; // can't leave whle working on title
         if (m_col == m_currentCard->firstColAt(m_row))
         {
             Row oldRow = m_row;
@@ -174,6 +181,8 @@ void Cursor::right()
     }
     else if (m_currentCard->isContent())
     {
+        if (m_row == 0 && m_col == m_currentCard->lastColAt(m_row))
+            return; // can't leave whle working on title
         if (m_col == m_currentCard->lastColAt(m_row))
         {
             Row oldRow = m_row;
@@ -298,7 +307,9 @@ void Cursor::prevRow()
         {
             CardItem* oldCard = m_currentCard;
             prevThreadCard();
-            if (oldCard != m_currentCard)
+            if (m_currentCard->isTOC())
+                tocCurrent();
+            else if (oldCard != m_currentCard)
                 m_row = m_currentCard->lastUserRow();
         }
         else
@@ -320,11 +331,7 @@ void Cursor::nextCard()
         CardNumber cardNum = m_currentCard->cardNumber();
         CardItem* nextCard = cardStack->cardItemAt(cardNum + 1);
         if (nextCard->isTOC())
-        {
-            m_row = 1;
-            m_col = 0;
-            m_actionMode = true;
-        }
+            tocCurrent();
         showCard(nextCard);
     }
 }
@@ -343,11 +350,7 @@ void Cursor::prevCard()
         CardNumber cardNumber = m_currentCard->cardNumber();
         CardItem* prevCard = cardStack->cardItemAt(cardNumber - 1);
         if (prevCard->isTOC())
-        {
-            m_row = 1;
-            m_col = 0;
-            m_actionMode = true;
-        }
+            tocCurrent();
         showCard(prevCard);
     }
 }
@@ -358,11 +361,7 @@ void Cursor::prevThreadCard()
     if (prevCard)
     {
         if (prevCard->isTOC())
-        {
-            m_row = 1;
-            m_col = 0;
-            m_actionMode = true;
-        }
+            tocCurrent();
         showCard(prevCard);
     }
 }
@@ -373,11 +372,7 @@ void Cursor::nextThreadCard()
     if (nextCard)
     {
         if (nextCard->isTOC())
-        {
-            m_row = 1;
-            m_col = 0;
-            m_actionMode = true;
-        }
+            tocCurrent();
         showCard(nextCard);
     }
 }
@@ -526,4 +521,11 @@ void Cursor::showCard(CardItem* card)
     m_currentCard->hide();
     m_currentCard = card;
     m_currentCard->show();
+}
+
+void Cursor::tocCurrent()
+{
+    m_row = 1;
+    m_col = 0;
+    m_actionMode = true;
 }

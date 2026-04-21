@@ -60,6 +60,7 @@ class Cursor
 
   private:
     void showCard(CardItem* card);
+    void tocCurrent();
     Year m_year{0};
     Row m_row{0};
     Col m_col{0};
