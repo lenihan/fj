@@ -19,16 +19,14 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     auto* masterCS = new CardStack(Master::kYear, this);
     m_yearToCardStack.insert(Master::kYear, masterCS);
     Q_ASSERT(m_yearToCardStack.contains(Master::kYear));
-    /* TODO: These should be set in constructor
-    m_currentCard = masterCS->tableOfContents();
-    Q_ASSERT(m_currentCard->cardNumber() == 0);
-    m_year = Master::kYear;
-    m_row = m_currentCard->firstEditableRow();
-    m_col = 0;
-    */
 
-    // masterCS->add(CardItem::Type::Content, CardStack::ThreadMode::New);
-    // masterCS->lastCardItem()->firstRowItem()->setText("Help");
+    masterCS->add(CardItem::Type::Content, CardStack::ThreadMode::New);
+    masterCS->lastCardItem()->firstRowItem()->setText("Help");
+    masterCS->lastCardItem()->firstRowItem()->setReadOnly(true);
+
+    showCard(masterCS->cardItemAt(0));
+    m_row = 1;
+    m_col = 0;
 
 #if 0   
     // Setup current year card stack
@@ -121,7 +119,7 @@ void Cursor::up()
     {
         if (m_row == 0)
             return; //  can't leave title via up
-        if (m_row == 1 && m_currentCard == m_currentCard->threadStart())
+        if (m_row == 1 && m_currentCard->isThreadStart())
             return; // can't use up to go to TOC
 
         uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
@@ -154,6 +152,11 @@ void Cursor::left()
     {
         if (m_row == 0 && m_col == 0)
             return; // can't leave whle working on title
+        bool nextLeftIsTOC = m_row == 1 &&
+                             m_col == m_currentCard->firstColAt(m_row) &&
+                             m_currentCard->isThreadStart();
+        if (nextLeftIsTOC)
+            return; // Can't leave content for TOC via arrow keys
         if (m_col == m_currentCard->firstColAt(m_row))
         {
             Row oldRow = m_row;
@@ -293,7 +296,7 @@ void Cursor::prevRow()
     {
         if (m_row == m_currentCard->firstUserRow())
         {
-            if (m_currentCard->threadStart() == m_currentCard)
+            if (m_currentCard->isThreadStart())
                 prevThreadCard();
             else
                 return; // noop
@@ -402,25 +405,6 @@ void Cursor::newTOC()
     m_actionMode = false;
 }
 
-#if 0
-void Cursor::continueContent()
-{
-    auto& cardStack = m_yearToCardStack[m_year];
-    Q_ASSERT(0); // TODO next line
-    // cardStack.continueContent(m_currentCard);
-    // CardNum newCardNum = cardStack.lastCardNum() + 1;
-    // m_row = 1; // !!!
-    // m_col = 0;
-    // auto* newCard = new TOCItem(newCardNum, m_year);
-    // cardStack.add(newCard);
-    // newCard->setThreadStart(m_currentCard->threadStart()); // !!!
-    // m_currentCard->setThreadNext(newCard);                 // !!!
-    // newCard->setThreadPrev(m_currentCard);                 // !!!
-
-    // m_scene->addItem(newCard);
-    // showCard(newCard);
-}
-#endif
 void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
 {
     Q_ASSERT(m_currentCard);

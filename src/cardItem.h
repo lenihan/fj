@@ -18,8 +18,9 @@ class CardItem : public QGraphicsRectItem
     CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent = nullptr);
 
     virtual Type cardType() const { return Type::Unknown; }
-    bool isTOC() const { return cardType() == Type::TOC; }
-    bool isContent() const { return cardType() == Type::Content; }
+    bool isTOC() const; 
+    bool isContent() const;
+    bool isThreadStart() const;
 
     void setChar(QChar c, Row row, Col col);
     void setText(Row row, const QString& text);

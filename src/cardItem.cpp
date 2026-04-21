@@ -14,6 +14,12 @@ CardItem::CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
     setupLastRow();
 }
 
+bool CardItem::isTOC() const { return cardType() == Type::TOC; }
+
+bool CardItem::isContent() const { return cardType() == Type::Content; }
+
+bool CardItem::isThreadStart() const { return threadStart() == this; }
+
 void CardItem::setChar(const QChar c, Row row, Col col)
 {
     Q_ASSERT(row < Card::kNumRows);
