@@ -93,7 +93,9 @@ void CardStack::add(CardItem::Type type, ThreadMode threadMode)
         auto* toc = dynamic_cast<TOCItem*>(currentCard->tableOfContents());
         Q_ASSERT(toc);
         newCard->setThreadPrev(toc);
-        
+        m_cursor->setRow(0);
+        m_cursor->setCol(0);        
+
         // TOC
         toc->addToTOC(newCard);
     }
@@ -102,6 +104,11 @@ void CardStack::add(CardItem::Type type, ThreadMode threadMode)
         // newCard
         newCard->setThreadStart(currentCard->threadStart());
         newCard->setThreadPrev(currentCard);
+        QString title = currentCard->firstRowItem()->text();
+        newCard->firstRowItem()->setText(title);
+        newCard->firstRowItem()->setReadOnly(true);
+        m_cursor->setRow(newCard->firstUserRow());
+        m_cursor->setCol(0);
         
         // currentCard
         currentCard->setThreadNext(newCard);
@@ -114,7 +121,6 @@ void CardStack::add(CardItem::Type type, ThreadMode threadMode)
 
     // Current
     m_cursor->setYear(newCard->year());
-    m_cursor->setRow(0);
-    m_cursor->setCol(0);
+
     m_cursor->setCurrentCard(newCard);
 }

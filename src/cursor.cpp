@@ -132,6 +132,8 @@ void Cursor::down()
         nextRow();
     else if (m_currentCard->isContent())
     {
+        if (m_row == 0)
+            return; // have to use enter to finish title
         uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
         nextRow();
         uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
@@ -191,7 +193,11 @@ void Cursor::enter()
         if (m_currentCard->readOnly())
             Q_ASSERT(false); // TODO: Add new content to m_year, connected to this thread
         else
+        {
+            if (m_row == 0)
+                m_currentCard->firstRowItem()->setReadOnly(true);
             nextRowCreateCard();
+        }
     }
     m_col = 0;
 }
