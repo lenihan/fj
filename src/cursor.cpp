@@ -480,7 +480,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
                 QPointF bottomRight(Card::kRect_scn.width() - Card::kBorder_scn,
                                     lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
                 QRectF cursorRect(topLeft, bottomRight);
-                qreal percentage = 5.0;
+                qreal percentage = 0.25;
                 painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
             }
         }
@@ -491,7 +491,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
             QPointF bottomRight(topLeft.x() + charWidth_scn,
                                 lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
             QRectF cursorRect(topLeft, bottomRight);
-            painter->drawRoundedRect(cursorRect, 25.0, 25.0, Qt::RelativeSize);
+            qreal percentage = 15.0;
+            painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
         }
         else // arrow pointing up under current character
         {
