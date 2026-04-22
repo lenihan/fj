@@ -113,9 +113,9 @@ void Cursor::setActionMode(bool actionMode)
 
 void Cursor::up()
 {
-    if (m_currentCard->isTOC())
+    if (m_row != 0 && m_currentCard->isTOC())
         prevRow();
-    else if (m_currentCard->isContent())
+    else
     {
         if (m_row == 0)
             return; //  can't leave title via up
@@ -131,9 +131,9 @@ void Cursor::up()
 
 void Cursor::down()
 {
-    if (m_currentCard->isTOC())
+    if (m_row != 0 && m_currentCard->isTOC())
         nextRow();
-    else if (m_currentCard->isContent())
+    else
     {
         if (m_row == 0)
             return; // have to use enter to finish title
@@ -146,9 +146,9 @@ void Cursor::down()
 
 void Cursor::left()
 {
-    if (m_currentCard->isTOC())
+    if (m_row != 0 && m_currentCard->isTOC())
         ; // noop
-    else if (m_currentCard->isContent())
+    else
     {
         if (m_row == 0 && m_col == 0)
             return; // can't leave whle working on title
@@ -171,7 +171,7 @@ void Cursor::left()
 
 void Cursor::right()
 {
-    if (m_currentCard->isTOC())
+    if (m_row != 0 && m_currentCard->isTOC())
     {
         auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
         Q_ASSERT(toc);
@@ -182,7 +182,7 @@ void Cursor::right()
             showCard(newCard);
         }
     }
-    else if (m_currentCard->isContent())
+    else
     {
         if (m_row == 0 && m_col == m_currentCard->lastColAt(m_row))
             return; // can't leave whle working on title
@@ -200,7 +200,7 @@ void Cursor::right()
 
 void Cursor::enter()
 {
-    if (m_currentCard->isContent())
+    if (m_row == 0 || m_currentCard->isContent())
     {
         if (m_currentCard->readOnly())
             Q_ASSERT(false); // TODO: Add new content to m_year, connected to this thread
@@ -216,9 +216,9 @@ void Cursor::enter()
 
 void Cursor::backspace()
 {
-    if (m_currentCard->isTOC())
+    if (m_row != 0 && m_currentCard->isTOC())
         ; // noop
-    else if (m_currentCard->isContent())
+    else
     {
         if (m_col == m_currentCard->firstColAt(m_row))
         {
@@ -236,9 +236,7 @@ void Cursor::backspace()
 
 void Cursor::charTyped(QChar c)
 {
-    if (m_currentCard->isTOC())
-        ; // noop
-    else if (m_currentCard->isContent())
+    if (m_row == 0 || m_currentCard->isContent())
     {
         m_currentCard->setChar(c, m_row, m_col);
         right();
@@ -283,7 +281,7 @@ void Cursor::nextRow()
 
 void Cursor::nextRowCreateCard()
 {
-    Q_ASSERT(m_currentCard->isContent());
+    Q_ASSERT(m_row == 0 || m_currentCard->isContent());
     if (m_row == m_currentCard->lastUserRow())
         nextThreadCardCreateCard();
     else
@@ -454,7 +452,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
         qreal charWidth_scn = rowItem->charWidth_scn();
         qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-        if (m_currentCard->isTOC())
+        if (m_row != 0 && m_currentCard->isTOC())
         {
             auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
             Q_ASSERT(toc);
