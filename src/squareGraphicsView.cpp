@@ -15,14 +15,15 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setRenderHint(QPainter::Antialiasing);
 
     // UI
-    const QRectF uiRect(UI::kRect_scn);
-    const QColor uiColor("#202020");
+    QRectF uiRect(UI::kRect_scn);
+    QColor uiColor("#202020");
     scene->addRect(uiRect, QPen(Qt::NoPen), QBrush(uiColor));
 }
 
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 {
-    const bool typing = !(m_cursor.actionMode() || m_capsDown);
+    bool typing = !(m_cursor.actionMode() || m_capsDown);
+    // TODO: use enum class 
     m_cursor.draw(painter, rect, typing);
 }
 
@@ -93,7 +94,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     */
     event->accept(); // Stop propagation if desired
 
-    const int k = event->key();
+    int k = event->key();
     m_lastKeyPress = k;
     switch(k)
     {
@@ -127,7 +128,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
             {
                 if (event->text().isEmpty())
                     return;
-                const QChar c = event->text()[0];
+                QChar c = event->text()[0];
                 m_cursor.charTyped(c);
             }
         }
@@ -156,14 +157,14 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
 
 void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 {
-    const int width_px = viewport()->width();
-    const int height_px = viewport()->height();
+    int width_px = viewport()->width();
+    int height_px = viewport()->height();
 
-    const qreal scene_width_in = sceneRect().width();
-    const qreal scene_height_in = sceneRect().height();
+    qreal scene_width_in = sceneRect().width();
+    qreal scene_height_in = sceneRect().height();
 
-    const qreal scale = qMin(width_px / scene_width_in, height_px / scene_height_in);
-    const auto transform = QTransform::fromScale(scale, scale);
+    qreal scale = qMin(width_px / scene_width_in, height_px / scene_height_in);
+    auto transform = QTransform::fromScale(scale, scale);
     setTransform(transform);
 
     // Track limiting dimension to report scale as percent of actual size
@@ -188,8 +189,8 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
         int limitingPx = width_px;
         qreal dpi = dpiX;
 
-        const qreal widthScale = width_px / scene_width_in;
-        const qreal heightScale = height_px / scene_height_in;
+        qreal widthScale = width_px / scene_width_in;
+        qreal heightScale = height_px / scene_height_in;
         if (heightScale < widthScale)
         {
             limitingSceneIn = scene_height_in;
@@ -199,8 +200,8 @@ void SquareGraphicsView::resizeEvent(QResizeEvent* event)
 
         view_side_in = limitingPx / dpi;
 
-        const int percent = qCeil(view_side_in / limitingSceneIn * 100.0);
-        const auto title = QString("FJ - %1\"x%2\" %3%")
+        int percent = qCeil(view_side_in / limitingSceneIn * 100.0);
+        auto title = QString("FJ - %1\"x%2\" %3%")
                                .arg(scene_width_in, 0, 'f', 2)
                                .arg(scene_height_in, 0, 'f', 2)
                                .arg(percent);
@@ -226,7 +227,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         if (0)
         {
             QPen pen(Qt::red);
-            const int penWidth = 10;
+            int penWidth = 10;
             pen.setWidth(penWidth);
             painter.setPen(pen);
             QRect rect = viewport()->rect();
@@ -238,7 +239,7 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         if (0)
         {
             QPen pen(Qt::magenta);
-            const int penWidth = 6;
+            int penWidth = 6;
             pen.setWidth(penWidth);
             painter.setPen(pen);
             QRect r = rect();
@@ -250,14 +251,14 @@ void SquareGraphicsView::paintEvent(QPaintEvent* event)
         if (0)
         {
             QPen pen(Qt::green);
-            const int penWidth = 2;
+            int penWidth = 2;
             pen.setWidth(penWidth);
             painter.setPen(pen);
-            const QRectF rect_scene = scene()->sceneRect();
-            const QPointF topLeft_scene = rect_scene.topLeft();
-            const QPointF bottomRight_scene = rect_scene.bottomRight();
-            const QPoint topLeft_view = mapFromScene(topLeft_scene);
-            const QPoint bottomRight_view = mapFromScene(bottomRight_scene);
+            QRectF rect_scene = scene()->sceneRect();
+            QPointF topLeft_scene = rect_scene.topLeft();
+            QPointF bottomRight_scene = rect_scene.bottomRight();
+            QPoint topLeft_view = mapFromScene(topLeft_scene);
+            QPoint bottomRight_view = mapFromScene(bottomRight_scene);
             QRect rect_view(topLeft_view, bottomRight_view);
 
             rect_view.adjust(penWidth, penWidth, -penWidth - 1, -penWidth - 1);
