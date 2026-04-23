@@ -190,6 +190,10 @@ void Cursor::right()
         {
             CardItem* newCard = toc->cardAtRow(m_row);
             Q_ASSERT(newCard);
+            if (newCard->isContent())
+                m_keyboardMode = KeyboardMode::Typing;
+            else if(newCard->isTOC())
+                m_keyboardMode = KeyboardMode::Command;
             showCard(newCard);
         }
     }
