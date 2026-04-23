@@ -25,6 +25,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     masterCS->lastCardItem()->firstRowItem()->setReadOnly(true);
 
     showCard(masterCS->cardItemAt(0));
+    m_keyboardMode = KeyboardMode::Command;
     m_row = 1;
     m_col = 0;
 
@@ -101,14 +102,24 @@ void Cursor::setCurrentCard(CardItem* card)
     m_currentCard = card;
 }
 
-bool Cursor::actionMode() const
+bool Cursor::isTypingMode() const
 {
-    return m_actionMode;
+    return m_keyboardMode == KeyboardMode::Typing;
 }
 
-void Cursor::setActionMode(bool actionMode)
+bool Cursor::isCommandMode() const
 {
-    m_actionMode = actionMode;
+    return m_keyboardMode == KeyboardMode::Command;
+}
+
+void Cursor::enterTypingMode()
+{
+    m_keyboardMode = KeyboardMode::Typing;
+}
+
+void Cursor::enterCommandMode()
+{
+    m_keyboardMode = KeyboardMode::Command;
 }
 
 void Cursor::up()
@@ -395,24 +406,27 @@ void Cursor::newContent()
 {
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     m_yearToCardStack[m_year]->add(CardItem::Type::Content, CardStack::ThreadMode::New);
-    m_actionMode = false;
+    m_keyboardMode = KeyboardMode::Typing;
 }
 
 void Cursor::newTOC()
 {
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     m_yearToCardStack[m_year]->add(CardItem::Type::TOC, CardStack::ThreadMode::New);
-    m_actionMode = false;
 }
 
-void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
+void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
 {
     Q_ASSERT(m_currentCard);
     RowItem* rowItem = m_currentCard->rowItemAt(m_row);
     Q_ASSERT(rowItem);
 
+    KeyboardMode tempMode = m_keyboardMode;
+    if (capsDown)
+        tempMode = KeyboardMode::Command;
+
     // Darken all but current row
-    if (typing)
+    if (tempMode == KeyboardMode::Typing)
     {
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(0, 0, 0, 15));
@@ -469,7 +483,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, const bool typing)
                 painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
             }
         }
-        else if (typing) // hollow square
+        else if (tempMode == KeyboardMode::Typing) // hollow square
         {
             QPointF topLeft(m_col * charWidth_scn + Card::kBorder_scn,
                             lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
@@ -511,5 +525,5 @@ void Cursor::tocCurrent()
 {
     m_row = 1;
     m_col = 0;
-    m_actionMode = true;
+    m_keyboardMode = KeyboardMode::Command;
 }

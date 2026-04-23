@@ -14,7 +14,6 @@ class Cursor
     Cursor(QGraphicsScene* scene);
 
     CardNumber lastCardNumber() const;
-
     QGraphicsScene* scene();
 
     Year year() const;
@@ -29,8 +28,10 @@ class Cursor
     CardItem* currentCard();
     void setCurrentCard(CardItem* card);
 
-    bool actionMode() const;
-    void setActionMode(bool actionMode);
+    bool isTypingMode() const;
+    bool isCommandMode() const;
+    void enterTypingMode();
+    void enterCommandMode();
 
     void up();
     void down();
@@ -56,16 +57,17 @@ class Cursor
     void newContent();
     void newTOC();
 
-    void draw(QPainter* painter, const QRectF& rect, const bool typing);
+    void draw(QPainter* painter, const QRectF& rect, bool capsDown);
 
   private:
+    enum class KeyboardMode { Typing, Command };
     void showCard(CardItem* card);
     void tocCurrent();
     Year m_year{0};
     Row m_row{0};
     Col m_col{0};
     CardItem* m_currentCard{nullptr};
-    bool m_actionMode{true};
+    KeyboardMode m_keyboardMode{KeyboardMode::Command};
 
     QMap<Year, CardStack*> m_yearToCardStack;
     QGraphicsScene* m_scene{nullptr};

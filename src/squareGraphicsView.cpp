@@ -22,9 +22,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 {
-    bool typing = !(m_cursor.actionMode() || m_capsDown);
-    // TODO: use enum class 
-    m_cursor.draw(painter, rect, typing);
+    m_cursor.draw(painter, rect, m_capsDown);
 }
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
@@ -107,7 +105,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
         case Qt::Key_Tab: return; break; // noop
         default:
         {
-            if (m_cursor.actionMode() || m_capsDown)
+            if (m_cursor.isCommandMode() || m_capsDown)
             {
                 switch (k)
                 {
@@ -115,7 +113,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_K: m_cursor.down(); break;
                     case Qt::Key_J: m_cursor.left(); break;
                     case Qt::Key_L: m_cursor.right(); break;
-                    case Qt::Key_E: m_cursor.setActionMode(false); break;
+                    case Qt::Key_E: m_cursor.enterTypingMode(); break;
                     case Qt::Key_U: m_cursor.prevCard(); break;
                     case Qt::Key_O: m_cursor.nextCard(); break;
                     case Qt::Key_C: m_cursor.newContent(); break;
@@ -145,9 +143,8 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
         case Qt::Key_CapsLock:
             m_capsDown = false;
             if (m_lastKeyPress == Qt::Key_CapsLock)
-            {
-                m_cursor.setActionMode(true);
-            }
+                m_cursor.enterCommandMode();
+            
             // Force redraw of cursor at new location
             scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
             break;

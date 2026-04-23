@@ -121,6 +121,6 @@ void CardStack::add(CardItem::Type type, ThreadMode threadMode)
 
     // Current
     m_cursor->setYear(newCard->year());
-
     m_cursor->setCurrentCard(newCard);
+    m_cursor->enterTypingMode();
 }
