@@ -209,6 +209,8 @@ void Cursor::enter()
             if (m_row == 0)
                 m_currentCard->firstRowItem()->setReadOnly(true);
             nextRowCreateCard();
+            if (m_currentCard->isTOC())
+                tocCurrent();
         }
     }
     m_col = 0;
