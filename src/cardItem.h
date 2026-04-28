@@ -52,6 +52,9 @@ class CardItem : public QGraphicsRectItem
     void setThreadNext(CardItem* card);
     CardItem* threadNext();
 
+    void setDeleted(bool deleted);
+    bool deleted() const;
+
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 

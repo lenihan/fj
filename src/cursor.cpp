@@ -419,9 +419,37 @@ void Cursor::newTOC()
     m_yearToCardStack[m_year]->add(CardItem::Type::TOC, CardStack::ThreadMode::New);
 }
 
+void Cursor::toggleDeleteCard()
+{
+    Q_ASSERT(m_currentCard);
+    m_currentCard->setDeleted(!m_currentCard->deleted());
+    scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
+}
+
 void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
 {
     Q_ASSERT(m_currentCard);
+    if (m_currentCard->deleted())
+    {
+        // Draw lines through each row
+        for (Row r = 0; r < Card::kNumRows; r++)
+        {
+            RowItem* rowItem = m_currentCard->rowItemAt(r);
+            Q_ASSERT(rowItem);
+            qreal height_scn = rowItem->rowHeight_scn();
+            qreal y_scn = m_currentCard->rowLineY_scn(r) - height_scn / 2.0;
+            painter->drawLine(
+                QPointF(Card::kLeft_scn, y_scn), 
+                QPointF(Card::kRight_scn, y_scn));
+        
+            QPen pen(Qt::black);
+            pen.setWidthF(3.0);
+            pen.setCosmetic(true);
+            painter->setPen(pen);
+        }
+        return;
+    }
+
     RowItem* rowItem = m_currentCard->rowItemAt(m_row);
     Q_ASSERT(rowItem);
 

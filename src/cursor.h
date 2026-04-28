@@ -57,6 +57,8 @@ class Cursor
     void newContent();
     void newTOC();
 
+    void toggleDeleteCard();
+
     void draw(QPainter* painter, const QRectF& rect, bool capsDown);
 
   private:

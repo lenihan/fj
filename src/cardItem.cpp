@@ -96,6 +96,16 @@ CardItem* CardItem::threadNext()
     return m_threadNext;
 }
 
+void CardItem::setDeleted(bool deleted)
+{
+    m_deleted = deleted;
+}
+
+bool CardItem::deleted() const
+{
+    return m_deleted;
+}
+
 Row CardItem::firstUserRow() const
 {
     return 1;

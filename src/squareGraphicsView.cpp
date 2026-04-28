@@ -104,6 +104,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_E: m_cursor.enterTypingMode(); break;
                     case Qt::Key_U: m_cursor.prevCard(); break;
                     case Qt::Key_O: m_cursor.nextCard(); break;
+                    case Qt::Key_D: m_cursor.toggleDeleteCard(); break;
                     case Qt::Key_C: m_cursor.newContent(); break;
                     case Qt::Key_T: m_cursor.newTOC(); break;
                     case Qt::Key_M: m_cursor.prevThreadCard(); break;
