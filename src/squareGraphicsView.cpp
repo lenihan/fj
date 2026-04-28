@@ -29,70 +29,58 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
     // TODO: Disable caps modifier when app does not have focus/not active
     /*
-    First card is year/toc card
-
-    i: up row
-    k: down row
-    j: left char
-    l: right char
-    u: prev card
-    o: next card
-    m: prev thread card
-    .: next thread card
-    Space: Go to selected card link
-    t: Create TOC card:
-        - Does NOT have lines after titles
-        - Cursor goes to first blank line
-        - Only options:
-            - Modify title
-            - up/down to select a row
-            - Space to follow link, to follow card for that row
-        - Index row will update to point to new content/row
-        - Left thread points to parent toc
-    c: New content card
-        - Has lines
-        - Title is editable on first card of content
-        - Continue to new card by pressing return until you pass last row
-        - left thread points to parent iIndex
-
-    Enter: continue content card, nothing on toc
-    x: todo/completed/no todo
-    e: edit - keyboard types
-    r: reading - up/down/left/right are for links, enter to go
-    q: query - search
-    1-9,0: Favorites
-        - Hold to set current card as favorite
-        - Tap to go to favorite
-    p: Print to PDF
-    /: Help - go to help card stack
-    Backspace: Go to last card
-    d: Delete card/undelete card (removes from thread/toc as needed, draw with
-    strikethrough via custom paint)
-
-    ,: Future
-    tab: Future
-    b: Future
-    ~: Future
-    -: Future
-    =: Future
-    w: Future
-    r: Future
-    [: Future
-    ]: Future
-    \: Future
-    a: Future
-    g: Future
-    ;: Future
-    ': Future
-    ,: Future
-    y: Future
-    z: Future
-    n: Future
-    v: Future
+    
+    `:         Future
+    1-9,0:     Favorites, +Shift to set, press to go
+    -:         Future
+    =:         Future
+    backspace: Future
+    
+    tab:       Future
+    q:         Future
+    w:         Future
+    e:         Edit - typing
+    r:         Future
+    t:         New TOC card
+    y:         Future
+    u:         Prev card
+    i:         Up
+    o:         Next card
+    p:         Future
+    [:         Future
+    ]:         Future
+    \:         Future
+    
+    a:         Future
+    s:         Search
+    d:         Delete/undelete card
+    f:         Future
+    g:         Future
+    h:         Future
+    j:         Left
+    k:         Down
+    l:         Right
+    ;:         Future
+    ':         Future
+    enter:     Continue content card, nothing on toc
+    
+    z:         Future
+    x:         Todo/completed/no todo
+    c:         New content card
+    v:         Future
+    b:         Future
+    n:         Future
+    m:         Prev thread card
+    ,:         Future
+    .:         Next thread card
+    /:         Help - go to help card stack
+ 
+    space:     Future
+    
     */
-    event->accept(); // Stop propagation if desired
-
-    int k = event->key();
+   event->accept(); // Stop propagation if desired
+   
+   int k = event->key();
     m_lastKeyPress = k;
     switch(k)
     {
