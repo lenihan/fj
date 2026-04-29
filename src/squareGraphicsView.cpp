@@ -27,57 +27,6 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
-    // TODO: Disable caps modifier when app does not have focus/not active
-    /*
-    
-    `:         Future
-    1-9,0:     Favorites, +Shift to set, press to go
-    -:         Future
-    =:         Future
-    backspace: Future
-    
-    tab:       Future
-    q:         Future
-    w:         Future
-    e:         Edit - typing
-    r:         Future
-    t:         New TOC card
-    y:         Future
-    u:         Prev card
-    i:         Up
-    o:         Next card
-    p:         Future
-    [:         Future
-    ]:         Future
-    \:         Future
-    
-    a:         Future
-    s:         Search
-    d:         Delete/undelete card
-    f:         Future
-    g:         Future
-    h:         Future
-    j:         Left
-    k:         Down
-    l:         Right
-    ;:         Future
-    ':         Future
-    enter:     Continue content card, nothing on toc
-    
-    z:         Future
-    x:         Todo/completed/no todo
-    c:         New content card
-    v:         Future
-    b:         Future
-    n:         Future
-    m:         Prev thread card
-    ,:         Future
-    .:         Next thread card
-    /:         Help - go to help card stack
- 
-    space:     Future
-    
-    */
    event->accept(); // Stop propagation if desired
    
    int k = event->key();
