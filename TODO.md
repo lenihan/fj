@@ -1,0 +1,34 @@
+# TODO
+
+- Make CapsLock state return to normal while fj is running, but is no longer the active window
+- Shift to move to beginning/end
+  - Shift+U - First card in stack
+  - Shift+O - Last card in stack
+  - Shift+M - First card in thread
+  - Shift+. - Last card in thread
+- Deleting
+  - Support deleting all cards except card 1 TOC
+  - When a card is deleted, skip over it when moving through thread
+  - When all cards in a collection are deleted, cross out TOC entry
+  - When a TOC is deleted, cross out TOC entry
+- Title
+  - First card in collection allows editing of title
+  - First card of TOC allows editing of title, except card 1 TOC
+  - When title is changed, start of thread updates TOC entry and next thread title
+  - When a title is updated, pass change to next card in thread
+- Continuing collection from different card stack
+  - Press enter on non-current year collection to continue collection
+  - Update last thread card to point to new collection card in current year
+  - Update current year TOC to point to new card
+  - New Card prev thread is for non-current year
+- Continuing TOC from different card stack
+  - Press C for new collection or T for new TOC
+    - New card created in current card stack
+    - Current card stack TOC points to new card
+    - TOC in different card stack points to new card
+- Use G for goto
+  - Use up/down to search through links in form YEAR-CARDNUM
+    - Also go to prev/next thread
+  - Press right arrow to go to link
+- 0-9 as bookmarks
+  - Shift+# to store
