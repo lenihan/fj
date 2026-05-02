@@ -1,7 +1,9 @@
 #pragma once
 
 #include "cardStack.h"
+#include <QBrush>
 #include <QMap>
+#include <QPen>
 
 class QPainter;
 class QRectF;
@@ -73,4 +75,8 @@ class Cursor
 
     QMap<Year, CardStack*> m_yearToCardStack;
     QGraphicsScene* m_scene{nullptr};
+    QPen m_deletedPen;
+    QPen m_typingModeCursorPen;
+    QBrush m_darkenedBrush;
+    QBrush m_commandModeCursorBrush;
 };

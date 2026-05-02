@@ -13,7 +13,6 @@
   - [ ] Support deleting all cards except card 1 TOC and it's thread
   - [ ] When a card is deleted, skip over it when moving through thread
   - [ ] D toggles deletions of collection cards
-  - [ ] D toggles deletion of an entry in TOC (still can select)
 - [ ] Title
   - [ ] First card in collection allows editing of title
   - [ ] First card of TOC allows editing of title, except card 1 TOC

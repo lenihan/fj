@@ -14,6 +14,24 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 {
     Q_ASSERT(m_scene);
 
+    // Deleted pen setup
+    m_deletedPen.setColor(Qt::red);
+    m_deletedPen.setWidthF(Pen::kDeletedWidth);
+    m_deletedPen.setCosmetic(true);
+    m_deletedPen.setCapStyle(Qt::RoundCap);
+
+    // Typing mode cursor pen setup
+    QColor orangishRed(227, 59, 36);
+    m_typingModeCursorPen.setColor(Pen::kOrangishRed);
+    m_typingModeCursorPen.setCosmetic(true);
+    m_typingModeCursorPen.setWidthF(Pen::kTypingModeCursorWidth);
+
+    // Darken brush setup
+    m_darkenedBrush.setColor(Pen::kDarkenedColor);
+
+    // Command mode cursor brush setup
+    m_commandModeCursorBrush.setColor(Pen::kOrangishRed);
+
     // Setup master card stack
     Q_ASSERT(!m_yearToCardStack.contains(Master::kYear));
     auto* masterCS = new CardStack(Master::kYear, this);
@@ -431,22 +449,13 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
     Q_ASSERT(m_currentCard);
     if (m_currentCard->deleted())
     {
-        // Draw lines through each row
-        for (Row r = 0; r < Card::kNumRows; r++)
-        {
-            RowItem* rowItem = m_currentCard->rowItemAt(r);
-            Q_ASSERT(rowItem);
-            qreal height_scn = rowItem->rowHeight_scn();
-            qreal y_scn = m_currentCard->rowLineY_scn(r) - height_scn / 2.0;
-            painter->drawLine(
-                QPointF(Card::kLeft_scn, y_scn), 
-                QPointF(Card::kRight_scn, y_scn));
-        
-            QPen pen(Qt::black);
-            pen.setWidthF(3.0);
-            pen.setCosmetic(true);
-            painter->setPen(pen);
-        }
+        QRectF r_scn = m_currentCard->sceneBoundingRect();
+        qreal inset_scn = Body::kRowHeight_scn;
+        QPointF p1_scn = r_scn.topLeft()     + QPointF(inset_scn, inset_scn);
+        QPointF p2_scn = r_scn.bottomRight() - QPointF(inset_scn, inset_scn);
+
+        painter->setPen(m_deletedPen);
+        painter->drawLine(p1_scn, p2_scn);
         return;
     }
 
@@ -461,7 +470,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
     if (tempMode == KeyboardMode::Typing)
     {
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(0, 0, 0, 15));
+        painter->setBrush(m_darkenedBrush);
+  
 
         qreal rowHeight_scn = rowItem->rowHeight_scn();
         qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
@@ -472,8 +482,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         qreal h = rowHeight_scn;
         QRectF row_scn(x, y, w, h);
 
-        QRectF card_itm = m_currentCard->boundingRect();
-        QPolygonF card_scn = m_currentCard->mapRectToScene(card_itm);
+        QRectF card_lcl = m_currentCard->rect();
+        QPolygonF card_scn = m_currentCard->mapRectToScene(card_lcl);
 
         // Build a path: outer rect minus inner rect
         QPainterPath path;
@@ -488,11 +498,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
     // Draw cursor as red empty rounded square
 
     {
-        QColor orangishRed(227, 59, 36);
-        QPen pen(orangishRed);
-        pen.setCosmetic(true);
-        pen.setWidthF(2.0);
-        painter->setPen(pen);
+        painter->setPen(m_typingModeCursorPen);
         painter->setBrush(Qt::transparent);
 
         qreal rowHeight_scn = rowItem->rowHeight_scn();
@@ -527,7 +533,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         }
         else // arrow pointing up under current character
         {
-            painter->setBrush(orangishRed);
+            painter->setBrush(m_commandModeCursorBrush);
             qreal deltaCharRow = rowHeight_scn - charHeight_scn;
             qreal centerX = m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0;
             qreal x1 = centerX;

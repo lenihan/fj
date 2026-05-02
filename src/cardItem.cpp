@@ -98,6 +98,11 @@ CardItem* CardItem::threadNext()
 
 void CardItem::setDeleted(bool deleted)
 {
+    if (m_threadStart->cardNumber() == 0)
+    {
+        // Don't allow deleting TOC for card stack
+        return;
+    }
     m_deleted = deleted;
 }
 

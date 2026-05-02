@@ -3,6 +3,7 @@
 #include <qpoint.h>
 #include <qrect.h>
 #include <qtypes.h>
+#include <qcolor.h>
 
 using Year = uint16_t;          // 0000–9999
 using CardNumber = uint16_t;    // 0–9999
@@ -86,4 +87,12 @@ struct UI
         QRectF(kTopLeftPt_scn, kBottomRightPt_scn);
 
     inline static constexpr char kBackgroundColor[] = "#202020";
+};
+
+struct Pen
+{
+    inline static constexpr qreal kDeletedWidth = 10.0;
+    inline static constexpr qreal kTypingModeCursorWidth = 2.0;
+    inline static constexpr QColor kOrangishRed = QColor(227, 59, 36);
+    inline static constexpr QColor kDarkenedColor = QColor(0, 0, 0, 15);
 };
