@@ -132,6 +132,8 @@ bool Cursor::isCommandMode() const
 
 void Cursor::enterTypingMode()
 {
+    if (m_currentCard->deleted() || m_currentCard->readOnly())
+        return;
     m_keyboardMode = KeyboardMode::Typing;
 }
 
@@ -207,7 +209,17 @@ void Cursor::right()
         if (toc->numberContent() > 0)
         {
             CardItem* newCard = toc->cardAtRow(m_row);
+
+            // Skip over deleted cards
+            CardItem* nextCard = newCard;
+            while (nextCard && nextCard->deleted())
+            {
+                nextCard = nextCard->threadNext();
+            }
+            if (nextCard && !nextCard->deleted())
+                newCard = nextCard;
             Q_ASSERT(newCard);
+
             if (newCard->isContent())
                 m_keyboardMode = KeyboardMode::Typing;
             else if(newCard->isTOC())
@@ -271,6 +283,9 @@ void Cursor::backspace()
 
 void Cursor::charTyped(QChar c)
 {
+    if (m_currentCard->deleted() || m_currentCard->readOnly())
+        return;
+
     if (m_row == 0 || m_currentCard->isContent())
     {
         m_currentCard->setChar(c, m_row, m_col);
@@ -393,8 +408,16 @@ void Cursor::prevCard()
 
 void Cursor::prevThreadCard()
 {
+    Q_ASSERT(m_currentCard);
     CardItem* prevCard = m_currentCard->threadPrev();
-    if (prevCard)
+
+    // Skip over deleted cards
+    while (prevCard && prevCard->deleted())
+    {
+        prevCard = prevCard->threadPrev();
+    }
+
+    if (prevCard && !prevCard->deleted())
     {
         if (prevCard->isTOC())
             tocCurrent();
@@ -404,8 +427,16 @@ void Cursor::prevThreadCard()
 
 void Cursor::nextThreadCard()
 {
+    Q_ASSERT(m_currentCard);
     CardItem* nextCard = m_currentCard->threadNext();
-    if (nextCard)
+
+    // Skip over deleted cards
+    while (nextCard && nextCard->deleted())
+    {
+        nextCard = nextCard->threadNext();
+    }
+    
+    if (nextCard && !nextCard->deleted())
     {
         if (nextCard->isTOC())
             tocCurrent();
@@ -441,6 +472,7 @@ void Cursor::toggleDeleteCard()
 {
     Q_ASSERT(m_currentCard);
     m_currentCard->setDeleted(!m_currentCard->deleted());
+    m_keyboardMode = KeyboardMode::Command; 
     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
 

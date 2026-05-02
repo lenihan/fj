@@ -10,9 +10,10 @@
   - [ ] Shift+K : Current card stack TOC
   - [ ] Backspace : Toggle previous card
 - [ ] Deleting
-  - [ ] Support deleting all cards except card 1 TOC and it's thread
-  - [ ] When a card is deleted, skip over it when moving through thread
-  - [ ] D toggles deletions of collection cards
+  - [X] Support deleting all cards except card 1 TOC and it's thread
+  - [X] When a card is deleted, skip over it when moving through thread
+  - [X] D toggles deletions of collection cards
+  - [ ] When a deleted card gets enter, add a new card to collection/TOC
 - [ ] Title
   - [ ] First card in collection allows editing of title
   - [ ] First card of TOC allows editing of title, except card 1 TOC
