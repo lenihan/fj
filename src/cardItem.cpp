@@ -20,14 +20,7 @@ bool CardItem::isContent() const { return cardType() == Type::Content; }
 
 bool CardItem::isThreadStart() const 
 {
-    CardItem* newThreadStart = m_threadStart;
-    while (newThreadStart && newThreadStart->deleted())
-        newThreadStart = newThreadStart->threadNext();
-
-    if (!newThreadStart)
-        newThreadStart = m_threadStart;
-
-    return newThreadStart == this;
+    return m_threadStart == this;
 }
 
 void CardItem::setChar(const QChar c, Row row, Col col)
