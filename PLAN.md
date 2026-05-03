@@ -42,57 +42,62 @@
 
 ## TODO
 
-- [ ] Make CapsLock state return to normal while fj is running, but is no longer the active window
-- [ ] +Shift to move to beginning/end
-  - [ ] Shift+U : First card in stack
-  - [ ] Shift+O : Last card in stack
-  - [ ] Shift+M : First card in thread
-  - [ ] Shift+. : Last card in thread
-  - [ ] Shift+I : Master card stack TOC
-  - [ ] Shift+K : Current card stack TOC
-  - [ ] Backspace : Toggle previous card
-- [X] Deleting
-  - [X] Support deleting all cards except card 1 TOC and it's thread
-  - [X] When a card is deleted, skip over it when moving through thread
-  - [X] D toggles deletions of collection cards
-  - [X] When a deleted card gets enter, add a new card to collection/TOC
-- [X] Title
-  - [X] First card in collection allows editing of title
-  - [X] First card of TOC allows editing of title, except card 1 TOC
-  - [X] When title is changed, TOC and entire thread is updated
-- [ ] Continuing TOC
-  - [ ] New content should prev thread should take you back to correct TOC Page
-    - [ ] Also should select the right TOC entry so right will take you back to where you were
-  - [ ] Once TOC grows past a page, new TOC should be created
-    - [ ] New TOC points to prev TOC
-    - [ ] Prev TOC point to new TOC
-- [ ] Continuing collection from different card stack
-  - [ ] Press enter on non-current year collection to continue collection
-  - [ ] Update last thread card to point to new collection card in current year
-  - [ ] Update current year TOC to point to start of collection
-  - [ ] New Card prev thread is for non-current year
-- [ ] Continuing TOC from different card stack
-  - [ ] Press C for new collection or T for new TOC
-    - [ ] Create a new TOC in current stack to continue TOC thread
-      - [ ] Prev points to TOC in other stack
-      - [ ] Current stack TOC points to start continued TOC
-    - [ ] New card created in current card stack
-      - [ ] New TOC point to new card
-- [ ] Link navigation
-  - [ ] Use G for Go when on a collection
-  - [ ] Cursor should show up/down arrows and right arrow to remind how to navigate
-  - [ ] Use up/down to search through links in form YEAR-CARDNUM
-    - [ ] Also go to prev/next thread
-    - [ ] On TOC, goes through thread entries and navigation thread
-  - [ ] Press right arrow to go to link
-  - [ ] When you follow a TOC entry, cursor should select prev thread
-    - [ ] This means pressing right arrow twice toggles your position between TOC and TOC entry
-- [ ] 0-9 as bookmarks
-  - [ ] Shift+# to store
-- [ ] Use S for Search
-- [ ] Use / for Help
-- [ ] Use x for TODO/DONE/No TODO
-- [ ] Ability to access characters not available from basic keyboard
+- [ ] Minimum fuctionality
+  - [ ] Make CapsLock state return to normal while fj is running, but is no longer the active window
+  - [ ] +Shift to move to beginning/end
+    - [ ] Shift+U : First card in stack
+    - [ ] Shift+O : Last card in stack
+    - [ ] Shift+M : First card in thread
+    - [ ] Shift+. : Last card in thread
+    - [ ] Shift+I : Master card stack TOC
+    - [ ] Shift+K : Current card stack TOC
+    - [ ] Backspace : Toggle previous card
+  - [X] Deleting
+    - [X] Support deleting all cards except card 1 TOC and it's thread
+    - [X] When a card is deleted, skip over it when moving through thread
+    - [X] D toggles deletions of collection cards
+    - [X] When a deleted card gets enter, add a new card to collection/TOC
+  - [X] Title
+    - [X] First card in collection allows editing of title
+    - [X] First card of TOC allows editing of title, except card 1 TOC
+    - [X] When title is changed, TOC and entire thread is updated
+  - [ ] Continuing TOC
+    - [ ] New content should prev thread should take you back to correct TOC Page
+      - [ ] Also should select the right TOC entry so right will take you back to where you were
+    - [ ] Once TOC grows past a page, new TOC should be created
+      - [ ] New TOC points to prev TOC
+      - [ ] Prev TOC point to new TOC
+  - [ ] Continuing collection from different card stack
+    - [ ] Press enter on non-current year collection to continue collection
+    - [ ] Update last thread card to point to new collection card in current year
+    - [ ] Update current year TOC to point to start of collection
+    - [ ] New Card prev thread is for non-current year
+  - [ ] Continuing TOC from different card stack
+    - [ ] Press C for new collection or T for new TOC
+      - [ ] Create a new TOC in current stack to continue TOC thread
+        - [ ] Prev points to TOC in other stack
+        - [ ] Current stack TOC points to start continued TOC
+      - [ ] New card created in current card stack
+        - [ ] New TOC point to new card
+  - [ ] Link navigation
+    - [ ] Use G for Go when on a collection
+    - [ ] Cursor should show up/down arrows and right arrow to remind how to navigate
+    - [ ] Use up/down to search through links in form YEAR-CARDNUM
+      - [ ] Also go to prev/next thread
+      - [ ] On TOC, goes through thread entries and navigation thread
+    - [ ] Press right arrow to go to link
+    - [ ] When you follow a TOC entry, cursor should select prev thread
+      - [ ] This means pressing right arrow twice toggles your position between TOC and TOC entry
+  - [ ] 0-9 as bookmarks
+    - [ ] Shift+# to store
+  - [ ] Use S for Search
+  - [ ] Use / for Help
+  - [ ] Use x for TODO/DONE/No TODO
+  - [ ] Ability to access characters not available from basic keyboard
+  - [ ] Save/load from disk automatically
+- [ ] Start personal use
+- [ ] UI - make it so user knows what to do instictively
+- [ ] Test on Linux Raspberry Pi Zero
 
 ## Keyboard Mapping
 
