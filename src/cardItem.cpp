@@ -18,7 +18,17 @@ bool CardItem::isTOC() const { return cardType() == Type::TOC; }
 
 bool CardItem::isContent() const { return cardType() == Type::Content; }
 
-bool CardItem::isThreadStart() const { return threadStart() == this; }
+bool CardItem::isThreadStart() const 
+{
+    CardItem* newThreadStart = m_threadStart;
+    while (newThreadStart && newThreadStart->deleted())
+        newThreadStart = newThreadStart->threadNext();
+
+    if (!newThreadStart)
+        newThreadStart = m_threadStart;
+
+    return newThreadStart == this;
+}
 
 void CardItem::setChar(const QChar c, Row row, Col col)
 {

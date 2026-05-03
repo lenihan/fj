@@ -245,6 +245,28 @@ void Cursor::right()
 
 void Cursor::enter()
 {
+    if (m_currentCard->deleted() && m_currentCard->isContent())
+    {
+        bool threadDeleted = true;
+        CardItem* thread = m_currentCard->threadStart();
+        CardItem* last = nullptr;
+        while (thread)
+        {
+            last = thread;
+            if (!thread->deleted())
+            {
+                threadDeleted = false;
+                break;
+            }
+            thread = thread->threadNext();
+        }
+        // If we have a thread with every card deleted, 'enter' will add a new card to end of thread
+        if (threadDeleted)
+        {
+            m_currentCard = last;
+            m_yearToCardStack[m_year]->add(CardItem::Type::Content, CardStack::ThreadMode::Continue);
+        }
+    }
     if (m_row == 0 || m_currentCard->isContent())
     {
         if (m_currentCard->readOnly())

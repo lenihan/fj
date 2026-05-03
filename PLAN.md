@@ -51,11 +51,11 @@
   - [ ] Shift+I : Master card stack TOC
   - [ ] Shift+K : Current card stack TOC
   - [ ] Backspace : Toggle previous card
-- [ ] Deleting
+- [X] Deleting
   - [X] Support deleting all cards except card 1 TOC and it's thread
   - [X] When a card is deleted, skip over it when moving through thread
   - [X] D toggles deletions of collection cards
-  - [ ] When a deleted card gets enter, add a new card to collection/TOC
+  - [X] When a deleted card gets enter, add a new card to collection/TOC
 - [ ] Title
   - [ ] First card in collection allows editing of title
   - [ ] First card of TOC allows editing of title, except card 1 TOC
@@ -144,7 +144,7 @@
 - KBDcraft Israfel
   - $70
   - <https://a.co/d/03qzhl5Z>
-  - 5 row, 6 col per side (left and right hand)
+  - 5 rows, 6 col per side (left and right hand)
   - Possible layout
     Left                Right
     ;     1 2 3 4 5     6 7 8 9 0 bs        (No =)
@@ -152,4 +152,3 @@
     caps  a s d f g     h j k l ' enter
     shift z x c v b     n m , . / shift
            spacebar     spacebar
-
