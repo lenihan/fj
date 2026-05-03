@@ -1,4 +1,46 @@
-# TODO
+# PLAN
+
+## DESIGN
+
+- Glossary
+  - Card - A 3" x 5" index card, with typing on one side
+    - Content card - Contains anything you want, has lines indicating rows
+    - TOC card - Table of contents card that points to other TOC/content cards, no lines (blank)
+  - Card stack - 1 or more cards
+    - Master card stack - Read-only with help thread and list of year card stacks
+    - Year card stack - New cards are placed the the card stack for current year (e.g. 2026)
+  - Card number - The unique, sequential number of a card in a card stack
+    - External card number - A card number from a different card stack in form YEAR-CARDNUM
+  - Thread - 2 or more cards that are related
+    - Do not have to be consecutive
+    - Can cross card stacks
+  - Row - A card is divided into 11 rows
+    - Top: Title row - Names thread
+    - Middle: 9 content rows
+    - Bottom: Navigation row - Card number and prev/next card in thread
+      - Left: previous card of thread
+      - Middle: card number
+      - Right: next card in thread
+- Hierarchy
+  - Master card stack
+    - Master TOC
+      - Help thread
+      - Year card stacks (1 or more)
+    - Help thread cards
+  - Year card stack (1 or more)
+    - Year TOC
+      - Content/TOC (1 or more)
+    - Content/TOC cards
+- Concepts
+  - New cards only for current year stack
+  - If next card of thread is blank, then end of thread
+  - →CARDNUM or →YEAR-CARDNUM - A link to another card
+    - Used in navigation road for prev/next card in thread
+    - Use to link one card to another card
+  - ↑CARDNUM or ↑YEAR-CARDNUM - A link to parent TOC card
+  - YEAR- prefix is dropped if YEAR is same as card stack's YEAR
+
+## TODO
 
 - [ ] Make CapsLock state return to normal while fj is running, but is no longer the active window
 - [ ] +Shift to move to beginning/end
@@ -19,7 +61,6 @@
   - [ ] First card of TOC allows editing of title, except card 1 TOC
   - [ ] When title is changed, start of thread updates TOC entry and next thread title
   - [ ] When a title is updated, pass change to next card in thread
-  - [ ] Cannot change title if stack is not current
 - [ ] Continuing collection from different card stack
   - [ ] Press enter on non-current year collection to continue collection
   - [ ] Update last thread card to point to new collection card in current year
@@ -46,6 +87,7 @@
 - [ ] Use S for Search
 - [ ] Use / for Help
 - [ ] Use x for TODO/DONE/No TODO
+- [ ] Ability to access characters not available from basic keyboard
 
 ## Keyboard Mapping
 
