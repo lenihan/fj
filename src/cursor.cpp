@@ -40,7 +40,6 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 
     masterCS->add(CardItem::Type::Content, CardStack::ThreadMode::New);
     masterCS->lastCardItem()->firstRowItem()->setText("Help");
-    masterCS->lastCardItem()->firstRowItem()->setReadOnly(true);
 
     showCard(masterCS->cardItemAt(0));
     m_keyboardMode = KeyboardMode::Command;
@@ -144,20 +143,13 @@ void Cursor::enterCommandMode()
 
 void Cursor::up()
 {
-    if (m_row != 0 && m_currentCard->isTOC())
-        prevRow();
-    else
-    {
-        if (m_row == 0)
-            return; //  can't leave title via up
-        if (m_row == 1 && m_currentCard->isThreadStart())
-            return; // can't use up to go to TOC
+    if (m_row == 0)
+        return; //  can't leave title via up
 
-        uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
-        prevRow();
-        uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
-        m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
-    }
+    uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
+    prevRow();
+    uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
+    m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
 }
 
 void Cursor::down()
@@ -166,8 +158,6 @@ void Cursor::down()
         nextRow();
     else
     {
-        if (m_row == 0)
-            return; // have to use enter to finish title
         uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
         nextRow();
         uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
@@ -273,8 +263,6 @@ void Cursor::enter()
             Q_ASSERT(false); // TODO: Add new content to m_year, connected to this thread
         else
         {
-            if (m_row == 0)
-                m_currentCard->firstRowItem()->setReadOnly(true);
             nextRowCreateCard();
             if (m_currentCard->isTOC())
                 tocCurrent();
@@ -362,32 +350,16 @@ void Cursor::nextRowCreateCard()
 
 void Cursor::prevRow()
 {
-    if (m_currentCard->isTOC())
+    Q_ASSERT(m_row != 0);
+    if (m_row == m_currentCard->firstUserRow() && !m_currentCard->isThreadStart())
     {
-        if (m_row == m_currentCard->firstUserRow())
-        {
-            if (m_currentCard->isThreadStart())
-                prevThreadCard();
-            else
-                return; // noop
-        }
-        else
-            m_row--;
-    }
-    else if (m_currentCard->isContent())
-    {
-        if (m_row == m_currentCard->firstUserRow())
-        {
-            CardItem* oldCard = m_currentCard;
-            prevThreadCard();
-            if (m_currentCard->isTOC())
-                tocCurrent();
-            else if (oldCard != m_currentCard)
+        CardItem* oldCard = m_currentCard;
+        prevThreadCard();
+        if (oldCard != m_currentCard)
                 m_row = m_currentCard->lastUserRow();
-        }
-        else
-            m_row--;
     }
+    else
+        m_row--;
 }
 
 void Cursor::nextCard()

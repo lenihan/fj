@@ -56,11 +56,16 @@
   - [X] When a card is deleted, skip over it when moving through thread
   - [X] D toggles deletions of collection cards
   - [X] When a deleted card gets enter, add a new card to collection/TOC
-- [ ] Title
-  - [ ] First card in collection allows editing of title
-  - [ ] First card of TOC allows editing of title, except card 1 TOC
-  - [ ] When title is changed, start of thread updates TOC entry and next thread title
-  - [ ] When a title is updated, pass change to next card in thread
+- [X] Title
+  - [X] First card in collection allows editing of title
+  - [X] First card of TOC allows editing of title, except card 1 TOC
+  - [X] When title is changed, TOC and entire thread is updated
+- [ ] Continuing TOC
+  - [ ] New content should prev thread should take you back to correct TOC Page
+    - [ ] Also should select the right TOC entry so right will take you back to where you were
+  - [ ] Once TOC grows past a page, new TOC should be created
+    - [ ] New TOC points to prev TOC
+    - [ ] Prev TOC point to new TOC
 - [ ] Continuing collection from different card stack
   - [ ] Press enter on non-current year collection to continue collection
   - [ ] Update last thread card to point to new collection card in current year
