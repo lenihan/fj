@@ -43,7 +43,7 @@
 ## TODO
 
 - [ ] Minimum fuctionality
-  - [ ] Make CapsLock state return to normal while fj is running, but is no longer the active window
+  - [X] Make CapsLock state return to normal while fj is running, but is no longer the active window
   - [ ] +Shift to move to beginning/end
     - [ ] Shift+U : First card in stack
     - [ ] Shift+O : Last card in stack

@@ -5,6 +5,7 @@
 #include <QGraphicsView>
 #include <QGuiApplication>
 #include <QKeyEvent>
+#include <QWindow>
 #include <Windows.h>
 #include <qassert.h>
 
@@ -35,7 +36,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
-CapsLockModifier::CapsLockModifier(QGraphicsView* view)
+CapsLockModifier::CapsLockModifier(QGraphicsView* view) 
 {
     Q_ASSERT(view);
     // Ensure view is already visable BEFORE attempting to disable Caps Lock.
@@ -45,34 +46,97 @@ CapsLockModifier::CapsLockModifier(QGraphicsView* view)
 
     CapsLockModifier::m_keyReceiver = view;
 
-    // If Caps Lock enabled, disable it with a simulated Caps Lock keypress
-    const SHORT state = GetKeyState(VK_CAPITAL);
-    m_capsOn = (state & 0x0001) != 0;
-    if (m_capsOn)
-        toggleCapsState();
-    // Setup hook to handle Caps Lock presses to hide them from system
-    HHOOK m_hook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc,
-                                    GetModuleHandle(nullptr), 0);
+    // Connect focus changes
+    if (QWindow* window = view->windowHandle())
+    {
+        connect(window, &QWindow::activeChanged,
+                this, &CapsLockModifier::onWindowActiveChanged);
+    }
+    else
+    {
+        // Fallback: install event filter on the view
+        view->installEventFilter(this);
+    }
 }
 
 CapsLockModifier::~CapsLockModifier()
 {
     // Turn off hook
-    UnhookWindowsHookEx(m_hook);
+    setHookEnabled(false);
 
     // Return to original Caps Lock state
-    if (m_capsOn)
-        toggleCapsState();
+    setCapsLockOn(m_originalCapsLockOn);
 }
 
 QObject* CapsLockModifier::keyReceiver() { return m_keyReceiver; }
 
-void CapsLockModifier::toggleCapsState()
+void CapsLockModifier::onWindowActiveChanged()
 {
+    QWindow* window = qobject_cast<QWindow*>(sender());
+    if (!window)
+        return;
+
+    bool active = window->isActive();
+
+    if (active)
+    {
+        // Regained focus → re-disable system CapsLock + reinstall hook
+        m_originalCapsLockOn = capsLockOn();
+        setHookEnabled(false); // must disable before changing caps lock state
+        setCapsLockOn(false);
+        setHookEnabled(true);
+    }
+    else
+    {
+        // Lost focus (Alt+Tab etc.) → restore normal CapsLock + remove hook
+        setHookEnabled(false);
+        setCapsLockOn(m_originalCapsLockOn);
+    }
+}
+
+// Event filter fallback (if windowHandle() not available immediately)
+bool CapsLockModifier::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_keyReceiver && event->type() == QEvent::ActivationChange)
+    {
+        onWindowActiveChanged(); // reuse the same logic
+    }
+    return QObject::eventFilter(watched, event);
+}
+
+bool CapsLockModifier::capsLockOn() const
+{
+    SHORT state = GetKeyState(VK_CAPITAL);
+    bool on = (state & 0x0001) != 0;
+    return on;
+}
+
+void CapsLockModifier::setCapsLockOn(bool on)
+{
+    if (capsLockOn() == on)
+        return;
+    
     // Caps Lock press
     keybd_event(VK_CAPITAL, 0, KEYEVENTF_EXTENDEDKEY | 0, 0);
     // Caps Lock release
     keybd_event(VK_CAPITAL, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+}
+
+void CapsLockModifier::setHookEnabled(bool enabled)
+{
+    if (enabled)
+    {
+        if (m_hook)
+            UnhookWindowsHookEx(m_hook);
+        m_hook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, GetModuleHandle(nullptr), 0);
+    }
+    else
+    {
+        if (!m_hook)
+            return;
+        UnhookWindowsHookEx(m_hook);
+        m_hook = nullptr;
+    }
 }
 
 #endif

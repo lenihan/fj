@@ -1,23 +1,33 @@
 #pragma once
 #include <qsystemdetection.h>
+#include <QObject>
+
 class QGraphicsView;
-class QObject;
 
 #ifdef Q_OS_WINDOWS
 
 typedef struct HHOOK__*
     HHOOK; // This is the official way Windows forward-declares it
 
-class CapsLockModifier
+class CapsLockModifier : public QObject
 {
   public:
     CapsLockModifier(QGraphicsView* view);
-    ~CapsLockModifier();
+    ~CapsLockModifier() override;
     static QObject* keyReceiver();
-
+    
   private:
-    void toggleCapsState();
-    bool m_capsOn{false};
+    
+    // Focus handling
+    void onWindowActiveChanged();
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
+    bool capsLockOn() const;
+    void setCapsLockOn(bool on);
+
+    void setHookEnabled(bool enabled);
+
+    bool m_originalCapsLockOn{false};
     HHOOK m_hook{nullptr};
     static QObject* m_keyReceiver;
 };
