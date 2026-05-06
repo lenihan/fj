@@ -1,0 +1,50 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+
+  "configurePresets": [
+    {
+      "name": "_base",
+      "hidden": true,
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+      }
+    },
+
+    {
+      "name": "amd64",
+      "displayName": "amd64 (x64) - Native x64",
+      "inherits": "_base",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "../qt_v6.8.3/install_x64"
+      }
+    },
+
+    {
+      "name": "arm64",
+      "displayName": "arm64 - Native ARM64",
+      "inherits": "_base",
+      "architecture": "arm64",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "../qt_v6.8.3/install_arm64"
+      }
+    }
+  ],
+
+  "buildPresets": [
+    { "name": "amd64-debug",     "configurePreset": "amd64",        "configuration": "Debug" },
+    { "name": "amd64-release",   "configurePreset": "amd64",        "configuration": "Release" },
+
+    { "name": "arm64-debug",     "configurePreset": "arm64",        "configuration": "Debug" },
+    { "name": "arm64-release",   "configurePreset": "arm64",        "configuration": "Release" }
+  ]
+}
