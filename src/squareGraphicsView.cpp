@@ -29,7 +29,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
    event->accept(); // Stop propagation if desired
    
-   int k = event->key();
+k    int k = event->key();
     m_lastKeyPress = k;
     switch(k)
     {
@@ -54,8 +54,8 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_U: m_cursor.prevCard(); break;
                     case Qt::Key_O: m_cursor.nextCard(); break;
                     case Qt::Key_D: m_cursor.toggleDeleteCard(); break;
-                    case Qt::Key_C: m_cursor.newContent(); break;
-                    case Qt::Key_T: m_cursor.newTOC(); break;
+                    case Qt::Key_C: m_cursor.addNewCard(CardItem::Type::Content); break;
+                    case Qt::Key_T: m_cursor.addNewCard(CardItem::Type::TOC); break;
                     case Qt::Key_M: m_cursor.prevThreadCard(); break;
                     case Qt::Key_Period: m_cursor.nextThreadCard(); break;
                 }

@@ -11,15 +11,8 @@ TOCItem::TOCItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
 void TOCItem::addToTOC(CardItem* card)
 {
     Q_ASSERT(card);
-    Q_ASSERT(m_content.size() <= Card::kNumUserBodyRows);
-    if (m_content.size() == Card::kNumUserBodyRows)
-    {
-        auto* newTOC = new TOCItem(cardNumber(), year());
-        newTOC->addToTOC(card);
-        return;
-    }
+    Q_ASSERT(m_content.size() < Card::kNumUserBodyRows);
     m_content.push_back(card);
-
     Row row = m_content.size();
     setupRowAt(row);
     update();
@@ -55,13 +48,21 @@ CardItem* TOCItem::cardAtRow(Row row)
     return m_content[row - 1];
 }
 
-bool TOCItem::empty() const
+bool TOCItem::isEmpty() const
 {
     return m_content.empty();
 }
 
+bool TOCItem::isFull() const
+{
+    Q_ASSERT(m_content.size() <= Card::kNumUserBodyRows);
+    return m_content.size() == Card::kNumUserBodyRows;
+}
+
 void TOCItem::setupRowAt(Row row)
 {
+    Q_ASSERT(row >= 1);
+    Q_ASSERT(row <= Card::kNumUserBodyRows);
     CardItem* card = m_content[row - 1];
     RowItem* rowItem = rowItemAt(row);
     ColCount totalCol = rowItem->colPerRow();

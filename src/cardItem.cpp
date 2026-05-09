@@ -23,6 +23,11 @@ bool CardItem::isThreadStart() const
     return m_threadStart == this;
 }
 
+bool CardItem::isThreadEnd() const
+{
+    return m_threadNext == nullptr;
+}
+
 void CardItem::setChar(const QChar c, Row row, Col col)
 {
     Q_ASSERT(row < Card::kNumRows);
@@ -140,6 +145,7 @@ CardItem* CardItem::tableOfContents()
     Q_ASSERT(m_threadStart);
     CardItem* toc = m_threadStart->isTOC() ? m_threadStart : m_threadStart->threadPrev();
     Q_ASSERT(toc);
+    Q_ASSERT(toc->isTOC());
     return toc;
 }
 

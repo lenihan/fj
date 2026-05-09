@@ -33,18 +33,40 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     m_commandModeCursorBrush.setColor(Pen::kOrangishRed);
 
     // Setup master card stack
-    Q_ASSERT(!m_yearToCardStack.contains(Master::kYear));
-    auto* masterCS = new CardStack(Master::kYear, this);
-    m_yearToCardStack.insert(Master::kYear, masterCS);
-    Q_ASSERT(m_yearToCardStack.contains(Master::kYear));
+    m_year = Master::kYear;
+    Q_ASSERT(!m_yearToCardStack.contains(m_year));
+    auto* masterCS = new CardStack(m_year, scene);
+    m_yearToCardStack.insert(m_year, masterCS);
+    Q_ASSERT(m_yearToCardStack.contains(m_year));
+    showCard(masterCS->tableOfContents());
 
-    masterCS->add(CardItem::Type::Content, CardStack::ThreadMode::New);
+    addNewCard(CardItem::Type::Content);
     masterCS->lastCardItem()->firstRowItem()->setText("Help");
+    showCard(masterCS->tableOfContents());
 
-    showCard(masterCS->cardItemAt(0));
-    m_keyboardMode = KeyboardMode::Command;
+    addNewCard(CardItem::Type::TOC);
+    masterCS->lastCardItem()->firstRowItem()->setText("TOC 1");
+    showCard(masterCS->tableOfContents());
+    addNewCard(CardItem::Type::TOC);
+    masterCS->lastCardItem()->firstRowItem()->setText("TOC 2");
+    showCard(masterCS->tableOfContents());
+    addNewCard(CardItem::Type::TOC);
+    masterCS->lastCardItem()->firstRowItem()->setText("TOC 3");
+    showCard(masterCS->tableOfContents());
+    addNewCard(CardItem::Type::TOC);
+    masterCS->lastCardItem()->firstRowItem()->setText("TOC 4");
+    showCard(masterCS->tableOfContents());
+    addNewCard(CardItem::Type::TOC);
+    masterCS->lastCardItem()->firstRowItem()->setText("TOC 5");
+    showCard(masterCS->tableOfContents());
+    addNewCard(CardItem::Type::TOC);
+    masterCS->lastCardItem()->firstRowItem()->setText("TOC 6");
+    showCard(masterCS->tableOfContents());
+    addNewCard(CardItem::Type::TOC);
+    masterCS->lastCardItem()->firstRowItem()->setText("TOC 7");
+    showCard(masterCS->tableOfContents());
+
     m_row = 1;
-    m_col = 0;
 
 #if 0   
     // Setup current year card stack
@@ -254,7 +276,7 @@ void Cursor::enter()
         if (threadDeleted)
         {
             m_currentCard = last;
-            m_yearToCardStack[m_year]->add(CardItem::Type::Content, CardStack::ThreadMode::Continue);
+            addContinuationCard(CardItem::Type::Content);
         }
     }
     if (m_row == 0 || m_currentCard->isContent())
@@ -446,20 +468,45 @@ void Cursor::nextThreadCardCreateCard()
     else
     {
         Q_ASSERT(m_yearToCardStack.contains(m_year));
-        m_yearToCardStack[m_year]->add(CardItem::Type::Content, CardStack::ThreadMode::Continue);
+        addContinuationCard(CardItem::Type::Content);
     }
 }
-void Cursor::newContent()
+
+void Cursor::addNewCard(CardItem::Type type)
 {
+    moveToTOCForNewCard();
     Q_ASSERT(m_yearToCardStack.contains(m_year));
-    m_yearToCardStack[m_year]->add(CardItem::Type::Content, CardStack::ThreadMode::New);
-    m_keyboardMode = KeyboardMode::Typing;
+    CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::New, m_currentCard);
+    showCard(newCard);
 }
 
-void Cursor::newTOC()
+void Cursor::addContinuationCard(CardItem::Type type)
 {
     Q_ASSERT(m_yearToCardStack.contains(m_year));
-    m_yearToCardStack[m_year]->add(CardItem::Type::TOC, CardStack::ThreadMode::New);
+    CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::Continue, m_currentCard);
+    showCard(newCard);
+}
+
+void Cursor::moveToTOCForNewCard()
+{
+    Q_ASSERT(m_yearToCardStack.contains(m_year));
+    Q_ASSERT(m_currentCard);
+    
+    TOCItem* toc = dynamic_cast<TOCItem*>(m_currentCard->tableOfContents());
+    Q_ASSERT(toc);
+    while(toc->threadNext())
+    {
+        Q_ASSERT(toc->isFull());
+        toc = dynamic_cast<TOCItem*>(toc->threadNext());
+        Q_ASSERT(toc);
+    }
+    m_currentCard = toc;
+    if (toc->isFull())
+    {
+        addContinuationCard(CardItem::Type::TOC);
+    }
+    Q_ASSERT(m_currentCard->isTOC());
+    Q_ASSERT(m_currentCard->isThreadEnd());
 }
 
 void Cursor::toggleDeleteCard()
@@ -536,7 +583,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         {
             auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
             Q_ASSERT(toc);
-            if (!toc->empty())
+            if (!toc->isEmpty())
             {
                 QPointF topLeft(Card::kBorder_scn,
                                 lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
@@ -579,10 +626,12 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
 
 void Cursor::showCard(CardItem* card)
 {
-    Q_ASSERT(m_currentCard);
-    m_currentCard->hide();
+    Q_ASSERT(card);
+    if (m_currentCard)
+        m_currentCard->hide();
+    card->show();
     m_currentCard = card;
-    m_currentCard->show();
+    scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
 
 void Cursor::tocCurrent()

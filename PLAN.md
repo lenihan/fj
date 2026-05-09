@@ -42,7 +42,8 @@
 
 ## TODO
 
-- [ ] Minimum fuctionality
+- [ ] Proof of Concept
+  - [ ] Testing framework
   - [X] CMake presets
   - [X] Make CapsLock state return to normal while fj is running, but is no longer the active window
   - [ ] +Shift to move to beginning/end

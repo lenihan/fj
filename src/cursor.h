@@ -56,8 +56,10 @@ class Cursor
     void nextThreadCard();
     void nextThreadCardCreateCard();
 
-    void newContent();
-    void newTOC();
+    void addNewCard(CardItem::Type type);
+    void addContinuationCard(CardItem::Type type);
+
+    void moveToTOCForNewCard();
 
     void toggleDeleteCard();
 

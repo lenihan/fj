@@ -21,6 +21,7 @@ class CardItem : public QGraphicsRectItem
     bool isTOC() const; 
     bool isContent() const;
     bool isThreadStart() const;
+    bool isThreadEnd() const;
 
     void setChar(QChar c, Row row, Col col);
     void setText(Row row, const QString& text);
