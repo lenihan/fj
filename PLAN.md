@@ -43,7 +43,6 @@
 ## TODO
 
 - [ ] Proof of Concept
-  - [ ] Testing framework
   - [X] CMake presets
   - [X] Make CapsLock state return to normal while fj is running, but is no longer the active window
   - [ ] +Shift to move to beginning/end
@@ -63,12 +62,12 @@
     - [X] First card in collection allows editing of title
     - [X] First card of TOC allows editing of title, except card 1 TOC
     - [X] When title is changed, TOC and entire thread is updated
-  - [ ] Continuing TOC
-    - [ ] New content should prev thread should take you back to correct TOC Page
-      - [ ] Also should select the right TOC entry so right will take you back to where you were
-    - [ ] Once TOC grows past a page, new TOC should be created
-      - [ ] New TOC points to prev TOC
-      - [ ] Prev TOC point to new TOC
+  - [X] Continuing TOC
+    - [X] New content should prev thread should take you back to correct TOC Page
+      - [X] Also should select the right TOC entry so right will take you back to where you were
+    - [X] Once TOC grows past a page, new TOC should be created
+      - [X] New TOC points to prev TOC
+      - [X] Prev TOC point to new TOC
   - [ ] Continuing collection from different card stack
     - [ ] Press enter on non-current year collection to continue collection
     - [ ] Update last thread card to point to new collection card in current year

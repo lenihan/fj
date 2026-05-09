@@ -67,6 +67,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     showCard(masterCS->tableOfContents());
 
     m_row = 1;
+    m_keyboardMode = KeyboardMode::Command;
 
 #if 0   
     // Setup current year card stack
@@ -429,14 +430,16 @@ void Cursor::prevThreadCard()
 
     // Skip over deleted cards
     while (prevCard && prevCard->deleted())
-    {
         prevCard = prevCard->threadPrev();
-    }
 
     if (prevCard && !prevCard->deleted())
     {
         if (prevCard->isTOC())
+        {
+            auto* toc = dynamic_cast<TOCItem*>(prevCard);
             tocCurrent();
+            m_row = toc->rowAtCard(m_currentCard);
+        }
         showCard(prevCard);
     }
 }
@@ -478,6 +481,9 @@ void Cursor::addNewCard(CardItem::Type type)
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::New, m_currentCard);
     showCard(newCard);
+    m_row = 0;
+    m_col = 0;
+    m_keyboardMode = KeyboardMode::Typing;
 }
 
 void Cursor::addContinuationCard(CardItem::Type type)

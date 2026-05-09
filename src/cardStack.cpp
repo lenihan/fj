@@ -75,7 +75,6 @@ CardItem* CardStack::add(CardItem::Type type, ThreadMode threadMode, CardItem* c
     // Connections
     if (threadMode == ThreadMode::New)
     {
-        
         // newCard
         newCard->setThreadStart(newCard);
         newCard->setThreadPrev(currentCard);

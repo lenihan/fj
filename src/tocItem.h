@@ -2,7 +2,7 @@
 
 #include "cardItem.h"
 #include "common.h"
-#include <vector>
+#include <QList>
 
 class QGraphicsItem;
 
@@ -15,11 +15,12 @@ class TOCItem : public CardItem
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
     RowCount numberContent() const;
     CardItem* cardAtRow(Row row);
+    Row rowAtCard(CardItem* card) const;
     bool isEmpty() const;
     bool isFull() const;
 
   private:
     void setupRowAt(Row row);
     QString rtrim(const QString& str) const;
-    std::vector<CardItem*> m_content;
+    QList<CardItem*> m_content;
 };

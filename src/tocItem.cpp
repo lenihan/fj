@@ -48,6 +48,15 @@ CardItem* TOCItem::cardAtRow(Row row)
     return m_content[row - 1];
 }
 
+Row TOCItem::rowAtCard(CardItem* card) const
+{
+    Q_ASSERT(card);
+    qsizetype index = m_content.indexOf(card);
+    Q_ASSERT(index != -1);
+    Row row = index + 1;
+    return row;
+}
+
 bool TOCItem::isEmpty() const
 {
     return m_content.empty();
@@ -73,7 +82,7 @@ void TOCItem::setupRowAt(Row row)
     title = rtrim(title);
 
     bool includeYear = card->year() != year();
-    QString fullCardNum = QString::number(card->cardNumber());
+    QString fullCardNum = QString::number(card->cardNumber() + 1);
     if (includeYear)
     {
         QString yearStr = QString::number(card->year()).rightJustified(4, '0');

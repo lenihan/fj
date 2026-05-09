@@ -27,9 +27,9 @@ void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)
 
 void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
 {
-   event->accept(); // Stop propagation if desired
+    event->accept(); // Stop propagation if desired
    
-k    int k = event->key();
+    int k = event->key();
     m_lastKeyPress = k;
     switch(k)
     {
