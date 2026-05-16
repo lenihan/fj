@@ -34,6 +34,11 @@ RowItem::RowItem(Row row, QGraphicsItem* parent)
     setText(m_text);
 }
 
+Row RowItem::row() const
+{
+    return m_row;
+}
+
 ColCount RowItem::colPerRow() const { return kColsPerRow; }
 
 void RowItem::setChar(QChar c, Row row, Col col)

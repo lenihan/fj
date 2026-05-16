@@ -15,6 +15,12 @@ void TOCItem::addToTOC(CardItem* card)
     m_content.push_back(card);
     Row row = m_content.size();
     setupRowAt(row);
+    
+    m_links.clear();
+    setupLinks();
+    Q_ASSERT(m_links.size() >= 1);
+    m_currentLinkIndex = 0;
+    
     update();
 }
 
@@ -68,6 +74,19 @@ bool TOCItem::isFull() const
     return m_content.size() == Card::kNumUserBodyRows;
 }
 
+void TOCItem::setupLinks()
+{
+    for(CardItem* card : m_content)
+    {
+        QString cardLinkStr = linkStr(card);
+        Row row = rowAtCard(card);
+        Col col = colPerRow(row) - cardLinkStr.length();
+        ColCount colCount = cardLinkStr.length();
+        m_links.append({row, col, colCount, card});
+    }
+    CardItem::setupLinks();
+}
+
 void TOCItem::setupRowAt(Row row)
 {
     Q_ASSERT(row >= 1);
@@ -80,19 +99,17 @@ void TOCItem::setupRowAt(Row row)
 
     QString title = card->firstRowItem()->text();
     title = rtrim(title);
-
-    bool includeYear = card->year() != year();
-    QString fullCardNum = QString::number(card->cardNumber() + 1);
-    if (includeYear)
-    {
-        QString yearStr = QString::number(card->year()).rightJustified(4, '0');
-        fullCardNum = yearStr + "-" + fullCardNum;
-    }
+    QString cardLinkStr = linkStr(card);
     int two_spaces = 2;
-    int dotsNeeded = totalCol - title.length() - fullCardNum.length() - two_spaces;
+    int dotsNeeded = totalCol - title.length() - cardLinkStr.length() - two_spaces;
     QString dots = QString(dotsNeeded, '.');
+    Col col = totalCol - cardLinkStr.length();
+    ColCount colCount = totalCol - cardLinkStr.length();
+    m_links.append({row, col, colCount, card});
+    m_currentLinkIndex = 0;
+    Q_ASSERT(m_links.size() >= 1);
 
-    QString text = title + " " + dots + " " + fullCardNum;
+    QString text = title + " " + dots + " " + cardLinkStr;
     Q_ASSERT(text.length() == totalCol);
     rowItem->setText(text);
 }

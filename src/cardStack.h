@@ -25,7 +25,7 @@ class CardStack
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 
-    CardItem* add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard);
+    CardItem* add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard = nullptr);
 
   private:
     Year m_year;

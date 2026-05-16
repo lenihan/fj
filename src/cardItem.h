@@ -14,6 +14,13 @@ class CardItem : public QGraphicsRectItem
         TOC,
         Content
     };
+    struct CardLink
+    {
+        Row row{0};
+        Col col{0};
+        ColCount charCount{0}; 
+        CardItem* targetCard{nullptr};
+    };
 
     CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent = nullptr);
 
@@ -59,14 +66,23 @@ class CardItem : public QGraphicsRectItem
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 
+    CardLink currentLink() const;
+    void nextLink();
+    void prevLink();
+    void setLastAsCurrentLink();
+    virtual void setupLinks();
+
   protected:
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
     void setupLastRow();
     void setupBackground();
     void setupLines();
+    QString linkStr(CardItem* card) const;
+    QList<CardLink> m_links;
+    qsizetype m_currentLinkIndex{-1};
+
 
   private:
-    QString threadStr(CardItem* card);
     CardItem* m_threadPrev{nullptr};
     CardItem* m_threadNext{nullptr};
     CardItem* m_threadStart{nullptr};

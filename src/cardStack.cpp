@@ -11,8 +11,7 @@ CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(s
     Q_ASSERT(m_scene);
     
     // Create cardstack's TOC
-    CardItem* currentCard = nullptr;
-    CardItem* newCard = add(CardItem::Type::TOC, ThreadMode::New, currentCard);
+    CardItem* newCard = add(CardItem::Type::TOC, ThreadMode::New);
     
     newCard->setReadOnly(true);
     

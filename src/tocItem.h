@@ -18,6 +18,7 @@ class TOCItem : public CardItem
     Row rowAtCard(CardItem* card) const;
     bool isEmpty() const;
     bool isFull() const;
+    void setupLinks() override;
 
   private:
     void setupRowAt(Row row);

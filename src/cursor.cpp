@@ -43,7 +43,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     addNewCard(CardItem::Type::Content);
     masterCS->lastCardItem()->firstRowItem()->setText("Help");
     showCard(masterCS->tableOfContents());
-
+#if 0
     addNewCard(CardItem::Type::TOC);
     masterCS->lastCardItem()->firstRowItem()->setText("TOC 1");
     showCard(masterCS->tableOfContents());
@@ -65,6 +65,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     addNewCard(CardItem::Type::TOC);
     masterCS->lastCardItem()->firstRowItem()->setText("TOC 7");
     showCard(masterCS->tableOfContents());
+#endif
 
     m_row = 1;
     m_keyboardMode = KeyboardMode::Command;
@@ -168,92 +169,127 @@ void Cursor::up()
 {
     if (m_row == 0)
         return; //  can't leave title via up
-
-    uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
-    prevRow();
-    uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
-    m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
+    
+    if (m_navigationMode == NavigationMode::Link)
+        m_currentCard->prevLink();
+    else if (m_navigationMode == NavigationMode::Cursor)
+    {
+        uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
+        prevRow();
+        uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
+        m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
+    }
+    else
+        Q_ASSERT(false); // unknown navigation mode
 }
 
 void Cursor::down()
 {
-    if (m_row != 0 && m_currentCard->isTOC())
-        nextRow();
-    else
+    if (m_navigationMode == NavigationMode::Link)
+        m_currentCard->nextLink();
+    else if(m_navigationMode == NavigationMode::Cursor)
     {
-        uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
-        nextRow();
-        uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
-        m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
+        if (m_row != 0 && m_currentCard->isTOC())
+            nextRow();
+        else
+        {
+            uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
+            nextRow();
+            uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
+            m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
+        }
     }
+    else
+        Q_ASSERT(false); // unknown navigation mode
 }
 
 void Cursor::left()
 {
-    if (m_row != 0 && m_currentCard->isTOC())
-        ; // noop
-    else
+    if (m_navigationMode == NavigationMode::Link)
     {
-        if (m_row == 0 && m_col == 0)
-            return; // can't leave whle working on title
-        bool nextLeftIsTOC = m_row == 1 &&
-                             m_col == m_currentCard->firstColAt(m_row) &&
-                             m_currentCard->isThreadStart();
-        if (nextLeftIsTOC)
-            return; // Can't leave content for TOC via arrow keys
-        if (m_col == m_currentCard->firstColAt(m_row))
-        {
-            Row oldRow = m_row;
-            prevRow();
-            if (oldRow != m_row)
-                m_col = m_currentCard->lastColAt(m_row);
-        }
+        // go to back
+        if (m_linkHistory.isEmpty())
+            return; // noop
         else
-            m_col--;
+        {
+            CardItem* prevCard = m_linkHistory.takeLast();
+            showCard(prevCard);
+        }
+    }
+    else if(m_navigationMode == NavigationMode::Cursor)
+    {
+        if (m_row != 0 && m_currentCard->isTOC())
+            ; // noop
+        else
+        {
+            if (m_row == 0 && m_col == 0)
+                return; // can't leave whle working on title
+            bool nextLeftIsTOC = m_row == 1 &&
+                                 m_col == m_currentCard->firstColAt(m_row) &&
+                                 m_currentCard->isThreadStart();
+            if (nextLeftIsTOC)
+                return; // Can't leave content for TOC via arrow keys
+            if (m_col == m_currentCard->firstColAt(m_row))
+            {
+                Row oldRow = m_row;
+                prevRow();
+                if (oldRow != m_row)
+                    m_col = m_currentCard->lastColAt(m_row);
+            }
+            else
+                m_col--;
+        }
     }
 }
 
 void Cursor::right()
 {
-    if (m_row != 0 && m_currentCard->isTOC())
+    if (m_navigationMode == NavigationMode::Link)
     {
-        auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
-        Q_ASSERT(toc);
-        if (toc->numberContent() > 0)
-        {
-            CardItem* newCard = toc->cardAtRow(m_row);
-
-            // Skip over deleted cards
-            CardItem* nextCard = newCard;
-            while (nextCard && nextCard->deleted())
-            {
-                nextCard = nextCard->threadNext();
-            }
-            if (nextCard && !nextCard->deleted())
-                newCard = nextCard;
-            Q_ASSERT(newCard);
-
-            if (newCard->isContent())
-                m_keyboardMode = KeyboardMode::Typing;
-            else if(newCard->isTOC())
-                m_keyboardMode = KeyboardMode::Command;
-            showCard(newCard);
-        }
+        // Follow current link
+        CardItem::CardLink link = m_currentCard->currentLink();
+        CardItem* targetCard = link.targetCard;
+        Q_ASSERT(targetCard);
+        m_linkHistory.append(targetCard);
+        targetCard->setLastAsCurrentLink();
+        showCard(targetCard);
     }
-    else
+    else if (m_navigationMode == NavigationMode::Cursor)
     {
-        if (m_row == 0 && m_col == m_currentCard->lastColAt(m_row))
-            return; // can't leave whle working on title
-        if (m_col == m_currentCard->lastColAt(m_row))
+        if (m_row != 0 && m_currentCard->isTOC())
         {
-            Row oldRow = m_row;
-            nextRow();
-            if (oldRow != m_row)
-                m_col = 0;
+            auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
+            Q_ASSERT(toc);
+            if (toc->numberContent() > 0)
+            {
+                CardItem* newCard = toc->cardAtRow(m_row);
+    
+                // Skip over deleted cards
+                CardItem* nextCard = newCard;
+                while (nextCard && nextCard->deleted())
+                    nextCard = nextCard->threadNext();
+                if (nextCard && !nextCard->deleted())
+                    newCard = nextCard;
+                Q_ASSERT(newCard);
+    
+                showCard(newCard);
+            }
         }
         else
-            m_col++;
-    }
+        {
+            if (m_row == 0 && m_col == m_currentCard->lastColAt(m_row))
+                return; // can't leave whle working on title
+            if (m_col == m_currentCard->lastColAt(m_row))
+            {
+                Row oldRow = m_row;
+                nextRow();
+                if (oldRow != m_row)
+                    m_col = 0;
+            }
+            else
+                m_col++;
+        }
+    }    
 }
 
 void Cursor::enter()
@@ -585,20 +621,36 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         qreal charWidth_scn = rowItem->charWidth_scn();
         qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
+        // TOC, not in title row
         if (m_row != 0 && m_currentCard->isTOC())
         {
             auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
             Q_ASSERT(toc);
-            if (!toc->isEmpty())
-            {
-                QPointF topLeft(Card::kBorder_scn,
-                                lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
-                QPointF bottomRight(Card::kRect_scn.width() - Card::kBorder_scn,
-                                    lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
-                QRectF cursorRect(topLeft, bottomRight);
-                qreal percentage = 0.25;
-                painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
-            }
+
+            // TODO: get current link for card
+            //       get row, col for link
+            //       get number of chars for link
+            //       draw rect around link
+            CardItem::CardLink link = toc->currentLink();
+            Q_ASSERT(link.targetCard);
+            QPointF topLeft(link.col * charWidth_scn + Card::kBorder_scn,
+                            lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
+            QPointF bottomRight(topLeft.x() + link.charCount * charWidth_scn,
+                                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
+            QRectF cursorRect(topLeft, bottomRight);
+            qreal percentage = 15.0;
+            painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
+
+            // if (!toc->isEmpty())
+            // {
+            //     QPointF topLeft(Card::kBorder_scn,
+            //                     lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
+            //     QPointF bottomRight(Card::kRect_scn.width() - Card::kBorder_scn,
+            //                         lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
+            //     QRectF cursorRect(topLeft, bottomRight);
+            //     qreal percentage = 0.25;
+            //     painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
+            // }
         }
         else if (tempMode == KeyboardMode::Typing) // hollow square
         {

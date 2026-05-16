@@ -66,19 +66,28 @@ class Cursor
     void draw(QPainter* painter, const QRectF& rect, bool capsDown);
 
   private:
-    enum class KeyboardMode { Typing, Command };
+    enum class KeyboardMode { Command, Typing };
+    enum class NavigationMode { Link, Cursor };
+
     void showCard(CardItem* card);
     void tocCurrent();
+
     Year m_year{0};
     Row m_row{0};
     Col m_col{0};
     CardItem* m_currentCard{nullptr};
+    
     KeyboardMode m_keyboardMode{KeyboardMode::Command};
+    NavigationMode m_navigationMode{NavigationMode::Link};
+    
+    QList<CardItem*> m_linkHistory;
 
     QMap<Year, CardStack*> m_yearToCardStack;
     QGraphicsScene* m_scene{nullptr};
+
     QPen m_deletedPen;
     QPen m_typingModeCursorPen;
+    
     QBrush m_darkenedBrush;
     QBrush m_commandModeCursorBrush;
 };

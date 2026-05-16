@@ -43,6 +43,9 @@
 ## TODO
 
 - [ ] Proof of Concept
+  - [ ] Convert RowItem to be derived from QGraphicsItem
+  - [ ] When navigating links, left goes to previous location
+  - [ ] When you follow a TOC to a page, start in navigation mode with the prev thread link highlighted
   - [X] CMake presets
   - [X] Make CapsLock state return to normal while fj is running, but is no longer the active window
   - [ ] +Shift to move to beginning/end
@@ -81,14 +84,17 @@
       - [ ] New card created in current card stack
         - [ ] New TOC point to new card
   - [ ] Link navigation
-    - [ ] Use G for Go when on a collection
+    - [ ] Need way to edit title on toc...'e' for edit?
+    - [ ] New keyboard mode
+    - [ ] Use N for navigation mode
     - [ ] Cursor should show up/down arrows and right arrow to remind how to navigate
     - [ ] Use up/down to search through links in form YEAR-CARDNUM
       - [ ] Also go to prev/next thread
       - [ ] On TOC, goes through thread entries and navigation thread
     - [ ] Press right arrow to go to link
-    - [ ] When you follow a TOC entry, cursor should select prev thread
-      - [ ] This means pressing right arrow twice toggles your position between TOC and TOC entry
+    - [ ] Press left arrow to go back to previous place
+    - [ ] When you follow a TOC entry, cursor should select next thread
+      - [ ] This means pressing right will move through cards in thread
   - [ ] 0-9 as bookmarks
     - [ ] Shift+# to store
   - [ ] Use S for Search
@@ -99,6 +105,13 @@
 - [ ] Start personal use
 - [ ] UI - make it so user knows what to do instictively
 - [ ] Test on Linux Raspberry Pi Zero
+- [ ] Next
+  - [ ] User links
+    - [ ] How to create a link? "L" then year-cardnumber? Let user find card they want to link to?
+    - [ ] Create
+    - [ ] Modify
+    - [ ] Delete
+  - [ ] When you can't go back (left arrow) because there is no history, give user feedback so they know
 
 ## Keyboard Mapping
 
@@ -128,7 +141,7 @@
   - s           Search
   - d           Delete/undelete card
   - f
-  - g           Go to a card link with up/down to select link, right to follow link
+  - g
   - h
   - j           Left
   - k           Down, +Shift current card stack TOC
@@ -142,7 +155,7 @@
   - c           New content card
   - v
   - b
-  - n
+  - n           Navigation mode: up/down to select links, right to follow link, left to go back
   - m           Prev thread card, +Shift first thread card
   - ,
   - .           Next thread card, +Shift last thread card

@@ -13,6 +13,7 @@ class RowItem : public QGraphicsSimpleTextItem
   public:
     explicit RowItem(Row row, QGraphicsItem* parent = nullptr);
     
+    Row row() const;
     ColCount colPerRow() const;
     qreal rowHeight_scn() const;
     qreal charHeight_scn() const;
