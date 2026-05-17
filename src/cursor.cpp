@@ -314,7 +314,14 @@ void Cursor::right()
 
 void Cursor::enter()
 {
-    if (m_currentCard->deleted() && m_currentCard->isContent())
+    if (m_row == 0)
+    {
+        // Done with title
+        m_navigationMode = NavigationMode::Link;
+        m_keyboardMode = KeyboardMode::Command;
+        m_row++;
+    }
+    else if (m_currentCard->deleted() && m_currentCard->isContent())
     {
         bool threadDeleted = true;
         CardItem* thread = m_currentCard->threadStart();
@@ -336,7 +343,7 @@ void Cursor::enter()
             addContinuationCard(CardItem::Type::Content);
         }
     }
-    if (m_row == 0 || m_currentCard->isContent())
+    else if (m_currentCard->isContent())
     {
         if (m_currentCard->readOnly())
             Q_ASSERT(false); // TODO: Add new content to m_year, connected to this thread
@@ -533,6 +540,7 @@ void Cursor::nextThreadCardCreateCard()
 
 void Cursor::addNewCard(CardItem::Type type)
 {
+    // TODO: Compbine this and next so they share as much as possible
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     moveToTOCForNewCard();
     m_linkHistory.append(m_currentCard);
@@ -541,7 +549,7 @@ void Cursor::addNewCard(CardItem::Type type)
     showCard(newCard);
     m_row = 0;
     m_col = 0;
-    m_keyboardMode = KeyboardMode::Typing;
+    m_keyboardMode = KeyboardMode::Typing; // Need title text
 }
 
 void Cursor::addContinuationCard(CardItem::Type type)
