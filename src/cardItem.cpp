@@ -12,9 +12,6 @@ CardItem::CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
         m_rows.emplaceBack(new RowItem(static_cast<Row>(i), this));
 
     setupLastRow();
-        
-    m_links.clear();
-    setupLinks();
 }
 
 bool CardItem::isTOC() const { return cardType() == Type::TOC; }
@@ -103,7 +100,7 @@ void CardItem::setThreadNext(CardItem* card)
 {
     m_threadNext = card;
     setupLastRow();
-    
+
     m_links.clear();
     setupLinks();
 }
@@ -168,34 +165,48 @@ bool CardItem::readOnly() const
     return m_readOnly;
 }
 
+bool CardItem::hasLinks() const
+{
+    if (m_links.size() > 0)
+        return true;
+    else
+        return false;
+}
+
 CardItem::CardLink CardItem::currentLink() const
 {
-    Q_ASSERT(m_currentLinkIndex >= 0);
     Q_ASSERT(m_currentLinkIndex < m_links.size());
+    Q_ASSERT(m_currentLinkIndex > -1);
     return m_links[m_currentLinkIndex];
 }
 
 void CardItem::nextLink()
 {
     Q_ASSERT(m_links.size() > 0);
-    m_currentLinkIndex++;
-    if (m_currentLinkIndex >= m_links.size())
-        m_currentLinkIndex = 0; // Wrap around
+    if (m_currentLinkIndex < m_links.size() - 1)
+        m_currentLinkIndex++;
 }
 
 void CardItem::prevLink()
 {
     Q_ASSERT(m_links.size() > 0);
-    m_currentLinkIndex--;
-    if (m_currentLinkIndex < 0)
-        m_currentLinkIndex = m_links.size() - 1; // Wrap around
+    if (m_currentLinkIndex != 0)
+        m_currentLinkIndex--;
 }
 
-void CardItem::setLastAsCurrentLink()
+void CardItem::setCurrentLink(CardItem* card)
 {
-    // next thread if it exists, otherwise prev thread
-    m_currentLinkIndex = m_links.size() - 1;
-    Q_ASSERT(m_currentLinkIndex >= 0);
+    Q_ASSERT(card);
+    m_currentLinkIndex = -1;
+    for (int i = 0; i < m_links.size(); ++i)
+    {
+        if (m_links[i].targetCard == card)
+        {
+            m_currentLinkIndex = i;
+            return;
+        }
+    }
+    Q_ASSERT(false); // should have found the card in the links
 }
 
 void CardItem::setupLinks()
@@ -217,6 +228,7 @@ void CardItem::setupLinks()
         ColCount colCount = next.length();
         m_links.append({lastRow, col, colCount, m_threadNext});
     }
+    m_currentLinkIndex = m_links.size() - 1;
 }
 
 QVariant CardItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value)
@@ -315,10 +327,7 @@ void CardItem::setupLastRow()
         pos = colCount - next.length();
         n = next.length();
         text.replace(pos, n, next);
-        m_links.append({lastRow->row(), static_cast<Col>(pos), static_cast<ColCount>(n), m_threadNext});
     }
-    if (m_links.size() >= 0)
-        m_currentLinkIndex = 0; // prev thread if it exists, otherwise next thread
 
     Q_ASSERT(text.length() == colCount);
     lastRow->setText(text);

@@ -77,7 +77,7 @@ CardItem* CardStack::add(CardItem::Type type, ThreadMode threadMode, CardItem* c
         // newCard
         newCard->setThreadStart(newCard);
         newCard->setThreadPrev(currentCard);
-        
+
         // TOC
         if (currentCard)
         {

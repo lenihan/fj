@@ -17,6 +17,7 @@ void TOCItem::addToTOC(CardItem* card)
     setupRowAt(row);
     
     m_links.clear();
+    Q_ASSERT(m_links.size() == 0);
     setupLinks();
     Q_ASSERT(m_links.size() >= 1);
     m_currentLinkIndex = 0;
@@ -105,9 +106,6 @@ void TOCItem::setupRowAt(Row row)
     QString dots = QString(dotsNeeded, '.');
     Col col = totalCol - cardLinkStr.length();
     ColCount colCount = totalCol - cardLinkStr.length();
-    m_links.append({row, col, colCount, card});
-    m_currentLinkIndex = 0;
-    Q_ASSERT(m_links.size() >= 1);
 
     QString text = title + " " + dots + " " + cardLinkStr;
     Q_ASSERT(text.length() == totalCol);

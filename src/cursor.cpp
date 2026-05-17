@@ -43,7 +43,6 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     addNewCard(CardItem::Type::Content);
     masterCS->lastCardItem()->firstRowItem()->setText("Help");
     showCard(masterCS->tableOfContents());
-#if 0
     addNewCard(CardItem::Type::TOC);
     masterCS->lastCardItem()->firstRowItem()->setText("TOC 1");
     showCard(masterCS->tableOfContents());
@@ -65,7 +64,6 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     addNewCard(CardItem::Type::TOC);
     masterCS->lastCardItem()->firstRowItem()->setText("TOC 7");
     showCard(masterCS->tableOfContents());
-#endif
 
     m_row = 1;
     m_keyboardMode = KeyboardMode::Command;
@@ -171,7 +169,10 @@ void Cursor::up()
         return; //  can't leave title via up
     
     if (m_navigationMode == NavigationMode::Link)
-        m_currentCard->prevLink();
+    {
+        if (m_currentCard->hasLinks())
+            m_currentCard->prevLink();
+    }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
         uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
@@ -186,7 +187,10 @@ void Cursor::up()
 void Cursor::down()
 {
     if (m_navigationMode == NavigationMode::Link)
-        m_currentCard->nextLink();
+    {
+        if (m_currentCard->hasLinks())
+            m_currentCard->nextLink();
+    }
     else if(m_navigationMode == NavigationMode::Cursor)
     {
         if (m_row != 0 && m_currentCard->isTOC())
@@ -244,19 +248,37 @@ void Cursor::left()
 
 void Cursor::right()
 {
-    if (m_navigationMode == NavigationMode::Link)
+    if (m_row == 0)
+    {
+        if (m_col == m_currentCard->lastColAt(m_row))
+            return; // can't leave whle working on title
+        else        
+            m_col++;
+    }
+    else if (m_navigationMode == NavigationMode::Link)
     {
         // Follow current link
-        CardItem::CardLink link = m_currentCard->currentLink();
-        CardItem* targetCard = link.targetCard;
-        Q_ASSERT(targetCard);
-        m_linkHistory.append(targetCard);
-        targetCard->setLastAsCurrentLink();
-        showCard(targetCard);
+        if (m_currentCard->hasLinks())
+        {
+            CardItem::CardLink link = m_currentCard->currentLink();
+            CardItem* targetCard = link.targetCard;
+            Q_ASSERT(targetCard);
+            if (targetCard == m_currentCard->threadPrev())
+            {
+                // Following prev thread, same as pressing back in link history
+                // Remove last link from history
+                Q_ASSERT(!m_linkHistory.isEmpty());
+                CardItem* prevCard = m_linkHistory.takeLast();
+                Q_ASSERT(prevCard == targetCard);
+            }
+            else
+                m_linkHistory.append(m_currentCard);
+            showCard(targetCard);
+        }
     }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
-        if (m_row != 0 && m_currentCard->isTOC())
+        if (m_currentCard->isTOC())
         {
             auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
             Q_ASSERT(toc);
@@ -277,8 +299,6 @@ void Cursor::right()
         }
         else
         {
-            if (m_row == 0 && m_col == m_currentCard->lastColAt(m_row))
-                return; // can't leave whle working on title
             if (m_col == m_currentCard->lastColAt(m_row))
             {
                 Row oldRow = m_row;
@@ -513,9 +533,11 @@ void Cursor::nextThreadCardCreateCard()
 
 void Cursor::addNewCard(CardItem::Type type)
 {
-    moveToTOCForNewCard();
     Q_ASSERT(m_yearToCardStack.contains(m_year));
+    moveToTOCForNewCard();
+    m_linkHistory.append(m_currentCard);
     CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::New, m_currentCard);
+    m_currentCard->setCurrentLink(newCard);
     showCard(newCard);
     m_row = 0;
     m_col = 0;
@@ -525,7 +547,9 @@ void Cursor::addNewCard(CardItem::Type type)
 void Cursor::addContinuationCard(CardItem::Type type)
 {
     Q_ASSERT(m_yearToCardStack.contains(m_year));
+    m_linkHistory.append(m_currentCard);
     CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::Continue, m_currentCard);
+    m_currentCard->setCurrentLink(newCard);
     showCard(newCard);
 }
 
@@ -621,36 +645,22 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         qreal charWidth_scn = rowItem->charWidth_scn();
         qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-        // TOC, not in title row
-        if (m_row != 0 && m_currentCard->isTOC())
+        // Draw links if not in title row
+        if (m_row != 0)
         {
-            auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
-            Q_ASSERT(toc);
-
-            // TODO: get current link for card
-            //       get row, col for link
-            //       get number of chars for link
-            //       draw rect around link
-            CardItem::CardLink link = toc->currentLink();
-            Q_ASSERT(link.targetCard);
-            QPointF topLeft(link.col * charWidth_scn + Card::kBorder_scn,
-                            lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
-            QPointF bottomRight(topLeft.x() + link.charCount * charWidth_scn,
-                                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
-            QRectF cursorRect(topLeft, bottomRight);
-            qreal percentage = 15.0;
-            painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
-
-            // if (!toc->isEmpty())
-            // {
-            //     QPointF topLeft(Card::kBorder_scn,
-            //                     lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
-            //     QPointF bottomRight(Card::kRect_scn.width() - Card::kBorder_scn,
-            //                         lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
-            //     QRectF cursorRect(topLeft, bottomRight);
-            //     qreal percentage = 0.25;
-            //     painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
-            // }
+            if (m_currentCard->hasLinks())
+            {
+                CardItem::CardLink link = m_currentCard->currentLink();
+                qreal linkLineY_scn = link.targetCard->rowLineY_scn(link.row);
+                Q_ASSERT(link.targetCard);
+                QPointF topLeft(link.col * charWidth_scn + Card::kBorder_scn,
+                                linkLineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
+                QPointF bottomRight(topLeft.x() + link.charCount * charWidth_scn,
+                                    linkLineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
+                QRectF cursorRect(topLeft, bottomRight);
+                qreal percentage = 15.0;
+                painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
+            }
         }
         else if (tempMode == KeyboardMode::Typing) // hollow square
         {

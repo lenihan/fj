@@ -66,10 +66,11 @@ class CardItem : public QGraphicsRectItem
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 
+    bool hasLinks() const;
     CardLink currentLink() const;
     void nextLink();
     void prevLink();
-    void setLastAsCurrentLink();
+    void setCurrentLink(CardItem *card);
     virtual void setupLinks();
 
   protected:
