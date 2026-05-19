@@ -71,6 +71,7 @@ class Cursor
 
     void showCard(CardItem* card);
     void tocCurrent();
+    void addCard(CardItem::Type type, CardStack::ThreadMode threadMode);
 
     Year m_year{0};
     Row m_row{0};

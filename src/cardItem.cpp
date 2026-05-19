@@ -209,7 +209,7 @@ void CardItem::setCurrentLink(CardItem* card)
     Q_ASSERT(false); // should have found the card in the links
 }
 
-void CardItem::setupLinks()
+void CardItem::setupPrevLink()
 {
     if (m_threadPrev)
     {
@@ -219,8 +219,11 @@ void CardItem::setupLinks()
         ColCount colCount = prev.length();
         m_links.append({lastRow, col, colCount, m_threadPrev});
     }
+}
 
-    if (m_threadNext)
+void CardItem::setupNextLink()
+{
+   if (m_threadNext)
     {
         QString next = linkStr(m_threadNext);
         Row lastRow = Card::kNumRows - 1;
@@ -228,6 +231,12 @@ void CardItem::setupLinks()
         ColCount colCount = next.length();
         m_links.append({lastRow, col, colCount, m_threadNext});
     }
+ }
+
+void CardItem::setupLinks()
+{
+    setupPrevLink();
+    setupNextLink();
     m_currentLinkIndex = m_links.size() - 1;
 }
 

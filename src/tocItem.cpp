@@ -77,6 +77,7 @@ bool TOCItem::isFull() const
 
 void TOCItem::setupLinks()
 {
+    setupPrevLink();
     for(CardItem* card : m_content)
     {
         QString cardLinkStr = linkStr(card);
@@ -85,7 +86,25 @@ void TOCItem::setupLinks()
         ColCount colCount = cardLinkStr.length();
         m_links.append({row, col, colCount, card});
     }
-    CardItem::setupLinks();
+    setupNextLink();
+    if (threadPrev() == nullptr)
+    {
+        // Only master TOC can have empty prev thread
+        if (m_content.size() == 0)
+        {
+            m_currentLinkIndex = -1;
+            Q_ASSERT(threadNext() == nullptr);
+        }
+        else
+            m_currentLinkIndex = 0;
+    }
+    else
+    {
+        if (m_content.size() == 0)
+            m_currentLinkIndex = 0;
+        else
+            m_currentLinkIndex = 1;
+    }
 }
 
 void TOCItem::setupRowAt(Row row)

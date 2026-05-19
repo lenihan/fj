@@ -64,7 +64,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     addNewCard(CardItem::Type::TOC);
     masterCS->lastCardItem()->firstRowItem()->setText("TOC 7");
     showCard(masterCS->tableOfContents());
-
+    
     m_row = 1;
     m_keyboardMode = KeyboardMode::Command;
 
@@ -540,13 +540,8 @@ void Cursor::nextThreadCardCreateCard()
 
 void Cursor::addNewCard(CardItem::Type type)
 {
-    // TODO: Compbine this and next so they share as much as possible
-    Q_ASSERT(m_yearToCardStack.contains(m_year));
     moveToTOCForNewCard();
-    m_linkHistory.append(m_currentCard);
-    CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::New, m_currentCard);
-    m_currentCard->setCurrentLink(newCard);
-    showCard(newCard);
+    addCard(type, CardStack::ThreadMode::New);
     m_row = 0;
     m_col = 0;
     m_keyboardMode = KeyboardMode::Typing; // Need title text
@@ -554,6 +549,8 @@ void Cursor::addNewCard(CardItem::Type type)
 
 void Cursor::addContinuationCard(CardItem::Type type)
 {
+    addCard(type, CardStack::ThreadMode::Continue);
+
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     m_linkHistory.append(m_currentCard);
     CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::Continue, m_currentCard);
@@ -715,4 +712,12 @@ void Cursor::tocCurrent()
     m_row = 1;
     m_col = 0;
     m_keyboardMode = KeyboardMode::Command;
+}
+
+void Cursor::addCard(CardItem::Type type, CardStack::ThreadMode threadMode)
+{
+    Q_ASSERT(m_yearToCardStack.contains(m_year));
+    m_linkHistory.append(m_currentCard);
+    CardItem* newCard = m_yearToCardStack[m_year]->add(type, threadMode, m_currentCard);
+    showCard(newCard);
 }

@@ -71,6 +71,8 @@ class CardItem : public QGraphicsRectItem
     void nextLink();
     void prevLink();
     void setCurrentLink(CardItem *card);
+    void setupPrevLink();
+    void setupNextLink();
     virtual void setupLinks();
 
   protected:
