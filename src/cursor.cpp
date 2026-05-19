@@ -64,7 +64,10 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     addNewCard(CardItem::Type::TOC);
     masterCS->lastCardItem()->firstRowItem()->setText("TOC 7");
     showCard(masterCS->tableOfContents());
-    
+    addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("Content 1");
+    showCard(masterCS->tableOfContents());
+
     m_row = 1;
     m_keyboardMode = KeyboardMode::Command;
 
@@ -550,12 +553,6 @@ void Cursor::addNewCard(CardItem::Type type)
 void Cursor::addContinuationCard(CardItem::Type type)
 {
     addCard(type, CardStack::ThreadMode::Continue);
-
-    Q_ASSERT(m_yearToCardStack.contains(m_year));
-    m_linkHistory.append(m_currentCard);
-    CardItem* newCard = m_yearToCardStack[m_year]->add(type, CardStack::ThreadMode::Continue, m_currentCard);
-    m_currentCard->setCurrentLink(newCard);
-    showCard(newCard);
 }
 
 void Cursor::moveToTOCForNewCard()
