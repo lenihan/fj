@@ -87,14 +87,13 @@
     - [ ] Need way to edit title on toc...'e' for edit?
     - [ ] New keyboard mode
     - [ ] Use N for navigation mode
-    - [ ] Cursor should show up/down arrows and right arrow to remind how to navigate
-    - [ ] Use up/down to search through links in form YEAR-CARDNUM
-      - [ ] Also go to prev/next thread
-      - [ ] On TOC, goes through thread entries and navigation thread
-    - [ ] Press right arrow to go to link
-    - [ ] Press left arrow to go back to previous place
+    - [X] Go to prev/next thread
+    - [X] On TOC, goes through thread entries and navigation thread
+    - [X] Press right arrow to go to link
+    - [X] Press left arrow to go back to previous place
     - [ ] When you follow a TOC entry, cursor should select next thread
       - [ ] This means pressing right will move through cards in thread
+  - [ ] Verify you can edit with 'E'
   - [ ] 0-9 as bookmarks
     - [ ] Shift+# to store
   - [ ] Use S for Search
