@@ -94,6 +94,18 @@
     - [ ] When you follow a TOC entry, cursor should select next thread
       - [ ] This means pressing right will move through cards in thread
   - [ ] Verify you can edit with 'E'
+    - [ ] E -> mode is typing, navigation is cursor, block cursor
+    - [ ] N -> toggle between links and edit
+      - [ ] Nothing to edit (second page of TOC) - do nothing
+        - [ ] UI should indicate issue via shaking no - left and right?
+      - [ ] Links - box around link
+      - [ ] Edit - box around cursor location
+      - [ ] How do we show we are in command mode vs typing?
+        - [ ] Typing - current row highlighted
+        - [ ] Typing - box around cursor
+        - [ ] Command - smaller card than full size typing?
+        - [ ] UI - show Command/Typing
+          - [ ] When showing Command, show links/cursor
   - [ ] 0-9 as bookmarks
     - [ ] Shift+# to store
   - [ ] Use S for Search
