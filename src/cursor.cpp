@@ -27,6 +27,7 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     m_typingModeCursorPen.setWidthF(Pen::kTypingModeCursorWidth);
 
     // Darken brush setup
+    m_darkenedBrush.setStyle(Qt::SolidPattern);
     m_darkenedBrush.setColor(Pen::kDarkenedColor);
 
     // Command mode cursor brush setup
@@ -42,6 +43,8 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 
     addNewCard(CardItem::Type::Content);
     masterCS->lastCardItem()->firstRowItem()->setText("Help");
+#if 0
+
     showCard(masterCS->tableOfContents());
     addNewCard(CardItem::Type::TOC);
     masterCS->lastCardItem()->firstRowItem()->setText("TOC 1");
@@ -67,9 +70,10 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     addNewCard(CardItem::Type::Content);
     masterCS->lastCardItem()->firstRowItem()->setText("Content 1");
     showCard(masterCS->tableOfContents());
+#endif
 
     m_row = 1;
-    m_keyboardMode = KeyboardMode::Command;
+    enterTypingMode();
 
 #if 0   
     // Setup current year card stack
@@ -156,9 +160,10 @@ bool Cursor::isCommandMode() const
 
 void Cursor::enterTypingMode()
 {
-    if (m_currentCard->deleted() || m_currentCard->readOnly())
-        return;
+    Q_ASSERT(!m_currentCard->deleted());
+    Q_ASSERT(!m_currentCard->readOnly());
     m_keyboardMode = KeyboardMode::Typing;
+    m_navigationMode = NavigationMode::Cursor; // so you can use navigation keys
 }
 
 void Cursor::enterCommandMode()
@@ -320,9 +325,16 @@ void Cursor::enter()
     if (m_row == 0)
     {
         // Done with title
-        m_navigationMode = NavigationMode::Link;
-        m_keyboardMode = KeyboardMode::Command;
         m_row++;
+        if (m_currentCard->isContent())
+        {
+            enterTypingMode();
+        }
+        else if(m_currentCard->isTOC())
+        {
+            enterCommandMode();
+            m_navigationMode = NavigationMode::Link;
+        }
     }
     else if (m_currentCard->deleted() && m_currentCard->isContent())
     {
@@ -547,7 +559,7 @@ void Cursor::addNewCard(CardItem::Type type)
     addCard(type, CardStack::ThreadMode::New);
     m_row = 0;
     m_col = 0;
-    m_keyboardMode = KeyboardMode::Typing; // Need title text
+    enterTypingMode();
 }
 
 void Cursor::addContinuationCard(CardItem::Type type)
@@ -581,13 +593,16 @@ void Cursor::toggleDeleteCard()
 {
     Q_ASSERT(m_currentCard);
     m_currentCard->setDeleted(!m_currentCard->deleted());
-    m_keyboardMode = KeyboardMode::Command; 
+
+    // Remove/add delete slash
     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
 
 void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
 {
     Q_ASSERT(m_currentCard);
+
+    // Draw delete slash if the card is deleted
     if (m_currentCard->deleted())
     {
         QRectF r_scn = m_currentCard->sceneBoundingRect();
@@ -607,7 +622,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
     if (capsDown)
         tempMode = KeyboardMode::Command;
 
-    // Darken all but current row
+    // If typing, darken all but current row
     if (tempMode == KeyboardMode::Typing)
     {
         painter->setPen(Qt::NoPen);
@@ -636,8 +651,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         painter->drawPath(path);           // draws only the outline with hole
     }
 
-    // Draw cursor as red empty rounded square
-
+    // Draw cursor
     {
         painter->setPen(m_typingModeCursorPen);
         painter->setBrush(Qt::transparent);
@@ -647,8 +661,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         qreal charWidth_scn = rowItem->charWidth_scn();
         qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
 
-        // Draw links if not in title row
-        if (m_row != 0)
+        // Draw hollow square around links
+        if (tempMode == KeyboardMode::Command && m_navigationMode == NavigationMode::Link)
         {
             if (m_currentCard->hasLinks())
             {
@@ -664,6 +678,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
                 painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
             }
         }
+        // Draw cursor in typing mode as a hollow square
         else if (tempMode == KeyboardMode::Typing) // hollow square
         {
             QPointF topLeft(m_col * charWidth_scn + Card::kBorder_scn,
@@ -674,7 +689,8 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
             qreal percentage = 15.0;
             painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
         }
-        else // arrow pointing up under current character
+        // Draw cursor in command mode as an arrow pointing up under the current character
+        else 
         {
             painter->setBrush(m_commandModeCursorBrush);
             qreal deltaCharRow = rowHeight_scn - charHeight_scn;
@@ -708,7 +724,7 @@ void Cursor::tocCurrent()
 {
     m_row = 1;
     m_col = 0;
-    m_keyboardMode = KeyboardMode::Command;
+    enterCommandMode();
 }
 
 void Cursor::addCard(CardItem::Type type, CardStack::ThreadMode threadMode)

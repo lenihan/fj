@@ -94,15 +94,16 @@
     - [ ] When you follow a TOC entry, cursor should select next thread
       - [ ] This means pressing right will move through cards in thread
   - [ ] Verify you can edit with 'E'
-    - [ ] E -> mode is typing, navigation is cursor, block cursor
+    - [X] E -> mode is typing, navigation is cursor, block cursor
+      - [X] When editing title, should show as a highlight
     - [ ] N -> toggle between links and edit
       - [ ] Nothing to edit (second page of TOC) - do nothing
         - [ ] UI should indicate issue via shaking no - left and right?
       - [ ] Links - box around link
       - [ ] Edit - box around cursor location
       - [ ] How do we show we are in command mode vs typing?
-        - [ ] Typing - current row highlighted
-        - [ ] Typing - box around cursor
+        - [X] Typing - current row highlighted
+        - [X] Typing - box around cursor
         - [ ] Command - smaller card than full size typing?
         - [ ] UI - show Command/Typing
           - [ ] When showing Command, show links/cursor
@@ -187,3 +188,28 @@
     caps  a s d f g     h j k l ' enter
     shift z x c v b     n m , . / shift
            spacebar     spacebar
+
+
+
+
+
+
+
+scratch   
+  enum class KeyboardMode { Command, Typing };
+  enum class NavigationMode { Link, Cursor };
+
+  e -> typing
+         Caps would be command mode with cursor keys so you can move cursor and go back to typing
+
+typing -> commands -> typing
+
+commands -> typing
+
+exit typing mode to access commands
+
+command e -> typing mode
+typing caps -> command mode
+
+
+  

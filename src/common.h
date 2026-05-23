@@ -94,5 +94,5 @@ struct Pen
     inline static constexpr qreal kDeletedWidth = 10.0;
     inline static constexpr qreal kTypingModeCursorWidth = 2.0;
     inline static constexpr QColor kOrangishRed = QColor(227, 59, 36);
-    inline static constexpr QColor kDarkenedColor = QColor(0, 0, 0, 15);
+    inline static constexpr QColor kDarkenedColor = QColor(0, 0, 0, 50);
 };
