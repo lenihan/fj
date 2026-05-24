@@ -43,7 +43,44 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
 
     addNewCard(CardItem::Type::Content);
     masterCS->lastCardItem()->firstRowItem()->setText("Help");
-#if 0
+    addNewCard(CardItem::Type::TOC);
+    CardItem* test = masterCS->lastCardItem();
+    masterCS->lastCardItem()->firstRowItem()->setText("TEST TOC");
+    addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("a");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("b");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("c");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("d");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("e");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("f");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("g");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("h");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("i");
+    showCard(test);
+   addNewCard(CardItem::Type::Content);
+    masterCS->lastCardItem()->firstRowItem()->setText("j");
+    showCard(test);
+
+
+
+
+    #if 0
 
     showCard(masterCS->tableOfContents());
     addNewCard(CardItem::Type::TOC);
@@ -162,8 +199,12 @@ void Cursor::enterTypingMode()
 {
     if (m_currentCard->isTOC())
     {
-        shakeCardNo();
-        return; // Can't enter typing mode in TOC, only command mode
+        if (m_currentCard != m_currentCard->threadStart())
+        {
+            shakeCardNo();
+            return;
+        }
+        m_row = 0; // Move to title
     }
 
     Q_ASSERT(!m_currentCard->deleted());
@@ -179,9 +220,12 @@ void Cursor::enterCommandMode()
 
 void Cursor::toggleNavigationMode()
 {
-    Q_ASSERT(m_keyboardMode == KeyboardMode::Command); // Only makes sense to toggle navigation mode in command mode
     if (m_currentCard->isTOC())
-        m_navigationMode = NavigationMode::Link; // TOC only has link navigation mode
+    {
+        m_navigationMode = m_row == 0
+            ? NavigationMode::Cursor // Title can only do curor navigation
+            : NavigationMode::Link; // TOC only has link navigation mode
+    }
     else
         m_navigationMode = (m_navigationMode == NavigationMode::Link)
                                ? NavigationMode::Cursor
@@ -292,9 +336,11 @@ void Cursor::right()
             {
                 // Following prev thread, same as pressing back in link history
                 // Remove last link from history
-                Q_ASSERT(!m_linkHistory.isEmpty());
-                CardItem* prevCard = m_linkHistory.takeLast();
-                Q_ASSERT(prevCard == targetCard);
+                if (!m_linkHistory.isEmpty())
+                {
+                    if (m_linkHistory.last() == targetCard)
+                        m_linkHistory.removeLast();
+                }
             }
             else
                 m_linkHistory.append(m_currentCard);
@@ -380,11 +426,7 @@ void Cursor::enter()
         if (m_currentCard->readOnly())
             Q_ASSERT(false); // TODO: Add new content to m_year, connected to this thread
         else
-        {
             nextRowCreateCard();
-            if (m_currentCard->isTOC())
-                tocCurrent();
-        }
     }
     m_col = 0;
 }
@@ -566,6 +608,7 @@ void Cursor::nextThreadCardCreateCard()
     else
     {
         Q_ASSERT(m_yearToCardStack.contains(m_year));
+        m_row = nextCard->firstUserRow();
         addContinuationCard(CardItem::Type::Content);
     }
 }

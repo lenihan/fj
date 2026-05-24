@@ -44,8 +44,8 @@
 
 - [ ] Proof of Concept
   - [ ] Convert RowItem to be derived from QGraphicsItem
-  - [ ] When navigating links, left goes to previous location
-  - [ ] When you follow a TOC to a page, start in navigation mode with the prev thread link highlighted
+  - [X] When navigating links, left goes to previous location
+  - [X] When you follow a TOC to a page, start in navigation mode with the prev thread link highlighted
   - [X] CMake presets
   - [X] Make CapsLock state return to normal while fj is running, but is no longer the active window
   - [ ] +Shift to move to beginning/end
@@ -83,30 +83,23 @@
         - [ ] Current stack TOC points to start continued TOC
       - [ ] New card created in current card stack
         - [ ] New TOC point to new card
-  - [ ] Link navigation
-    - [ ] Need way to edit title on toc...'e' for edit?
-    - [ ] New keyboard mode
-    - [ ] Use N for navigation mode
+  - [X] Link navigation
+    - [X] Need way to edit title on toc...'e' for edit?
+    - [X] Use N for navigation mode
     - [X] Go to prev/next thread
     - [X] On TOC, goes through thread entries and navigation thread
     - [X] Press right arrow to go to link
     - [X] Press left arrow to go back to previous place
-    - [ ] When you follow a TOC entry, cursor should select next thread
-      - [ ] This means pressing right will move through cards in thread
-  - [ ] Verify you can edit with 'E'
+    - [X] When you follow a TOC entry, cursor should select next thread
+      - [X] This means pressing right will move through cards in thread
+  - [X] Verify you can edit with 'E'
     - [X] E -> mode is typing, navigation is cursor, block cursor
       - [X] When editing title, should show as a highlight
-    - [ ] N -> toggle between links and edit
-      - [ ] Nothing to edit (second page of TOC) - do nothing
-        - [ ] UI should indicate issue via shaking no - left and right?
-      - [ ] Links - box around link
-      - [ ] Edit - box around cursor location
-      - [ ] How do we show we are in command mode vs typing?
-        - [X] Typing - current row highlighted
-        - [X] Typing - box around cursor
-        - [ ] Command - smaller card than full size typing?
-        - [ ] UI - show Command/Typing
-          - [ ] When showing Command, show links/cursor
+    - [X] N -> toggle between links and edit
+      - [X] Nothing to edit (second page of TOC) - do nothing
+        - [X] UI should indicate issue via shaking no - left and right?
+      - [X] Links - box around link
+      - [X] Edit - box around cursor location
   - [ ] 0-9 as bookmarks
     - [ ] Shift+# to store
   - [ ] Use S for Search
