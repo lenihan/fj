@@ -116,6 +116,7 @@
   - [ ] Save/load from disk automatically
 - [ ] Start personal use
 - [ ] UI - make it so user knows what to do instictively
+  - [ ] Cursor::shakeCardNo()
 - [ ] Test on Linux Raspberry Pi Zero
 - [ ] Next
   - [ ] User links

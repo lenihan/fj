@@ -56,6 +56,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
                     case Qt::Key_D: m_cursor.toggleDeleteCard(); break;
                     case Qt::Key_C: m_cursor.addNewCard(CardItem::Type::Content); break;
                     case Qt::Key_T: m_cursor.addNewCard(CardItem::Type::TOC); break;
+                    case Qt::Key_N: m_cursor.toggleNavigationMode(); break;
                     case Qt::Key_M: m_cursor.prevThreadCard(); break;
                     case Qt::Key_Period: m_cursor.nextThreadCard(); break;
                 }

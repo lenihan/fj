@@ -160,6 +160,12 @@ bool Cursor::isCommandMode() const
 
 void Cursor::enterTypingMode()
 {
+    if (m_currentCard->isTOC())
+    {
+        shakeCardNo();
+        return; // Can't enter typing mode in TOC, only command mode
+    }
+
     Q_ASSERT(!m_currentCard->deleted());
     Q_ASSERT(!m_currentCard->readOnly());
     m_keyboardMode = KeyboardMode::Typing;
@@ -171,11 +177,22 @@ void Cursor::enterCommandMode()
     m_keyboardMode = KeyboardMode::Command;
 }
 
+void Cursor::toggleNavigationMode()
+{
+    Q_ASSERT(m_keyboardMode == KeyboardMode::Command); // Only makes sense to toggle navigation mode in command mode
+    if (m_currentCard->isTOC())
+        m_navigationMode = NavigationMode::Link; // TOC only has link navigation mode
+    else
+        m_navigationMode = (m_navigationMode == NavigationMode::Link)
+                               ? NavigationMode::Cursor
+                               : NavigationMode::Link;
+}
+
 void Cursor::up()
 {
     if (m_row == 0)
         return; //  can't leave title via up
-    
+
     if (m_navigationMode == NavigationMode::Link)
     {
         if (m_currentCard->hasLinks())
@@ -199,7 +216,7 @@ void Cursor::down()
         if (m_currentCard->hasLinks())
             m_currentCard->nextLink();
     }
-    else if(m_navigationMode == NavigationMode::Cursor)
+    else if (m_navigationMode == NavigationMode::Cursor)
     {
         if (m_row != 0 && m_currentCard->isTOC())
             nextRow();
@@ -228,7 +245,7 @@ void Cursor::left()
             showCard(prevCard);
         }
     }
-    else if(m_navigationMode == NavigationMode::Cursor)
+    else if (m_navigationMode == NavigationMode::Cursor)
     {
         if (m_row != 0 && m_currentCard->isTOC())
             ; // noop
@@ -260,7 +277,7 @@ void Cursor::right()
     {
         if (m_col == m_currentCard->lastColAt(m_row))
             return; // can't leave whle working on title
-        else        
+        else
             m_col++;
     }
     else if (m_navigationMode == NavigationMode::Link)
@@ -293,7 +310,7 @@ void Cursor::right()
             if (toc->numberContent() > 0)
             {
                 CardItem* newCard = toc->cardAtRow(m_row);
-    
+
                 // Skip over deleted cards
                 CardItem* nextCard = newCard;
                 while (nextCard && nextCard->deleted())
@@ -301,7 +318,7 @@ void Cursor::right()
                 if (nextCard && !nextCard->deleted())
                     newCard = nextCard;
                 Q_ASSERT(newCard);
-    
+
                 showCard(newCard);
             }
         }
@@ -317,7 +334,7 @@ void Cursor::right()
             else
                 m_col++;
         }
-    }    
+    }
 }
 
 void Cursor::enter()
@@ -330,7 +347,7 @@ void Cursor::enter()
         {
             enterTypingMode();
         }
-        else if(m_currentCard->isTOC())
+        else if (m_currentCard->isTOC())
         {
             enterCommandMode();
             m_navigationMode = NavigationMode::Link;
@@ -381,7 +398,7 @@ void Cursor::backspace()
         if (m_col == m_currentCard->firstColAt(m_row))
         {
             // noop
-            // TODO: Alert user you can't backspace past first col
+            shakeCardNo();
         }
         else
         {
@@ -457,7 +474,7 @@ void Cursor::prevRow()
         CardItem* oldCard = m_currentCard;
         prevThreadCard();
         if (oldCard != m_currentCard)
-                m_row = m_currentCard->lastUserRow();
+            m_row = m_currentCard->lastUserRow();
     }
     else
         m_row--;
@@ -468,7 +485,7 @@ void Cursor::nextCard()
     if (m_currentCard->cardNumber() == lastCardNumber())
     {
         // Last card...Stop!
-        // TODO: UI indicates at last card
+        shakeCardNo();
     }
     else
     {
@@ -487,7 +504,7 @@ void Cursor::prevCard()
     if (m_currentCard->cardNumber() == 0)
     {
         // First card...Stop!
-        // TODO: UI indicates at last card
+        shakeCardNo();
     }
     else
     {
@@ -532,7 +549,7 @@ void Cursor::nextThreadCard()
     {
         nextCard = nextCard->threadNext();
     }
-    
+
     if (nextCard && !nextCard->deleted())
     {
         if (nextCard->isTOC())
@@ -571,10 +588,10 @@ void Cursor::moveToTOCForNewCard()
 {
     Q_ASSERT(m_yearToCardStack.contains(m_year));
     Q_ASSERT(m_currentCard);
-    
+
     TOCItem* toc = dynamic_cast<TOCItem*>(m_currentCard->tableOfContents());
     Q_ASSERT(toc);
-    while(toc->threadNext())
+    while (toc->threadNext())
     {
         Q_ASSERT(toc->isFull());
         toc = dynamic_cast<TOCItem*>(toc->threadNext());
@@ -607,7 +624,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
     {
         QRectF r_scn = m_currentCard->sceneBoundingRect();
         qreal inset_scn = Body::kRowHeight_scn;
-        QPointF p1_scn = r_scn.topLeft()     + QPointF(inset_scn, inset_scn);
+        QPointF p1_scn = r_scn.topLeft() + QPointF(inset_scn, inset_scn);
         QPointF p2_scn = r_scn.bottomRight() - QPointF(inset_scn, inset_scn);
 
         painter->setPen(m_deletedPen);
@@ -627,7 +644,6 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
     {
         painter->setPen(Qt::NoPen);
         painter->setBrush(m_darkenedBrush);
-  
 
         qreal rowHeight_scn = rowItem->rowHeight_scn();
         qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
@@ -690,7 +706,7 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
             painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
         }
         // Draw cursor in command mode as an arrow pointing up under the current character
-        else 
+        else
         {
             painter->setBrush(m_commandModeCursorBrush);
             qreal deltaCharRow = rowHeight_scn - charHeight_scn;
@@ -717,6 +733,10 @@ void Cursor::showCard(CardItem* card)
         m_currentCard->hide();
     card->show();
     m_currentCard = card;
+
+    if (m_currentCard->isTOC())
+        m_navigationMode = NavigationMode::Link;
+
     scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
 
@@ -733,4 +753,10 @@ void Cursor::addCard(CardItem::Type type, CardStack::ThreadMode threadMode)
     m_linkHistory.append(m_currentCard);
     CardItem* newCard = m_yearToCardStack[m_year]->add(type, threadMode, m_currentCard);
     showCard(newCard);
+}
+
+void Cursor::shakeCardNo() const
+{
+    // TODO: make card shake left and right quickly like it is saying "no"
+    //       to give user feedback they can't do something
 }
