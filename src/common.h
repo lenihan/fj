@@ -96,3 +96,8 @@ struct Pen
     inline static constexpr QColor kOrangishRed = QColor(227, 59, 36);
     inline static constexpr QColor kDarkenedColor = QColor(0, 0, 0, 50);
 };
+
+struct Scene
+{
+   inline static constexpr QColor kBlack = QColor(0, 0, 0);
+};

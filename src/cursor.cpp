@@ -21,7 +21,6 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     m_deletedPen.setCapStyle(Qt::RoundCap);
 
     // Typing mode cursor pen setup
-    QColor orangishRed(227, 59, 36);
     m_typingModeCursorPen.setColor(Pen::kOrangishRed);
     m_typingModeCursorPen.setCosmetic(true);
     m_typingModeCursorPen.setWidthF(Pen::kTypingModeCursorWidth);
@@ -207,8 +206,11 @@ void Cursor::enterTypingMode()
         m_row = 0; // Move to title
     }
 
-    Q_ASSERT(!m_currentCard->deleted());
-    Q_ASSERT(!m_currentCard->readOnly());
+    if (m_currentCard->readOnly() || m_currentCard->deleted())
+    {
+        shakeCardNo();
+        return;
+    }
     m_keyboardMode = KeyboardMode::Typing;
     m_navigationMode = NavigationMode::Cursor; // so you can use navigation keys
 }
@@ -398,6 +400,11 @@ void Cursor::enter()
             enterCommandMode();
             m_navigationMode = NavigationMode::Link;
         }
+    }
+    else if (m_keyboardMode == KeyboardMode::Command)
+    {
+        shakeCardNo();
+        return;
     }
     else if (m_currentCard->deleted() && m_currentCard->isContent())
     {

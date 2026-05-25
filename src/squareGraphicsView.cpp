@@ -16,8 +16,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
 
     // UI
     QRectF uiRect(UI::kRect_scn);
-    QColor uiColor("#202020");
-    scene->addRect(uiRect, QPen(Qt::NoPen), QBrush(uiColor));
+    scene->addRect(uiRect, QPen(Qt::NoPen), QBrush(UI::kBackgroundColor));
 }
 
 void SquareGraphicsView::drawForeground(QPainter* painter, const QRectF& rect)

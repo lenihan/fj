@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
     
     QGraphicsScene scene;
     scene.setSceneRect(Screen::kLeft_scn, Screen::kTop_scn, Screen::kWidth_scn, Screen::kHeight_scn);
-    scene.setBackgroundBrush(QBrush(Qt::black));
+    scene.setBackgroundBrush(QBrush(Scene::kBlack));
     
     SquareGraphicsView view(&scene);
     view.setSceneRect(scene.sceneRect());

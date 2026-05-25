@@ -43,19 +43,12 @@
 ## TODO
 
 - [ ] Proof of Concept
+  - [ ] When typing, hold caps down, enter should be shackCardNo
   - [ ] Convert RowItem to be derived from QGraphicsItem
   - [X] When navigating links, left goes to previous location
   - [X] When you follow a TOC to a page, start in navigation mode with the prev thread link highlighted
   - [X] CMake presets
   - [X] Make CapsLock state return to normal while fj is running, but is no longer the active window
-  - [ ] +Shift to move to beginning/end
-    - [ ] Shift+U : First card in stack
-    - [ ] Shift+O : Last card in stack
-    - [ ] Shift+M : First card in thread
-    - [ ] Shift+. : Last card in thread
-    - [ ] Shift+I : Master card stack TOC
-    - [ ] Shift+K : Current card stack TOC
-    - [ ] Backspace : Toggle previous card
   - [X] Deleting
     - [X] Support deleting all cards except card 1 TOC and it's thread
     - [X] When a card is deleted, skip over it when moving through thread
@@ -100,18 +93,26 @@
         - [X] UI should indicate issue via shaking no - left and right?
       - [X] Links - box around link
       - [X] Edit - box around cursor location
-  - [ ] 0-9 as bookmarks
-    - [ ] Shift+# to store
-  - [ ] Use S for Search
   - [ ] Use / for Help
-  - [ ] Use x for TODO/DONE/No TODO
-  - [ ] Ability to access characters not available from basic keyboard
   - [ ] Save/load from disk automatically
 - [ ] Start personal use
 - [ ] UI - make it so user knows what to do instictively
   - [ ] Cursor::shakeCardNo()
 - [ ] Test on Linux Raspberry Pi Zero
 - [ ] Next
+  - [ ] Ability to access characters not available from basic keyboard
+  - [ ] Use x for TODO/DONE/No TODO
+  - [ ] 0-9 as bookmarks
+    - [ ] Shift+# to store
+  - [ ] Use S for Search
+  - [ ] +Shift to move to beginning/end
+    - [ ] Shift+U : First card in stack
+    - [ ] Shift+O : Last card in stack
+    - [ ] Shift+M : First card in thread
+    - [ ] Shift+. : Last card in thread
+    - [ ] Shift+I : Master card stack TOC
+    - [ ] Shift+K : Current card stack TOC
+    - [ ] Backspace : Toggle previous card
   - [ ] User links
     - [ ] How to create a link? "L" then year-cardnumber? Let user find card they want to link to?
     - [ ] Create
