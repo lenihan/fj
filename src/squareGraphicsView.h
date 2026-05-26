@@ -23,5 +23,6 @@ class SquareGraphicsView : public QGraphicsView
 
     bool m_capsDown{false};
     bool m_shiftDown{false};  
+    bool m_wasTypingMode{false};
     int m_lastKeyPress{0};
 };

@@ -15,7 +15,7 @@ RowItem::RowItem(Row row, QGraphicsItem* parent)
       m_row(row)
 {
     setFont(kFont);
-    setBrush(Qt::black);
+    setBrush(Colors::kBlack);
     setPen(Qt::NoPen);
 
     // Calc font to scene scale
@@ -60,11 +60,11 @@ void RowItem::setReadOnly(bool readOnly)
     m_readOnly = readOnly;
     if (m_readOnly)
     {
-        setBrush(Qt::lightGray);
+        setBrush(Colors::kLightGray);
     }
     else
     {
-        setBrush(Qt::black);
+        setBrush(Colors::kBlack);
     }
 }
 

@@ -21,16 +21,16 @@ Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
     m_deletedPen.setCapStyle(Qt::RoundCap);
 
     // Typing mode cursor pen setup
-    m_typingModeCursorPen.setColor(Pen::kOrangishRed);
+    m_typingModeCursorPen.setColor(Colors::kOrangishRed);
     m_typingModeCursorPen.setCosmetic(true);
     m_typingModeCursorPen.setWidthF(Pen::kTypingModeCursorWidth);
 
     // Darken brush setup
     m_darkenedBrush.setStyle(Qt::SolidPattern);
-    m_darkenedBrush.setColor(Pen::kDarkenedColor);
+    m_darkenedBrush.setColor(Colors::kDarkenedColor);
 
     // Command mode cursor brush setup
-    m_commandModeCursorBrush.setColor(Pen::kOrangishRed);
+    m_commandModeCursorBrush.setColor(Colors::kOrangishRed);
 
     // Setup master card stack
     m_year = Master::kYear;
@@ -461,7 +461,10 @@ void Cursor::backspace()
 void Cursor::charTyped(QChar c)
 {
     if (m_currentCard->deleted() || m_currentCard->readOnly())
+    {
+        shakeCardNo();
         return;
+    }
 
     if (m_row == 0 || m_currentCard->isContent())
     {

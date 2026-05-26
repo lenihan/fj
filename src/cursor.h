@@ -13,6 +13,8 @@ class QGraphicsScene;
 class Cursor
 {
   public:
+    enum class KeyboardMode { Command, Typing };
+    
     Cursor(QGraphicsScene* scene);
 
     CardNumber lastCardNumber() const;
@@ -68,7 +70,6 @@ class Cursor
     void draw(QPainter* painter, const QRectF& rect, bool capsDown);
 
   private:
-    enum class KeyboardMode { Command, Typing };
     enum class NavigationMode { Link, Cursor };
 
     void showCard(CardItem* card);

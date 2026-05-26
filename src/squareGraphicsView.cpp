@@ -32,7 +32,7 @@ void SquareGraphicsView::keyPressEvent(QKeyEvent* event)
     m_lastKeyPress = k;
     switch(k)
     {
-        case Qt::Key_CapsLock: m_capsDown = true; break;
+        case Qt::Key_CapsLock: m_capsDown = true; m_wasTypingMode = m_cursor.isTypingMode(); m_cursor.enterCommandMode(); break;
         case Qt::Key_Shift: m_shiftDown = true; break;
         case Qt::Key_Return: m_cursor.enter(); break;
         case Qt::Key_Backspace: m_cursor.backspace(); break;
@@ -82,7 +82,10 @@ void SquareGraphicsView::keyReleaseEvent(QKeyEvent* event)
             m_capsDown = false;
             if (m_lastKeyPress == Qt::Key_CapsLock)
                 m_cursor.enterCommandMode();
-            
+            else if (m_wasTypingMode)
+                m_cursor.enterTypingMode();
+            else
+                m_cursor.enterCommandMode();
             // Force redraw of cursor at new location
             scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
             break;
