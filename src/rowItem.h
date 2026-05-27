@@ -1,18 +1,21 @@
 #pragma once
 
 #include "common.h"
+#include <QBrush>
 #include <QFont>
-#include <QGraphicsSimpleTextItem>
+#include <QGraphicsItem>
 
 // TODO: Make this a QGraphicsItem and use paint w/ drawText
 // Then you can share QString for title more efficiently
 // Bounding box can be static
 
-class RowItem : public QGraphicsSimpleTextItem
+class RowItem : public QGraphicsItem
 {
   public:
-    explicit RowItem(Row row, QGraphicsItem* parent = nullptr);
-    
+  explicit RowItem(Row row, QGraphicsItem* parent = nullptr);
+    QRectF boundingRect() const;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr);
+
     Row row() const;
     ColCount colPerRow() const;
     qreal rowHeight_scn() const;
@@ -20,10 +23,13 @@ class RowItem : public QGraphicsSimpleTextItem
     qreal charWidth_scn() const;
     
     void setChar(QChar c, Row row, Col col);
-    void setText(const QString& text); // Not virtual, hides base class setText
+
+    void setText(const QString& text);
+    QString text() const;
     
     void setReadOnly(bool readOnly);
     bool readOnly() const;
+
     
   private:
     static QFont font();
@@ -41,4 +47,5 @@ class RowItem : public QGraphicsSimpleTextItem
     qreal m_fontToScnScale;
     QString m_text;
     bool m_readOnly{false};
+    QBrush m_brush;
 };

@@ -7,17 +7,13 @@
 #include <QPen>
 
 RowItem::RowItem(Row row, QGraphicsItem* parent)
-    : QGraphicsSimpleTextItem(parent), kFont(font()),
+    : QGraphicsItem(parent), kFont(font()),
       kFontCharWidth_fnt(fontCharWidth_fnt()),
       kFontCharHeight_fnt(fontCharHeight_fnt()),
       kColsPerRow(row == 0 ? Title::kColsPerRow : Body::kColsPerRow),
       kRowHeight_scn(row == 0 ? Title::kRowHeight_scn : Body::kRowHeight_scn),
       m_row(row)
 {
-    setFont(kFont);
-    setBrush(Colors::kBlack);
-    setPen(Qt::NoPen);
-
     // Calc font to scene scale
     qreal rowWidth_fnt = kFontCharWidth_fnt * kColsPerRow;
     m_fontToScnScale = Card::kUseabledWidth_scn / rowWidth_fnt;
@@ -32,6 +28,20 @@ RowItem::RowItem(Row row, QGraphicsItem* parent)
     // Initialize row filled with spaces (empty)
     m_text = QString(kColsPerRow, ' ');
     setText(m_text);
+}
+
+QRectF RowItem::boundingRect() const
+{
+    qreal x = 0.0;
+    qreal y = 0.0;
+    qreal width = kColsPerRow * kFontCharWidth_fnt * m_fontToScnScale;
+    qreal height = kRowHeight_scn;
+    return QRectF(x, y, width, height);
+}
+
+void RowItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+
 }
 
 Row RowItem::row() const
@@ -52,7 +62,12 @@ void RowItem::setText(const QString& text)
 {
     m_text.replace(0, text.length(), text);
     Q_ASSERT(m_text.length() == kColsPerRow);
-    QGraphicsSimpleTextItem::setText(text);
+    update();
+}
+
+QString RowItem::text() const
+{
+    return m_text;
 }
 
 void RowItem::setReadOnly(bool readOnly)
@@ -60,12 +75,13 @@ void RowItem::setReadOnly(bool readOnly)
     m_readOnly = readOnly;
     if (m_readOnly)
     {
-        setBrush(Colors::kLightGray);
+        m_brush = QBrush(Colors::kLightGray);
     }
     else
     {
-        setBrush(Colors::kBlack);
+        m_brush = QBrush(Colors::kBlack);
     }
+    update();
 }
 
 bool RowItem::readOnly() const
