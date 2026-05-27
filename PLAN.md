@@ -43,7 +43,7 @@
 ## TODO
 
 - [ ] Proof of Concept
-  - [ ] When typing, hold caps down, enter should be shackCardNo
+  - [X] When typing, hold caps down, enter should be shackCardNo
   - [ ] Convert RowItem to be derived from QGraphicsItem
   - [X] When navigating links, left goes to previous location
   - [X] When you follow a TOC to a page, start in navigation mode with the prev thread link highlighted
