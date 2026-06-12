@@ -40,11 +40,24 @@
   - ↑CARDNUM or ↑YEAR-CARDNUM - A link to parent TOC card
   - YEAR- prefix is dropped if YEAR is same as card stack's YEAR
 
+## Coordinate System
+
+- Variables denote coordsys via "_XXXX" with XXXX as the 4 char coordsys
+
+- Scene (_scen) is in inches with 0, 0 in upper-left
+- Font (_font) is for fonts
+- View (_view) is in pixels on the screen, with 0, 0 at upper left of window
+- Local (_locl) is in pixels, with 0,0 at upper left of bounding rect
+
 ## TODO
 
 - [ ] Proof of Concept
   - [X] When typing, hold caps down, enter should be shackCardNo
   - [ ] Convert RowItem to be derived from QGraphicsItem
+  - [ ] RowItem does background, is shadeded when not active row.
+    - [ ] Remove background drawing from card
+    - [ ] Remove highlighting current row code from cursor draw
+  - [ ] Update variables to use coodsys _XXXX as described above
   - [X] When navigating links, left goes to previous location
   - [X] When you follow a TOC to a page, start in navigation mode with the prev thread link highlighted
   - [X] CMake presets

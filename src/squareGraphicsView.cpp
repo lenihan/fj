@@ -15,7 +15,7 @@ SquareGraphicsView::SquareGraphicsView(QGraphicsScene* scene)
     setRenderHint(QPainter::Antialiasing);
 
     // UI
-    QRectF uiRect(UI::kRect_scn);
+    QRectF uiRect(UI::kRect_scen);
     scene->addRect(uiRect, QPen(Qt::NoPen), QBrush(UI::kBackgroundColor));
 }
 

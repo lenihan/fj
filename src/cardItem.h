@@ -34,7 +34,7 @@ class CardItem : public QGraphicsRectItem
     void setText(Row row, const QString& text);
     
     ColCount colPerRow(Row row) const;
-    qreal rowLineY_scn(Row row) const;
+    qreal rowLineY_scen(Row row) const;
     const RowItem* rowItem(Row row) const;
     CardNumber cardNumber() const;
     Year year() const;

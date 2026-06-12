@@ -45,11 +45,11 @@ ColCount CardItem::colPerRow(Row row) const
     return m_rows[row]->colPerRow();
 }
 
-qreal CardItem::rowLineY_scn(Row row) const
+qreal CardItem::rowLineY_scen(Row row) const
 {
-    qreal y_scn =
-        Card::kTop_scn + Title::kRowHeight_scn + (row * Body::kRowHeight_scn);
-    return y_scn;
+    qreal y_scen =
+        Card::kTop_scen + Title::kRowHeight_scen + (row * Body::kRowHeight_scen);
+    return y_scen;
 }
 
 RowItem* CardItem::firstRowItem()
@@ -257,7 +257,7 @@ QVariant CardItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QV
 
 void CardItem::setupBackground()
 {
-    setRect(Card::kRect_scn);
+    setRect(Card::kRect_scen);
     setPen(Qt::NoPen);
     setBrush(QBrush(Card::kColor));
 }
@@ -267,8 +267,8 @@ void CardItem::setupLines()
     for (int i = 0; i < Card::kNumRows - 1; ++i)
     {
         auto* line = new QGraphicsLineItem(this);
-        qreal y_scn = rowLineY_scn(i);
-        line->setLine(Card::kLeft_scn, y_scn, Card::kRight_scn, y_scn);
+        qreal y_scen = rowLineY_scen(i);
+        line->setLine(Card::kLeft_scen, y_scen, Card::kRight_scen, y_scen);
 
         QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
         pen.setWidthF(3.0);

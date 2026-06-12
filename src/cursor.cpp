@@ -675,13 +675,13 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
     // Draw delete slash if the card is deleted
     if (m_currentCard->deleted())
     {
-        QRectF r_scn = m_currentCard->sceneBoundingRect();
-        qreal inset_scn = Body::kRowHeight_scn;
-        QPointF p1_scn = r_scn.topLeft() + QPointF(inset_scn, inset_scn);
-        QPointF p2_scn = r_scn.bottomRight() - QPointF(inset_scn, inset_scn);
+        QRectF r_scen = m_currentCard->sceneBoundingRect();
+        qreal inset_scen = Body::kRowHeight_scen;
+        QPointF p1_scen = r_scen.topLeft() + QPointF(inset_scen, inset_scen);
+        QPointF p2_scen = r_scen.bottomRight() - QPointF(inset_scen, inset_scen);
 
         painter->setPen(m_deletedPen);
-        painter->drawLine(p1_scn, p2_scn);
+        painter->drawLine(p1_scen, p2_scen);
         return;
     }
 
@@ -698,22 +698,22 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         painter->setPen(Qt::NoPen);
         painter->setBrush(m_darkenedBrush);
 
-        qreal rowHeight_scn = rowItem->rowHeight_scn();
-        qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+        qreal rowHeight_scen = rowItem->rowHeight_scen();
+        qreal lineY_scen = m_currentCard->rowLineY_scen(m_row);
 
-        qreal x = Card::kLeft_scn;
-        qreal y = lineY_scn - rowHeight_scn;
-        qreal w = Card::kRight_scn - Card::kLeft_scn;
-        qreal h = rowHeight_scn;
-        QRectF row_scn(x, y, w, h);
+        qreal x = Card::kLeft_scen;
+        qreal y = lineY_scen - rowHeight_scen;
+        qreal w = Card::kRight_scen - Card::kLeft_scen;
+        qreal h = rowHeight_scen;
+        QRectF row_scen(x, y, w, h);
 
-        QRectF card_lcl = m_currentCard->rect();
-        QPolygonF card_scn = m_currentCard->mapRectToScene(card_lcl);
+        QRectF card_locl = m_currentCard->rect();
+        QPolygonF card_scen = m_currentCard->mapRectToScene(card_locl);
 
         // Build a path: outer rect minus inner rect
         QPainterPath path;
-        path.addPolygon(card_scn);                                // outer
-        path.addRoundedRect(row_scn, 5.0, 5.0, Qt::RelativeSize); // inner (will be subtracted)
+        path.addPolygon(card_scen);                                // outer
+        path.addRoundedRect(row_scen, 5.0, 5.0, Qt::RelativeSize); // inner (will be subtracted)
 
         // Set fill rule so the inner area becomes a "hole"
         path.setFillRule(Qt::OddEvenFill); // or WindingFill; OddEven usually works best for holes
@@ -725,10 +725,10 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         painter->setPen(m_typingModeCursorPen);
         painter->setBrush(Qt::transparent);
 
-        qreal rowHeight_scn = rowItem->rowHeight_scn();
-        qreal charHeight_scn = rowItem->charHeight_scn();
-        qreal charWidth_scn = rowItem->charWidth_scn();
-        qreal lineY_scn = m_currentCard->rowLineY_scn(m_row);
+        qreal rowHeight_scen = rowItem->rowHeight_scen();
+        qreal charHeight_scen = rowItem->charHeight_scen();
+        qreal charWidth_scen = rowItem->charWidth_scen();
+        qreal lineY_scen = m_currentCard->rowLineY_scen(m_row);
 
         // Draw hollow square around links
         if (tempMode == KeyboardMode::Command && m_navigationMode == NavigationMode::Link)
@@ -736,12 +736,12 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
             if (m_currentCard->hasLinks())
             {
                 CardItem::CardLink link = m_currentCard->currentLink();
-                qreal linkLineY_scn = link.targetCard->rowLineY_scn(link.row);
+                qreal linkLineY_scen = link.targetCard->rowLineY_scen(link.row);
                 Q_ASSERT(link.targetCard);
-                QPointF topLeft(link.col * charWidth_scn + Card::kBorder_scn,
-                                linkLineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
-                QPointF bottomRight(topLeft.x() + link.charCount * charWidth_scn,
-                                    linkLineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
+                QPointF topLeft(link.col * charWidth_scen + Card::kBorder_scen,
+                                linkLineY_scen - rowHeight_scen + (rowHeight_scen - charHeight_scen) / 2.0);
+                QPointF bottomRight(topLeft.x() + link.charCount * charWidth_scen,
+                                    linkLineY_scen - (rowHeight_scen - charHeight_scen) / 2.0);
                 QRectF cursorRect(topLeft, bottomRight);
                 qreal percentage = 15.0;
                 painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
@@ -750,10 +750,10 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         // Draw cursor in typing mode as a hollow square
         else if (tempMode == KeyboardMode::Typing) // hollow square
         {
-            QPointF topLeft(m_col * charWidth_scn + Card::kBorder_scn,
-                            lineY_scn - rowHeight_scn + (rowHeight_scn - charHeight_scn) / 2.0);
-            QPointF bottomRight(topLeft.x() + charWidth_scn,
-                                lineY_scn - (rowHeight_scn - charHeight_scn) / 2.0);
+            QPointF topLeft(m_col * charWidth_scen + Card::kBorder_scen,
+                            lineY_scen - rowHeight_scen + (rowHeight_scen - charHeight_scen) / 2.0);
+            QPointF bottomRight(topLeft.x() + charWidth_scen,
+                                lineY_scen - (rowHeight_scen - charHeight_scen) / 2.0);
             QRectF cursorRect(topLeft, bottomRight);
             qreal percentage = 15.0;
             painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
@@ -762,14 +762,14 @@ void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
         else
         {
             painter->setBrush(m_commandModeCursorBrush);
-            qreal deltaCharRow = rowHeight_scn - charHeight_scn;
-            qreal centerX = m_col * charWidth_scn + Card::kBorder_scn + charWidth_scn / 2.0;
+            qreal deltaCharRow = rowHeight_scen - charHeight_scen;
+            qreal centerX = m_col * charWidth_scen + Card::kBorder_scen + charWidth_scen / 2.0;
             qreal x1 = centerX;
-            qreal y1 = lineY_scn - deltaCharRow / 2.0;
-            qreal x2 = centerX - charWidth_scn / 2.0;
-            qreal y2 = lineY_scn - deltaCharRow / 10.0;
-            qreal x3 = centerX + charWidth_scn / 2.0;
-            qreal y3 = lineY_scn - deltaCharRow / 10.0;
+            qreal y1 = lineY_scen - deltaCharRow / 2.0;
+            qreal x2 = centerX - charWidth_scen / 2.0;
+            qreal y2 = lineY_scen - deltaCharRow / 10.0;
+            qreal x3 = centerX + charWidth_scen / 2.0;
+            qreal y3 = lineY_scen - deltaCharRow / 10.0;
 
             QPointF points[3] = {QPointF(x1, y1),
                                  QPointF(x2, y2),

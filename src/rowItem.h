@@ -4,6 +4,7 @@
 #include <QBrush>
 #include <QFont>
 #include <QGraphicsItem>
+#include <QPen>
 
 // TODO: Make this a QGraphicsItem and use paint w/ drawText
 // Then you can share QString for title more efficiently
@@ -18,9 +19,9 @@ class RowItem : public QGraphicsItem
 
     Row row() const;
     ColCount colPerRow() const;
-    qreal rowHeight_scn() const;
-    qreal charHeight_scn() const;
-    qreal charWidth_scn() const;
+    qreal rowHeight_scen() const;
+    qreal charHeight_scen() const;
+    qreal charWidth_scen() const;
     
     void setChar(QChar c, Row row, Col col);
 
@@ -33,19 +34,22 @@ class RowItem : public QGraphicsItem
     
   private:
     static QFont font();
-    static qreal fontCharHeight_fnt();
-    static qreal fontCharWidth_fnt();
+    static qreal fontCharHeight_font();
+    static qreal fontCharWidth_font();
 
     const QFont kFont;
-    const qreal kFontCharHeight_fnt;
-    const qreal kFontCharWidth_fnt;
+    const qreal kFontCharHeight_font;
+    const qreal kFontCharWidth_font;
 
     const Col kColsPerRow;
-    const qreal kRowHeight_scn;
+    const qreal kMyRowHeight_scen;
 
+    
     Row m_row;
     qreal m_fontToScnScale;
     QString m_text;
     bool m_readOnly{false};
-    QBrush m_brush;
+    QPen m_textPen;
+    QBrush m_backgroundBrush;
+    QRectF m_boundingRect_locl;
 };
