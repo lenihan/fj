@@ -33,37 +33,53 @@ and stays small/efficient enough to run on low-end hardware.
 
 Build order: **Win32 first**, then Linux (Xlib), then Web.
 
-### Starting contract (draft — not finalized)
+### Core/shell contract and rasterizer (implemented)
 
-```cpp
-// platform.h — contract between core and each platform shell
-#pragma once
-#include <cstdint>
-#include <span>
-#include <functional>
+The draft sketch that used to live in this section is superseded by the
+real headers — see `src/platform.h` (core/shell contract) and
+`src/canvas.h` (drawing primitives). Summary of what got decided:
 
-enum class Key { Up, Down, Left, Right, Enter, Escape /* ... */ };
+- `PlatformWindow` is a plain, non-virtual, non-template class (pimpl'd,
+  not a virtual base) — only one platform's implementation is ever
+  compiled into a given binary (selected by CMake), so neither dynamic
+  nor static polymorphism was buying anything, just build time or
+  runtime indirection for nothing.
+- Window/context creation returns `std::expected<PlatformWindow,
+  std::string>` (C++23) rather than a nullable pointer, so a failure
+  carries a reason.
+- `Canvas` (core-owned pixel buffer + `fillRect`/`fillTriangle`/`line`/
+  `drawText`) is a minimal set derived from what `cursor.cpp`/
+  `cardItem.cpp` actually draw today, not a general 2D API. `line` is
+  built from two filled triangles; no anti-aliasing, rounded corners, or
+  caps yet.
 
-struct PlatformWindow {
-    virtual ~PlatformWindow() = default;
-    virtual void present(std::span<const uint32_t> pixels, int w, int h) = 0;
-    virtual void run(std::function<void(Key)> onKeyDown) = 0; // blocks, owns the loop
-};
+### Coordinate system (core)
 
-std::unique_ptr<PlatformWindow> createPlatformWindow(int w, int h, const char* title);
-```
+The Qt app used four coordinate systems (`_scen`/`_font`/`_view`/`_locl`,
+see `PLAN.md`) because it juggled inches, font-metric units, view pixels,
+and item-local space all at once. The core collapses that to two units,
+still marked with a suffix since both are genuinely in play:
 
-### Open design questions (not yet decided)
+- `_px` — plain pixels, origin top-left, +x right, +y down (matches
+  `Canvas`'s pixel buffer layout and a top-down Win32 DIB). What
+  `CardItem`/`Cursor` actually compute row/col layout and draw calls in.
+- `_in` — physical inches. The source of truth for card/row size
+  (`Card::kWidth_in`, `kHeight_in`, ...) — e.g. a 3x5 card is genuinely
+  meant to render as 3in x 5in on screen, not just "however big the
+  fixed-pixel font happens to make it."
 
-- Virtual interface (`PlatformWindow` above) vs. a C++20
-  concepts-based static-dispatch approach — only one backend is ever
-  compiled in at a time, so the vtable indirection may be needless.
-- Who owns the event loop — currently sketched as the platform shell's
-  `run()` blocking and calling back into the core, which is fine as
-  long as fj has no other async work competing for the thread.
-- Error handling for window/context creation — candidate:
-  `std::expected<std::unique_ptr<PlatformWindow>, std::string>` (C++23)
-  instead of a nullable return.
+Reconciling a fixed-pixel atlas with a physical-inches target: at
+window-creation time, query the display's DPI (same call `main.cpp`
+already makes today) and pick whichever integer render scale `S` makes
+`S * HackAtlas::kCellWidth` land closest to `(Card::kWidth_in / cols) *
+dpi`. This is the same mechanism already used to reuse the Body atlas at
+2x for Title rows, just computed from the real display instead of a
+fixed ratio. It hits the physical size exactly when a display's DPI
+makes the best-fit scale come out even, and gets close otherwise — true
+per-pixel exactness at every DPI would need either continuous/fractional
+scaling (still deferred -- that's what "non-blocky scaling" refers to)
+or rebaking the atlas per machine (contradicts "never build hackAtlas
+again").
 
 ### Superseded
 
