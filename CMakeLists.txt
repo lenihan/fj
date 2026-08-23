@@ -47,12 +47,13 @@ if(MSVC)
 endif()
 
 ###############################################################################
-# bakeFont: offline Hack -> bitmap glyph atlas generator (see tools/bakeFont).
-# Standalone, Windows-only, no Qt -- never shipped, only run by hand to
-# regenerate the atlas checked in for the core renderer to embed.
+# bakeFont: offline Hack -> bitmap glyph atlas generator
+# (see tools/offline/bakeFont). Standalone, Windows-only, no Qt -- never
+# shipped, only run by hand to regenerate resources/hackAtlas.h/.cpp, which
+# is what's actually checked in for the core renderer to embed.
 
 if(WIN32)
-    add_executable(bakeFont tools/bakeFont/bakeFont.cpp)
+    add_executable(bakeFont tools/offline/bakeFont/bakeFont.cpp)
     target_link_libraries(bakeFont gdi32 user32)
     set_target_properties(bakeFont PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 endif()
