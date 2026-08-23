@@ -45,3 +45,14 @@ target_link_libraries(${PROJECT_NAME} Qt6::Widgets)
 if(MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
 endif()
+
+###############################################################################
+# bakeFont: offline Hack -> bitmap glyph atlas generator (see tools/bakeFont).
+# Standalone, Windows-only, no Qt -- never shipped, only run by hand to
+# regenerate the atlas checked in for the core renderer to embed.
+
+if(WIN32)
+    add_executable(bakeFont tools/bakeFont/bakeFont.cpp)
+    target_link_libraries(bakeFont gdi32 user32)
+    set_target_properties(bakeFont PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+endif()

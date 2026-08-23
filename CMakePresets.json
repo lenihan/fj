@@ -2,7 +2,7 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 20,
+    "minor": 25,
     "patch": 0
   },
 
@@ -20,8 +20,8 @@
     },
 
     {
-      "name": "amd64",
-      "displayName": "amd64 (x64) - Native x64",
+      "name": "windows-x64",
+      "displayName": "Windows x64 - Native x64",
       "inherits": "_base",
       "architecture": "x64",
       "cacheVariables": {
@@ -30,8 +30,8 @@
     },
 
     {
-      "name": "arm64",
-      "displayName": "arm64 - Native ARM64",
+      "name": "windows-arm64",
+      "displayName": "Windows ARM64 - Native ARM64",
       "inherits": "_base",
       "architecture": "arm64",
       "cacheVariables": {
@@ -41,10 +41,64 @@
   ],
 
   "buildPresets": [
-    { "name": "amd64-debug",     "configurePreset": "amd64",        "configuration": "Debug" },
-    { "name": "amd64-release",   "configurePreset": "amd64",        "configuration": "Release" },
+    { "name": "windows-x64-debug",     "configurePreset": "windows-x64",   "configuration": "Debug" },
+    { "name": "windows-x64-release",   "configurePreset": "windows-x64",   "configuration": "Release" },
 
-    { "name": "arm64-debug",     "configurePreset": "arm64",        "configuration": "Debug" },
-    { "name": "arm64-release",   "configurePreset": "arm64",        "configuration": "Release" }
+    { "name": "windows-arm64-debug",   "configurePreset": "windows-arm64", "configuration": "Debug" },
+    { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "Release" },
+
+    { "name": "bakeFont-windows-x64",   "configurePreset": "windows-x64",   "configuration": "Debug", "targets": ["bakeFont"] },
+    { "name": "bakeFont-windows-arm64", "configurePreset": "windows-arm64", "configuration": "Debug", "targets": ["bakeFont"] }
+  ],
+
+  "workflowPresets": [
+    {
+      "name": "windows-x64-debug",
+      "displayName": "Configure + build fj (Windows x64, Debug)",
+      "steps": [
+        { "type": "configure", "name": "windows-x64" },
+        { "type": "build",     "name": "windows-x64-debug" }
+      ]
+    },
+    {
+      "name": "windows-x64-release",
+      "displayName": "Configure + build fj (Windows x64, Release)",
+      "steps": [
+        { "type": "configure", "name": "windows-x64" },
+        { "type": "build",     "name": "windows-x64-release" }
+      ]
+    },
+    {
+      "name": "windows-arm64-debug",
+      "displayName": "Configure + build fj (Windows ARM64, Debug)",
+      "steps": [
+        { "type": "configure", "name": "windows-arm64" },
+        { "type": "build",     "name": "windows-arm64-debug" }
+      ]
+    },
+    {
+      "name": "windows-arm64-release",
+      "displayName": "Configure + build fj (Windows ARM64, Release)",
+      "steps": [
+        { "type": "configure", "name": "windows-arm64" },
+        { "type": "build",     "name": "windows-arm64-release" }
+      ]
+    },
+    {
+      "name": "bakeFont-windows-x64",
+      "displayName": "Configure + build bakeFont (Windows x64)",
+      "steps": [
+        { "type": "configure", "name": "windows-x64" },
+        { "type": "build",     "name": "bakeFont-windows-x64" }
+      ]
+    },
+    {
+      "name": "bakeFont-windows-arm64",
+      "displayName": "Configure + build bakeFont (Windows ARM64)",
+      "steps": [
+        { "type": "configure", "name": "windows-arm64" },
+        { "type": "build",     "name": "bakeFont-windows-arm64" }
+      ]
+    }
   ]
 }
