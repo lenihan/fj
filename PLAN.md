@@ -47,7 +47,7 @@
 - Scene (_scen) is in inches with 0, 0 in upper-left
 - Font (_font) is for fonts
 - View (_view) is in pixels on the screen, with 0, 0 at upper left of window
-- Local (_locl) is in pixels, with 0,0 at upper left of bounding rect
+- Local (_locl) is in inches, with 0,0 at upper left of bounding rect
 
 ## TODO
 
