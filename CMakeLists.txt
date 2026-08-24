@@ -24,18 +24,26 @@ endif()
 # core: the portable, no-platform-code half of the Qt-removal pivot (see
 # PLAN_addendum.md). Not wired into a real executable yet -- there's no
 # platform shell (Win32/Xlib/Emscripten) to drive it. The old Qt6/
-# QGraphicsItem app this replaces lives only on main now, not this branch
-# (see git history for src/qt/ if it's ever needed for reference).
+# QGraphicsItem app this replaces lives only on main now, not this branch.
 #
-# platform.h has no .cpp of its own (each platform shell provides one);
-# it's listed here only so it shows up in IDEs. resources/hackAtlas.* is
-# bakeFont's generated output, not hand-maintained source -- included here
-# as data the core embeds, not code to edit.
+# cardItem/cardStack/contentItem/cursor/tocItem have no .cpp yet (headers
+# only, still being drafted); platform.h has no .cpp of its own (each
+# platform shell provides one). Both are listed here only so they show up
+# in IDEs. resources/hackAtlas.* is bakeFont's generated output, not
+# hand-maintained source -- included here as data the core embeds, not
+# code to edit.
 
 add_library(core STATIC
     src/canvas.cpp
     src/canvas.h
+    src/cardItem.h
+    src/cardStack.h
+    src/contentItem.h
+    src/cursor.h
+    src/layout.h
     src/platform.h
+    src/tocItem.h
+    src/types.h
     resources/hackAtlas.cpp
     resources/hackAtlas.h
 )

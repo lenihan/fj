@@ -34,16 +34,19 @@ struct KeyEvent
 {
     enum class Kind
     {
-        Char, // printable character typed; see codepoint
-        Up,
-        Down,
-        Left,
-        Right,
+        Char,      // printable character typed; see codepoint. This is also
+                   // how navigation/commands arrive -- fj is home-row
+                   // navigated (i/k/j/l, not arrow keys), so there's no
+                   // separate Up/Down/Left/Right key kind here. Cursor
+                   // interprets a Char as text-input vs. a command
+                   // depending on its own keyboard mode; that dispatch is
+                   // Cursor's job, not the platform contract's.
         Enter,
         Backspace,
-        CapsLock, // both edges matter, not just a toggle: PLAN.md's "hold
-                  // caps down, enter should shakeCardNo" needs pressed
-                  // state at the moment Enter arrives
+        CapsLock,  // both edges matter, not just a toggle: holding caps
+                   // down forces command mode for as long as it's held
+                   // (squareGraphicsView.cpp's m_wasTypingMode dance),
+                   // which needs pressed state at press AND release.
     };
 
     Kind kind;

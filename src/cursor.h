@@ -1,24 +1,42 @@
+// cursor.h -- navigation/edit state machine, and the cursor's own draw
+// pass. Ported off Qt: no QGraphicsScene (no scene graph at all anymore --
+// see PLAN_addendum.md's show()/hide() removal), no QPen/QBrush (Canvas
+// calls take a Pixel color directly), std:: containers and char32_t
+// instead of Qt types.
+//
+// handleKey() absorbs the key-dispatch switch that used to live in
+// SquareGraphicsView::keyPressEvent/keyReleaseEvent (see
+// squareGraphicsView.cpp): home-row navigation (i/k/j/l -- there are no
+// arrow keys in this app, see platform.h) and the
+// caps-lock-forces-command-mode-while-held behavior. That dispatch needs
+// Cursor's own mode state to interpret a KeyEvent, so it belongs here
+// rather than in a platform shell.
+
 #pragma once
 
+#include "cardItem.h"
 #include "cardStack.h"
-#include <QBrush>
-#include <QMap>
-#include <QPen>
+#include "platform.h"
+#include "types.h"
 
-class QPainter;
-class QRectF;
-class CardItem;
-class QGraphicsScene;
+#include <map>
+#include <memory>
+#include <vector>
+
+class Canvas;
 
 class Cursor
 {
   public:
-    enum class KeyboardMode { Command, Typing };
-    
-    Cursor(QGraphicsScene* scene);
+    enum class KeyboardMode
+    {
+        Command,
+        Typing
+    };
+
+    Cursor();
 
     CardNumber lastCardNumber() const;
-    QGraphicsScene* scene();
 
     Year year() const;
     void setYear(Year year);
@@ -47,7 +65,7 @@ class Cursor
     void enter();
     void backspace();
 
-    void charTyped(QChar c);
+    void charTyped(char32_t c);
 
     void nextRow();
     void nextRowCreateCard();
@@ -67,10 +85,22 @@ class Cursor
 
     void toggleDeleteCard();
 
-    void draw(QPainter* painter, const QRectF& rect, bool capsDown);
+    // Replaces SquareGraphicsView::keyPressEvent/keyReleaseEvent's switch.
+    void handleKey(const KeyEvent& event);
+
+    // Draws the current card (background/lines/text) and the cursor
+    // itself, at render scale `scale` (see PLAN_addendum.md's "Coordinate
+    // system (core)"). Unlike the old draw(QPainter*, QRectF, bool
+    // capsDown), caps state isn't a parameter -- handleKey() already
+    // tracks it.
+    void draw(Canvas& canvas, int scale) const;
 
   private:
-    enum class NavigationMode { Link, Cursor };
+    enum class NavigationMode
+    {
+        Link,
+        Cursor
+    };
 
     void showCard(CardItem* card);
     void tocCurrent();
@@ -81,18 +111,19 @@ class Cursor
     Row m_row{0};
     Col m_col{0};
     CardItem* m_currentCard{nullptr};
-    
+
     KeyboardMode m_keyboardMode{KeyboardMode::Command};
     NavigationMode m_navigationMode{NavigationMode::Link};
-    
-    QList<CardItem*> m_linkHistory;
 
-    QMap<Year, CardStack*> m_yearToCardStack;
-    QGraphicsScene* m_scene{nullptr};
+    std::vector<CardItem*> m_linkHistory;
 
-    QPen m_deletedPen;
-    QPen m_typingModeCursorPen;
-    
-    QBrush m_darkenedBrush;
-    QBrush m_commandModeCursorBrush;
+    // Ordered (not unordered_map) so a future "list of year card stacks"
+    // UI (see PLAN.md's master-TOC glossary entry) can iterate
+    // chronologically for free.
+    std::map<Year, std::unique_ptr<CardStack>> m_yearToCardStack;
+
+    // Key-dispatch state, absorbed from SquareGraphicsView.
+    bool m_capsDown{false};
+    bool m_wasTypingMode{false};
+    KeyEvent::Kind m_lastKeyKind{KeyEvent::Kind::Enter}; // arbitrary non-CapsLock init
 };

@@ -1,22 +1,31 @@
+// cardStack.h -- owns every CardItem in one year's stack (or the master
+// stack). Ownership used to live implicitly in QGraphicsScene (CardItem
+// was `new`'d and handed to scene->addItem(), which owned it from then
+// on); with no scene, CardStack -- which already creates every card via
+// add() -- is the natural owner, via unique_ptr for real RAII lifetime
+// instead of a borrowed scene-graph one.
+
 #pragma once
 
 #include "cardItem.h"
-#include "common.h"
-#include <QList>
-#include <QMap>
-#include <cstdint>
+#include "types.h"
 
-class QGraphicsScene;
+#include <memory>
+#include <vector>
+
 class TOCItem;
-
-using CardList = QList<CardItem*>;
 
 class CardStack
 {
   public:
-    enum class ThreadMode { New, Continue };
+    enum class ThreadMode
+    {
+        New,
+        Continue
+    };
 
-    CardStack(Year year, QGraphicsScene *scene);
+    explicit CardStack(Year year);
+
     CardItem* cardItemAt(CardNumber cardNumber);
     TOCItem* tableOfContents();
     CardItem* lastCardItem();
@@ -25,11 +34,11 @@ class CardStack
     void setReadOnly(bool readOnly);
     bool readOnly() const;
 
+    // Returns a non-owning observer pointer; CardStack retains ownership.
     CardItem* add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard = nullptr);
 
   private:
     Year m_year;
-    CardList m_cards;
-    QGraphicsScene *m_scene;
+    std::vector<std::unique_ptr<CardItem>> m_cards;
     bool m_readOnly{false};
 };
