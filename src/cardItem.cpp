@@ -64,15 +64,31 @@ int CardItem::cellWidth_px(Row row, const HackAtlas::Atlas& atlas) const
 
 int CardItem::cellHeight_px(Row row, const HackAtlas::Atlas& atlas) const
 {
-    // Pixels-per-inch implied by this atlas's own cellWidth (which
-    // tools/offline/bakeFont chose to match Card::kWidth_in/
-    // Body::kColsPerRow at some DPI) -- back-deriving it this way means
-    // this doesn't need a separate "current DPI" parameter of its own,
-    // and it automatically tracks whichever atlas Canvas::pickAtlas
-    // selects as the window resizes.
-    double pixelsPerInch = atlas.cellWidth * Body::kColsPerRow / Card::kWidth_in;
+    // Pixels-per-inch implied by this atlas -- back-deriving it from
+    // cardWidth_px (the card's true rendered width, margins included,
+    // which tools/offline/bakeFont's atlas sizing targets Card::kWidth_in
+    // for) means this doesn't need a separate "current DPI" parameter of
+    // its own, and it automatically tracks whichever atlas
+    // Canvas::pickAtlas selects as the window resizes.
+    double pixelsPerInch = cardWidth_px(atlas) / Card::kWidth_in;
     int bodyRowHeight_px = static_cast<int>(std::lround(pixelsPerInch * Card::kHeight_in / kRowUnits));
     return bodyRowHeight_px * (row == 0 ? 2 : 1);
+}
+
+int CardItem::sideMargin_px(const HackAtlas::Atlas& atlas) const
+{
+    return atlas.cellWidth * 2;
+}
+
+int CardItem::cardWidth_px(const HackAtlas::Atlas& atlas) const
+{
+    return Body::kColsPerRow * cellWidth_px(1, atlas) + 2 * sideMargin_px(atlas);
+}
+
+int CardItem::cardHeight_px(const HackAtlas::Atlas& atlas) const
+{
+    Row lastRow = Card::kNumRows - 1;
+    return rowTop_px(lastRow, atlas) + cellHeight_px(lastRow, atlas);
 }
 
 int CardItem::rowTop_px(Row row, const HackAtlas::Atlas& atlas) const

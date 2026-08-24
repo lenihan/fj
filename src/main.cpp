@@ -31,27 +31,17 @@
 namespace
 {
 
-// Same arithmetic as cursor.cpp's private cardWidth_px/cardHeight_px --
-// duplicated rather than exposed on CardItem, since this is the only other
-// caller and it doesn't need general access to a card's pixel geometry.
-int cardWidth_px(const CardItem& card, const HackAtlas::Atlas& atlas)
-{
-    return Body::kColsPerRow * card.cellWidth_px(1, atlas);
-}
-
-int cardHeight_px(const CardItem& card, const HackAtlas::Atlas& atlas)
-{
-    Row lastRow = Card::kNumRows - 1;
-    return card.rowTop_px(lastRow, atlas) + card.cellHeight_px(lastRow, atlas);
-}
-
 // The Body-cell pixel width a given on-screen pixel width implies -- same
 // relationship tools/offline/bakeFont used to choose each atlas's size in
 // the first place, so feeding it back into pickAtlas finds whichever baked
-// atlas best matches how big the window currently is.
+// atlas best matches how big the window currently is. +4 accounts for
+// CardItem::sideMargin_px: the card's true rendered width is
+// (Body::kColsPerRow + 4) cells (60 of text plus a 2-cell margin on each
+// side, i.e. 4 whole extra cells -- see CardItem::cardWidth_px), not
+// Body::kColsPerRow of them.
 int desiredCellWidth_px(int width_px)
 {
-    return width_px / Body::kColsPerRow;
+    return width_px / (Body::kColsPerRow + 4);
 }
 
 // "fj (emulated) - 5.00"x5.00" 100% -- right-click titlebar to fix
@@ -153,8 +143,7 @@ int main()
     }
     PlatformWindow window = std::move(*windowResult);
 
-    Canvas cardCanvas(cardWidth_px(*cursor.currentCard(), *atlas), cardHeight_px(*cursor.currentCard(), *atlas),
-                       *atlas);
+    Canvas cardCanvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas), *atlas);
 
     int currentWidth_px = width_px; // tracked for Kind::Calibrate below
 
@@ -209,8 +198,8 @@ int main()
             (void)newHeight_px; // aspect-locked (WM_SIZING) -- width alone determines the atlas and canvas size
             currentWidth_px = newWidth_px;
             atlas = &pickAtlas(desiredCellWidth_px(newWidth_px));
-            cardCanvas = Canvas(cardWidth_px(*cursor.currentCard(), *atlas),
-                                 cardHeight_px(*cursor.currentCard(), *atlas), *atlas);
+            cardCanvas =
+                Canvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas), *atlas);
             redraw();
             window.setTitle(titleFor(newWidth_px, dpi));
         });

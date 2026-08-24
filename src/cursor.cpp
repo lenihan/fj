@@ -22,17 +22,6 @@ constexpr Pixel kDeletedRed = 0x00FF0000;
 constexpr int kDeletedLineWidth_px = 10;
 constexpr int kCursorOutlineWidth_px = 2;
 
-int cardWidth_px(const CardItem& card, const HackAtlas::Atlas& atlas)
-{
-    return Body::kColsPerRow * card.cellWidth_px(1, atlas);
-}
-
-int cardHeight_px(const CardItem& card, const HackAtlas::Atlas& atlas)
-{
-    Row lastRow = Card::kNumRows - 1;
-    return card.rowTop_px(lastRow, atlas) + card.cellHeight_px(lastRow, atlas);
-}
-
 void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
 {
     canvas.line({r.x, r.y}, {r.x + r.w, r.y}, color, thickness);
@@ -49,14 +38,19 @@ void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
 //
 // NOTE: doesn't implement the old "darken all but the current row while
 // typing" effect -- that relied on Qt's alpha-blended brush
-// (Colors::kDarkenedColor has alpha=50), and Canvas has no alpha
-// blending in any of its primitives. Deferred alongside the other
-// visual polish (rounded corners, line caps, non-blocky scaling).
+// (Colors::kDarkenedColor has alpha=50); Canvas::blendRect could do this
+// now, but nothing wires it up yet. Deferred alongside the other visual
+// polish (rounded corners, line caps).
 void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atlas)
 {
-    int width = cardWidth_px(card, atlas);
-    int height = cardHeight_px(card, atlas);
+    int width = card.cardWidth_px(atlas);
+    int height = card.cardHeight_px(atlas);
     canvas.fillRect({0, 0, width, height}, kCardColor);
+
+    // Text is inset by sideMargin_px so the first/last character isn't
+    // flush against the card's own edge; the separator lines below still
+    // span the card's full width, like ruled paper.
+    int marginX = card.sideMargin_px(atlas);
 
     for (Row row = 0; row < Card::kNumRows; ++row)
     {
@@ -70,8 +64,14 @@ void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atla
             canvas.line({0, top + cellH}, {width, top + cellH}, lineColor, 1);
         }
 
+        // Rows are generally taller than a glyph's own pixel height (see
+        // CardItem::cellHeight_px) -- center the glyph within the row
+        // rather than pinning it to the top.
+        int glyphHeight = atlas.cellHeight * rowScale;
+        int textY = top + (cellH - glyphHeight) / 2;
+
         Pixel textColor = card.rowReadOnly(row) ? kLightGray : kBlack;
-        canvas.drawText(card.text(row), {0, top}, textColor, rowScale);
+        canvas.drawText(card.text(row), {marginX, textY}, textColor, rowScale);
     }
 }
 
@@ -627,12 +627,13 @@ void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const
     {
         int inset = m_currentCard->cellHeight_px(1, atlas); // one body-row-height inset
         Point p1{inset, inset};
-        Point p2{cardWidth_px(*m_currentCard, atlas) - inset, cardHeight_px(*m_currentCard, atlas) - inset};
+        Point p2{m_currentCard->cardWidth_px(atlas) - inset, m_currentCard->cardHeight_px(atlas) - inset};
         canvas.line(p1, p2, kDeletedRed, kDeletedLineWidth_px);
         return;
     }
 
     KeyboardMode tempMode = m_capsDown ? KeyboardMode::Command : m_keyboardMode;
+    int marginX = m_currentCard->sideMargin_px(atlas); // drawCard insets text by this too -- keep cursor indicators aligned with it
     int rowTop = m_currentCard->rowTop_px(m_row, atlas);
     int cellW = m_currentCard->cellWidth_px(m_row, atlas);
     int cellH = m_currentCard->cellHeight_px(m_row, atlas);
@@ -645,22 +646,21 @@ void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const
             int linkTop = m_currentCard->rowTop_px(link.row, atlas);
             int linkCellW = m_currentCard->cellWidth_px(link.row, atlas);
             int linkCellH = m_currentCard->cellHeight_px(link.row, atlas);
-            Rect box{link.col * linkCellW, linkTop, link.charCount * linkCellW, linkCellH};
+            Rect box{marginX + link.col * linkCellW, linkTop, link.charCount * linkCellW, linkCellH};
             drawBoxOutline(canvas, box, kOrangishRed, kCursorOutlineWidth_px);
         }
     }
     else if (tempMode == KeyboardMode::Typing) // hollow square
     {
-        Rect box{m_col * cellW, rowTop, cellW, cellH};
+        Rect box{marginX + m_col * cellW, rowTop, cellW, cellH};
         drawBoxOutline(canvas, box, kOrangishRed, kCursorOutlineWidth_px);
     }
     else // Command mode, cursor navigation: upward arrow under the current character
     {
-        // Old code sized this from the padding between row height and
-        // glyph height; this core's rows have no such padding (see
-        // drawCard's comment), so the triangle is instead sized directly
-        // from the cell -- apex 3/4 down the cell, base at the bottom.
-        int centerX = m_col * cellW + cellW / 2;
+        // Sized directly from the cell -- apex 3/4 down the cell, base at
+        // the bottom (unlike drawCard's text, not vertically centered:
+        // this is a UI indicator, not row content).
+        int centerX = marginX + m_col * cellW + cellW / 2;
         int apexY = rowTop + cellH * 3 / 4;
         int baseY = rowTop + cellH;
         canvas.fillTriangle({centerX, apexY}, {centerX - cellW / 2, baseY}, {centerX + cellW / 2, baseY},

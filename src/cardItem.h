@@ -89,13 +89,29 @@ class CardItem
     // rendered shape actually matches its declared physical size, rather
     // than whatever the font's own glyph proportions happen to produce --
     // rows are generally taller than a glyph's own pixel height as a
-    // result, with the glyph top-aligned inside (see Cursor::draw's
-    // drawCard). Title rows render at exactly 2x a body row's size either
-    // way, same as the atlas-reuse trick Canvas::drawText's `scale` param
-    // implements.
+    // result, with the glyph vertically centered inside (see Cursor::
+    // draw's drawCard). Title rows render at exactly 2x a body row's size
+    // either way, same as the atlas-reuse trick Canvas::drawText's
+    // `scale` param implements.
     int cellWidth_px(Row row, const HackAtlas::Atlas& atlas) const;
     int cellHeight_px(Row row, const HackAtlas::Atlas& atlas) const;
     int rowTop_px(Row row, const HackAtlas::Atlas& atlas) const;
+
+    // Blank horizontal margin on each side of every row's text, so the
+    // first/last character isn't flush against the card's own edge --
+    // see cardItem.cpp. Same value regardless of row, so title and body
+    // text line up on the left.
+    int sideMargin_px(const HackAtlas::Atlas& atlas) const;
+
+    // Total rendered card size in pixels, atlas included -- unlike
+    // cellWidth_px/cellHeight_px/rowTop_px, which describe one row's
+    // cell, these describe the whole card (width including
+    // sideMargin_px on both sides). The only two callers needing this
+    // (Cursor::draw and main.cpp) used to each keep their own private
+    // copy of this arithmetic; promoted here once cellHeight_px's own
+    // physical-accuracy math (above) needed the true total width too.
+    int cardWidth_px(const HackAtlas::Atlas& atlas) const;
+    int cardHeight_px(const HackAtlas::Atlas& atlas) const;
 
     Row firstUserRow() const;
     Row lastUserRow() const;
