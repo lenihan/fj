@@ -1,5 +1,6 @@
 #include "cursor.h"
 #include "canvas.h"
+#include "hackAtlas.h"
 #include "tocItem.h"
 
 #include <cassert>
@@ -17,19 +18,19 @@ constexpr Pixel kDeletedRed = 0x00FF0000;
 // Cosmetic pen widths in the old Qt code (Pen::kDeletedWidth,
 // kTypingModeCursorWidth) were screen-pixel-fixed regardless of view
 // zoom -- the direct translation is a fixed pixel width, independent of
-// the glyph render `scale`.
+// which atlas is active or how the final present-time stretch scales it.
 constexpr int kDeletedLineWidth_px = 10;
 constexpr int kCursorOutlineWidth_px = 2;
 
-int cardWidth_px(const CardItem& card, int scale)
+int cardWidth_px(const CardItem& card, const HackAtlas::Atlas& atlas)
 {
-    return Body::kColsPerRow * card.cellWidth_px(1, scale);
+    return Body::kColsPerRow * card.cellWidth_px(1, atlas);
 }
 
-int cardHeight_px(const CardItem& card, int scale)
+int cardHeight_px(const CardItem& card, const HackAtlas::Atlas& atlas)
 {
     Row lastRow = Card::kNumRows - 1;
-    return card.rowTop_px(lastRow, scale) + card.cellHeight_px(lastRow, scale);
+    return card.rowTop_px(lastRow, atlas) + card.cellHeight_px(lastRow, atlas);
 }
 
 void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
@@ -51,17 +52,17 @@ void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
 // (Colors::kDarkenedColor has alpha=50), and Canvas has no alpha
 // blending in any of its primitives. Deferred alongside the other
 // visual polish (rounded corners, line caps, non-blocky scaling).
-void drawCard(const CardItem& card, Canvas& canvas, int scale)
+void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atlas)
 {
-    int width = cardWidth_px(card, scale);
-    int height = cardHeight_px(card, scale);
+    int width = cardWidth_px(card, atlas);
+    int height = cardHeight_px(card, atlas);
     canvas.fillRect({0, 0, width, height}, kCardColor);
 
     for (Row row = 0; row < Card::kNumRows; ++row)
     {
-        int top = card.rowTop_px(row, scale);
-        int cellH = card.cellHeight_px(row, scale);
-        int rowScale = row == 0 ? scale * 2 : scale;
+        int top = card.rowTop_px(row, atlas);
+        int cellH = card.cellHeight_px(row, atlas);
+        int rowScale = row == 0 ? 2 : 1; // Title renders at exactly 2x Body's cell size
 
         if (row < Card::kNumRows - 1)
         {
@@ -616,34 +617,34 @@ void Cursor::handleKey(const KeyEvent& event)
         charTyped(event.codepoint);
 }
 
-void Cursor::draw(Canvas& canvas, int scale) const
+void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const
 {
     assert(m_currentCard);
 
-    drawCard(*m_currentCard, canvas, scale);
+    drawCard(*m_currentCard, canvas, atlas);
 
     if (m_currentCard->deleted())
     {
-        int inset = m_currentCard->cellHeight_px(1, scale); // one body-row-height inset
+        int inset = m_currentCard->cellHeight_px(1, atlas); // one body-row-height inset
         Point p1{inset, inset};
-        Point p2{cardWidth_px(*m_currentCard, scale) - inset, cardHeight_px(*m_currentCard, scale) - inset};
+        Point p2{cardWidth_px(*m_currentCard, atlas) - inset, cardHeight_px(*m_currentCard, atlas) - inset};
         canvas.line(p1, p2, kDeletedRed, kDeletedLineWidth_px);
         return;
     }
 
     KeyboardMode tempMode = m_capsDown ? KeyboardMode::Command : m_keyboardMode;
-    int rowTop = m_currentCard->rowTop_px(m_row, scale);
-    int cellW = m_currentCard->cellWidth_px(m_row, scale);
-    int cellH = m_currentCard->cellHeight_px(m_row, scale);
+    int rowTop = m_currentCard->rowTop_px(m_row, atlas);
+    int cellW = m_currentCard->cellWidth_px(m_row, atlas);
+    int cellH = m_currentCard->cellHeight_px(m_row, atlas);
 
     if (tempMode == KeyboardMode::Command && m_navigationMode == NavigationMode::Link)
     {
         if (m_currentCard->hasLinks())
         {
             CardItem::CardLink link = m_currentCard->currentLink();
-            int linkTop = m_currentCard->rowTop_px(link.row, scale);
-            int linkCellW = m_currentCard->cellWidth_px(link.row, scale);
-            int linkCellH = m_currentCard->cellHeight_px(link.row, scale);
+            int linkTop = m_currentCard->rowTop_px(link.row, atlas);
+            int linkCellW = m_currentCard->cellWidth_px(link.row, atlas);
+            int linkCellH = m_currentCard->cellHeight_px(link.row, atlas);
             Rect box{link.col * linkCellW, linkTop, link.charCount * linkCellW, linkCellH};
             drawBoxOutline(canvas, box, kOrangishRed, kCursorOutlineWidth_px);
         }

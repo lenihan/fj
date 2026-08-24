@@ -1,5 +1,6 @@
 // bakeFont: offline, Windows-only tool that rasterizes Hack-Regular.ttf into
-// a 1bpp bitmap glyph atlas and emits it as a compiled-in C++ array.
+// a ladder of 1bpp bitmap glyph atlases (one per target DPI) and emits them
+// as a single compiled-in C++ array of atlases.
 //
 // This is a one-time dev-machine tool (lives under tools/offline/, not
 // tools/, to make that explicit), not something fj ships or links at
@@ -9,24 +10,33 @@
 // lean on GDI directly instead of being cross-platform or dependency-free
 // itself.
 //
+// Why a ladder, not one size: fj picks whichever baked atlas is closest to
+// the window's current on-screen cell size (see src/canvas.h's pickAtlas)
+// so live window resizing can re-render crisply instead of blowing up one
+// small bitmap. Each DPI below independently derives its own target cell
+// width (same formula the single-size version always used) and is baked
+// as its own atlas; sizes that land on the same actual pixel dimensions
+// (adjacent DPIs can round the same way) are deduplicated.
+//
 // Usage (run from repo root):
-//   bakeFont.exe [fontPath] [outDir] [--dpi=132]
+//   bakeFont.exe [fontPath] [outDir] [--dpis=96,120,144,168,192,216,240,288,336]
 //
 // Defaults: fontPath = resources/fonts/Hack-Regular.ttf
 //           outDir   = resources (hackAtlas.h/.cpp are a generated asset,
 //                      alongside the .ttf they're generated from -- not
 //                      hand-maintained source, so they don't live in src/)
-//           dpi      = 132 (matches the Surface Pro 11 dev machine noted in
-//                      src/main.cpp; pass --dpi to bake against a different
-//                      reference display)
+//           dpis     = Windows' standard scale-factor steps (100%-350%,
+//                      96 dpi = 100%). Pass --dpis to bake a different set.
 
 #include <windows.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -37,11 +47,15 @@ namespace
 
 // Mirrors Card::kUseabledWidth_scen / Body::kColsPerRow in src/common.h.
 // Body rows fill the usable card width with 60 columns; that's the cell
-// width the atlas is baked at. Title rows use the same usable width with
-// 30 columns, i.e. exactly 2x this cell width -- the core can reuse this
-// same atlas for Title rows via integer 2x nearest-neighbor scaling.
+// width each atlas is baked at. Title rows use the same usable width with
+// 30 columns, i.e. exactly 2x this cell width -- the core reuses whichever
+// atlas is active for Title rows via integer 2x nearest-neighbor scaling.
 constexpr double kUsableWidth_in = 5.0 - 2 * 0.1;
 constexpr int kBodyColsPerRow = 60;
+
+// 100%, 125%, 150%, 175%, 200%, 225%, 250%, 300%, 350% of the Windows
+// baseline 96 dpi -- covers the standard Windows display-scaling steps.
+constexpr double kDefaultDpis[] = {96, 120, 144, 168, 192, 216, 240, 288, 336};
 
 // Printable ASCII, plus the two link-arrow glyphs CardItem::linkStr() uses
 // (U+2191 upwards arrow "^", U+2192 rightwards arrow "->").
@@ -133,15 +147,8 @@ int findBestHeightForWidth(HDC hdc, int targetWidth_px)
     return bestHeight;
 }
 
-BakedFont bakeFont(const fs::path& fontPath, double dpi)
+BakedFont bakeFont(HDC hdc, double dpi)
 {
-    if (AddFontResourceExW(fontPath.wstring().c_str(), FR_PRIVATE, nullptr) == 0)
-        fail("AddFontResourceExW failed for " + fontPath.string());
-
-    HDC hdc = CreateCompatibleDC(nullptr);
-    if (!hdc)
-        fail("CreateCompatibleDC failed");
-
     const int targetWidth_px = static_cast<int>(std::lround(kUsableWidth_in / kBodyColsPerRow * dpi));
     const int height_px = findBestHeightForWidth(hdc, targetWidth_px);
 
@@ -213,66 +220,124 @@ BakedFont bakeFont(const fs::path& fontPath, double dpi)
     SelectObject(hdc, oldBitmap);
     DeleteObject(dib);
     DeleteObject(font);
-    DeleteDC(hdc);
-    RemoveFontResourceExW(fontPath.wstring().c_str(), FR_PRIVATE, nullptr);
 
     return result;
 }
 
-void writeHeader(const BakedFont& font, const fs::path& outDir)
+// Bakes one atlas per requested dpi, deduplicating any that land on the
+// same actual (cellWidth,cellHeight) -- adjacent dpis can round to the
+// same GDI size -- and returns them sorted ascending by cellWidth.
+std::vector<BakedFont> bakeLadder(const fs::path& fontPath, const std::vector<double>& dpis)
+{
+    if (AddFontResourceExW(fontPath.wstring().c_str(), FR_PRIVATE, nullptr) == 0)
+        fail("AddFontResourceExW failed for " + fontPath.string());
+
+    HDC hdc = CreateCompatibleDC(nullptr);
+    if (!hdc)
+        fail("CreateCompatibleDC failed");
+
+    std::vector<BakedFont> atlases;
+    for (double dpi : dpis)
+    {
+        BakedFont baked = bakeFont(hdc, dpi);
+        bool duplicate = std::any_of(atlases.begin(), atlases.end(),
+                                      [&](const BakedFont& existing)
+                                      {
+                                          return existing.cellWidth_px == baked.cellWidth_px &&
+                                                 existing.cellHeight_px == baked.cellHeight_px;
+                                      });
+        if (duplicate)
+        {
+            std::printf("  dpi=%.0f -> %dx%d px/glyph (duplicate, skipped)\n", dpi, baked.cellWidth_px,
+                        baked.cellHeight_px);
+            continue;
+        }
+        std::printf("  dpi=%.0f -> %dx%d px/glyph\n", dpi, baked.cellWidth_px, baked.cellHeight_px);
+        atlases.push_back(std::move(baked));
+    }
+
+    DeleteDC(hdc);
+    RemoveFontResourceExW(fontPath.wstring().c_str(), FR_PRIVATE, nullptr);
+
+    std::sort(atlases.begin(), atlases.end(),
+              [](const BakedFont& a, const BakedFont& b) { return a.cellWidth_px < b.cellWidth_px; });
+    return atlases;
+}
+
+void writeHeader(const std::vector<BakedFont>& atlases, const fs::path& outDir)
 {
     std::ofstream out(outDir / "hackAtlas.h");
     out << "// Generated by tools/offline/bakeFont -- do not hand-edit.\n"
            "#pragma once\n\n"
            "#include <cstddef>\n"
            "#include <cstdint>\n\n"
-           "namespace HackAtlas\n{\n"
-        << "inline constexpr int kCellWidth = " << font.cellWidth_px << ";\n"
-        << "inline constexpr int kCellHeight = " << font.cellHeight_px << ";\n"
-        << "inline constexpr int kBytesPerRow = " << font.bytesPerRow << ";\n"
-        << "inline constexpr int kBytesPerGlyph = kBytesPerRow * kCellHeight;\n"
-        << "inline constexpr std::size_t kGlyphCount = " << font.codepoints.size() << ";\n\n"
+           "namespace HackAtlas\n{\n\n"
            "struct Glyph\n{\n"
            "    char32_t codepoint;\n"
-           "    const uint8_t* bits; // kBytesPerGlyph bytes, row-major, MSB-first, 1 = ink\n"
+           "    const uint8_t* bits; // Atlas::bytesPerGlyph bytes, row-major, MSB-first, 1 = ink\n"
            "};\n\n"
-           "extern const Glyph kGlyphs[kGlyphCount];\n\n"
+           "struct Atlas\n{\n"
+           "    int cellWidth;\n"
+           "    int cellHeight;\n"
+           "    int bytesPerRow;\n"
+           "    int bytesPerGlyph;\n"
+           "    std::size_t glyphCount;\n"
+           "    const Glyph* glyphs;\n"
+           "};\n\n"
+        << "inline constexpr std::size_t kAtlasCount = " << atlases.size() << ";\n"
+        << "extern const Atlas kAtlases[kAtlasCount]; // sorted ascending by cellWidth\n\n"
            "} // namespace HackAtlas\n";
 }
 
-void writeSource(const BakedFont& font, const fs::path& outDir)
+void writeSource(const std::vector<BakedFont>& atlases, const fs::path& outDir)
 {
     std::ofstream out(outDir / "hackAtlas.cpp");
     out << "// Generated by tools/offline/bakeFont -- do not hand-edit.\n"
            "#include \"hackAtlas.h\"\n\n"
            "namespace HackAtlas\n{\n\n";
 
-    for (size_t i = 0; i < font.codepoints.size(); ++i)
+    for (size_t a = 0; a < atlases.size(); ++a)
     {
-        out << "static const uint8_t kGlyphBits" << i << "[kBytesPerGlyph] = {";
-        const auto& bits = font.bits[i];
-        for (size_t b = 0; b < bits.size(); ++b)
+        const BakedFont& font = atlases[a];
+        for (size_t i = 0; i < font.codepoints.size(); ++i)
         {
-            if (b % 16 == 0)
-                out << "\n    ";
-            char buf[8];
-            std::snprintf(buf, sizeof(buf), "0x%02X,", bits[b]);
-            out << buf;
+            out << "static const uint8_t kAtlas" << a << "GlyphBits" << i << "[" << font.bits[i].size()
+                << "] = {";
+            const auto& bits = font.bits[i];
+            for (size_t b = 0; b < bits.size(); ++b)
+            {
+                if (b % 16 == 0)
+                    out << "\n    ";
+                char buf[8];
+                std::snprintf(buf, sizeof(buf), "0x%02X,", bits[b]);
+                out << buf;
+            }
+            out << "\n};\n\n";
         }
-        out << "\n};\n\n";
+
+        out << "static const Glyph kAtlas" << a << "Glyphs[" << font.codepoints.size() << "] = {\n";
+        for (size_t i = 0; i < font.codepoints.size(); ++i)
+        {
+            out << "    { 0x" << std::hex << static_cast<uint32_t>(font.codepoints[i]) << std::dec
+                << ", kAtlas" << a << "GlyphBits" << i << " },\n";
+        }
+        out << "};\n\n";
     }
 
-    out << "const Glyph kGlyphs[kGlyphCount] = {\n";
-    for (size_t i = 0; i < font.codepoints.size(); ++i)
+    out << "const Atlas kAtlases[kAtlasCount] = {\n";
+    for (size_t a = 0; a < atlases.size(); ++a)
     {
-        out << "    { 0x" << std::hex << static_cast<uint32_t>(font.codepoints[i]) << std::dec
-            << ", kGlyphBits" << i << " },\n";
+        const BakedFont& font = atlases[a];
+        out << "    { " << font.cellWidth_px << ", " << font.cellHeight_px << ", " << font.bytesPerRow << ", "
+            << (font.bytesPerRow * font.cellHeight_px) << ", " << font.codepoints.size() << ", kAtlas" << a
+            << "Glyphs },\n";
     }
     out << "};\n\n} // namespace HackAtlas\n";
 }
 
-// Tiles every glyph into a grid and dumps it as a 24bpp BMP so the bake can
-// be eyeballed without any core/renderer code existing yet.
+// Tiles every glyph of one atlas into a grid and dumps it as a 24bpp BMP so
+// the bake can be eyeballed without any core/renderer code existing yet.
+// One file per atlas, named by its cell size.
 void writePreviewBmp(const BakedFont& font, const fs::path& outDir)
 {
     constexpr int kCols = 16;
@@ -318,10 +383,22 @@ void writePreviewBmp(const BakedFont& font, const fs::path& outDir)
     ih.biCompression = BI_RGB;
     ih.biSizeImage = static_cast<DWORD>(pixels.size());
 
-    std::ofstream out(outDir / "hackAtlasPreview.bmp", std::ios::binary);
+    char name[64];
+    std::snprintf(name, sizeof(name), "hackAtlasPreview_%dx%d.bmp", font.cellWidth_px, font.cellHeight_px);
+    std::ofstream out(outDir / name, std::ios::binary);
     out.write(reinterpret_cast<const char*>(&fh), sizeof(fh));
     out.write(reinterpret_cast<const char*>(&ih), sizeof(ih));
     out.write(reinterpret_cast<const char*>(pixels.data()), static_cast<std::streamsize>(pixels.size()));
+}
+
+std::vector<double> parseDpis(const std::string& csv)
+{
+    std::vector<double> dpis;
+    std::stringstream ss(csv);
+    std::string item;
+    while (std::getline(ss, item, ','))
+        dpis.push_back(std::stod(item));
+    return dpis;
 }
 
 } // namespace
@@ -330,15 +407,19 @@ int main(int argc, char** argv)
 {
     fs::path fontPath = "resources/fonts/Hack-Regular.ttf";
     fs::path outDir = "resources";
-    double dpi = 132.0;
+    std::vector<double> dpis(std::begin(kDefaultDpis), std::end(kDefaultDpis));
 
+    bool sawFontPath = false;
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
-        if (arg.rfind("--dpi=", 0) == 0)
-            dpi = std::stod(arg.substr(6));
-        else if (fontPath == "resources/fonts/Hack-Regular.ttf" && i == 1)
+        if (arg.rfind("--dpis=", 0) == 0)
+            dpis = parseDpis(arg.substr(7));
+        else if (!sawFontPath)
+        {
             fontPath = arg;
+            sawFontPath = true;
+        }
         else
             outDir = arg;
     }
@@ -347,15 +428,16 @@ int main(int argc, char** argv)
         fail("font file not found: " + fontPath.string() +
              " (run from the repo root, or pass the path explicitly)");
 
-    BakedFont font = bakeFont(fontPath, dpi);
-    std::printf("Baked Hack at %dx%d px/glyph (target width %.2fpx @ %.0f dpi), %zu glyphs\n",
-                font.cellWidth_px, font.cellHeight_px,
-                kUsableWidth_in / kBodyColsPerRow * dpi, dpi, font.codepoints.size());
+    std::printf("Baking %zu atlas(es)...\n", dpis.size());
+    std::vector<BakedFont> atlases = bakeLadder(fontPath, dpis);
 
-    writeHeader(font, outDir);
-    writeSource(font, outDir);
-    writePreviewBmp(font, outDir);
+    writeHeader(atlases, outDir);
+    writeSource(atlases, outDir);
+    for (const BakedFont& font : atlases)
+        writePreviewBmp(font, outDir);
 
-    std::printf("Wrote %s\\hackAtlas.h, hackAtlas.cpp, hackAtlasPreview.bmp\n", outDir.string().c_str());
+    std::printf("Wrote %s\\hackAtlas.h, hackAtlas.cpp, %zu preview BMP(s) (%zu atlases, %zu glyphs each)\n",
+                outDir.string().c_str(), atlases.size(), atlases.size(),
+                atlases.empty() ? size_t{0} : atlases.front().codepoints.size());
     return 0;
 }

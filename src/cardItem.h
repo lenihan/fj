@@ -30,6 +30,11 @@
 #include <string>
 #include <vector>
 
+namespace HackAtlas
+{
+struct Atlas;
+}
+
 class CardItem
 {
   public:
@@ -76,13 +81,21 @@ class CardItem
     CardNumber cardNumber() const;
     Year year() const;
 
-    // Pixel geometry for row `row`, at render scale `scale` (the best-fit
-    // integer scale chosen once at window-creation time -- see
-    // PLAN_addendum.md's "Coordinate system (core)"). Title rows render at
-    // 2x whatever scale Body rows use, same as the atlas reuse trick.
-    int cellWidth_px(Row row, int scale) const;
-    int cellHeight_px(Row row, int scale) const;
-    int rowTop_px(Row row, int scale) const;
+    // Pixel geometry for row `row`, given whichever baked atlas is active
+    // for this frame (picked by Canvas::pickAtlas against the current
+    // window size -- see PLAN_addendum.md's "Coordinate system (core)").
+    // cellWidth_px comes directly from the atlas; cellHeight_px is instead
+    // anchored to Card::kHeight_in (see cardItem.cpp) so the card's total
+    // rendered shape actually matches its declared physical size, rather
+    // than whatever the font's own glyph proportions happen to produce --
+    // rows are generally taller than a glyph's own pixel height as a
+    // result, with the glyph top-aligned inside (see Cursor::draw's
+    // drawCard). Title rows render at exactly 2x a body row's size either
+    // way, same as the atlas-reuse trick Canvas::drawText's `scale` param
+    // implements.
+    int cellWidth_px(Row row, const HackAtlas::Atlas& atlas) const;
+    int cellHeight_px(Row row, const HackAtlas::Atlas& atlas) const;
+    int rowTop_px(Row row, const HackAtlas::Atlas& atlas) const;
 
     Row firstUserRow() const;
     Row lastUserRow() const;

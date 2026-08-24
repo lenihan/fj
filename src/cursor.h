@@ -24,6 +24,10 @@
 #include <vector>
 
 class Canvas;
+namespace HackAtlas
+{
+struct Atlas;
+}
 
 class Cursor
 {
@@ -89,11 +93,11 @@ class Cursor
     void handleKey(const KeyEvent& event);
 
     // Draws the current card (background/lines/text) and the cursor
-    // itself, at render scale `scale` (see PLAN_addendum.md's "Coordinate
-    // system (core)"). Unlike the old draw(QPainter*, QRectF, bool
-    // capsDown), caps state isn't a parameter -- handleKey() already
-    // tracks it.
-    void draw(Canvas& canvas, int scale) const;
+    // itself, using whichever baked atlas is active for this frame (see
+    // PLAN_addendum.md's "Coordinate system (core)"). Unlike the old
+    // draw(QPainter*, QRectF, bool capsDown), caps state isn't a
+    // parameter -- handleKey() already tracks it.
+    void draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const;
 
   private:
     enum class NavigationMode

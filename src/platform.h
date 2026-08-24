@@ -13,8 +13,10 @@
 // this boundary.
 //
 // Scoped to exactly what src/cursor.cpp and src/cardItem.cpp need today
-// (see PLAN_addendum.md) -- no resize/focus/mouse events, no window-close
+// (see PLAN_addendum.md) -- no focus/mouse events, no window-close
 // callback, no Escape key, because nothing in the current code uses them.
+// Resize *is* part of the contract (run()'s onResize) -- live window
+// resizing is a real feature (see main.cpp), not just window-chrome noise.
 
 #pragma once
 
@@ -47,6 +49,19 @@ struct KeyEvent
                    // down forces command mode for as long as it's held
                    // (squareGraphicsView.cpp's m_wasTypingMode dance),
                    // which needs pressed state at press AND release.
+        Calibrate, // "treat the window's current physical size as exactly
+                   // Card::kWidth_in/kHeight_in" -- an escape hatch for
+                   // when the OS-reported monitor size (see
+                   // win32Window.cpp's displayDpi) is wrong, which no
+                   // amount of DPI-awareness correctness can fix, since
+                   // it's a hardware/EDID data problem, not a DPI-API one.
+                   // The user drag-resizes against a ruler, then sends
+                   // this; main.cpp is the only handler (Cursor never
+                   // sees it -- this is a window-physical-size concern,
+                   // not a card-editing one) and persists the result so
+                   // future launches start out correct too. Modeled as a
+                   // KeyEvent rather than a new callback so it doesn't
+                   // need its own app-surface UI -- see main.cpp.
     };
 
     Kind kind;
@@ -81,12 +96,23 @@ class PlatformWindow
     PlatformWindow& operator=(PlatformWindow&&) noexcept;
 
     // Blocks, owns the event loop, and invokes onKey for every input event
-    // until the window is closed. The core has no other work competing for
-    // the thread, so this is deliberately synchronous, not pollable/async.
-    void run(std::function<void(const KeyEvent&)> onKey);
+    // and onResize for every change in client-area size (including the
+    // implicit one right after window creation isn't reported here -- the
+    // caller already knows its own initial size, since it's what it asked
+    // createPlatformWindow for) until the window is closed. The core has
+    // no other work competing for the thread, so this is deliberately
+    // synchronous, not pollable/async.
+    void run(std::function<void(const KeyEvent&)> onKey, std::function<void(int width_px, int height_px)> onResize);
 
-    // Presents a finished frame. pixels.size() must equal w * h.
+    // Presents a finished frame. pixels.size() must equal w * h. The
+    // platform shell stretches this to whatever the window's current
+    // client size actually is (not necessarily w x h -- see onResize
+    // above), so present() itself never needs to know the window size.
     void present(std::span<const Pixel> pixels, int w, int h);
+
+    // Updates the title bar text (e.g. a live "fj - 5.00"x3.00" 100%"
+    // readout as the window is resized).
+    void setTitle(const std::string& title);
 
     // Public only so a platform shell's free functions (a WndProc, a
     // low-level keyboard hook proc -- neither of which can be a
@@ -102,7 +128,7 @@ class PlatformWindow
     // without this friendship the free function below couldn't construct
     // one despite being declared right next to the class it builds.
     friend std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px,
-                                                                             const char* title);
+                                                                             double aspectRatio, const char* title);
     explicit PlatformWindow(std::unique_ptr<Impl> impl);
 
     std::unique_ptr<Impl> m_impl;
@@ -113,7 +139,18 @@ class PlatformWindow
 // failure reason (which CreateWindowEx/XCreateWindow/etc. call, what OS
 // error) is exactly the kind of information a bool or null pointer throws
 // away and a caller building an error dialog or log line will want back.
-std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, const char* title);
+//
+// aspectRatio (width/height) is what the platform shell locks the window
+// to while the user drags a resize border (see win32Window.cpp's
+// WM_SIZING) so the card's rendered content is only ever scaled
+// uniformly, never distorted. In practice this is Card::kWidth_in/
+// kHeight_in (main.cpp passes it directly): CardItem::cellHeight_px
+// anchors row height to Card::kHeight_in specifically so the card's own
+// rendered shape matches that ratio (see cardItem.cpp) -- it isn't
+// implied automatically by the baked font's glyph proportions the way
+// cellWidth_px's DPI-targeting is (see tools/offline/bakeFont).
+std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, double aspectRatio,
+                                                                  const char* title);
 
 // Primary display DPI (pixels per inch), queried once before any window
 // exists. Not a resize/DPI-change API (see the file comment -- that's out

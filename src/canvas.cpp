@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 namespace
 {
@@ -17,18 +18,35 @@ long long edge(Point a, Point b, Point c)
            static_cast<long long>(b.y - a.y) * (c.x - a.x);
 }
 
-const HackAtlas::Glyph* findGlyph(char32_t codepoint)
+const HackAtlas::Glyph* findGlyph(const HackAtlas::Atlas& atlas, char32_t codepoint)
 {
-    for (std::size_t i = 0; i < HackAtlas::kGlyphCount; ++i)
-        if (HackAtlas::kGlyphs[i].codepoint == codepoint)
-            return &HackAtlas::kGlyphs[i];
+    for (std::size_t i = 0; i < atlas.glyphCount; ++i)
+        if (atlas.glyphs[i].codepoint == codepoint)
+            return &atlas.glyphs[i];
     return nullptr;
 }
 
 } // namespace
 
-Canvas::Canvas(int width_px, int height_px)
-    : m_width(width_px), m_height(height_px), m_pixels(static_cast<std::size_t>(width_px) * height_px, 0)
+const HackAtlas::Atlas& pickAtlas(int desiredCellWidth_px)
+{
+    const HackAtlas::Atlas* best = &HackAtlas::kAtlases[0];
+    int bestDelta = std::abs(best->cellWidth - desiredCellWidth_px);
+    for (std::size_t i = 1; i < HackAtlas::kAtlasCount; ++i)
+    {
+        int delta = std::abs(HackAtlas::kAtlases[i].cellWidth - desiredCellWidth_px);
+        if (delta < bestDelta)
+        {
+            bestDelta = delta;
+            best = &HackAtlas::kAtlases[i];
+        }
+    }
+    return *best;
+}
+
+Canvas::Canvas(int width_px, int height_px, const HackAtlas::Atlas& atlas)
+    : m_width(width_px), m_height(height_px), m_atlas(&atlas),
+      m_pixels(static_cast<std::size_t>(width_px) * height_px, 0)
 {
 }
 
@@ -94,11 +112,11 @@ void Canvas::line(Point p0, Point p1, Pixel color, int thickness)
 
 void Canvas::blitGlyph(const HackAtlas::Glyph& glyph, Point pos, Pixel color, int scale)
 {
-    for (int y = 0; y < HackAtlas::kCellHeight; ++y)
+    for (int y = 0; y < m_atlas->cellHeight; ++y)
     {
-        for (int x = 0; x < HackAtlas::kCellWidth; ++x)
+        for (int x = 0; x < m_atlas->cellWidth; ++x)
         {
-            std::uint8_t byte = glyph.bits[static_cast<std::size_t>(y) * HackAtlas::kBytesPerRow + x / 8];
+            std::uint8_t byte = glyph.bits[static_cast<std::size_t>(y) * m_atlas->bytesPerRow + x / 8];
             bool ink = (byte >> (7 - (x % 8))) & 1;
             if (!ink)
                 continue;
@@ -109,13 +127,13 @@ void Canvas::blitGlyph(const HackAtlas::Glyph& glyph, Point pos, Pixel color, in
 
 void Canvas::drawChar(char32_t codepoint, Point pos, Pixel color, int scale)
 {
-    if (const HackAtlas::Glyph* glyph = findGlyph(codepoint))
+    if (const HackAtlas::Glyph* glyph = findGlyph(*m_atlas, codepoint))
         blitGlyph(*glyph, pos, color, scale);
 }
 
 void Canvas::drawText(std::span<const char32_t> text, Point pos, Pixel color, int scale)
 {
-    int advance = HackAtlas::kCellWidth * scale;
+    int advance = m_atlas->cellWidth * scale;
     for (std::size_t i = 0; i < text.size(); ++i)
         drawChar(text[i], {pos.x + static_cast<int>(i) * advance, pos.y}, color, scale);
 }

@@ -3,6 +3,20 @@
 #include "textUtil.h"
 
 #include <cassert>
+#include <cmath>
+
+namespace
+{
+// Body-row height in inches, so the card's total rendered height actually
+// matches Card::kHeight_in -- see cellHeight_px. Deriving it from the
+// atlas's own glyph height instead (as an earlier version of this did)
+// let the card's real shape drift wherever the font's natural glyph
+// proportions happened to land (for Hack, that's ~2.6:1 wide:tall, not
+// Card::kWidth_in/kHeight_in's 5:3), because nothing tied row height to
+// the card's declared physical size at all. kRowUnits counts the title
+// row as 2 (it renders at 2x a body row's height, same as its 2x width).
+constexpr double kRowUnits = 2.0 + (Card::kNumRows - 1);
+} // namespace
 
 CardItem::CardItem(CardNumber cardNumber, Year year) : m_cardNum(cardNumber), m_year(year)
 {
@@ -43,23 +57,31 @@ ColCount CardItem::colPerRow(Row row) const
 CardNumber CardItem::cardNumber() const { return m_cardNum; }
 Year CardItem::year() const { return m_year; }
 
-int CardItem::cellWidth_px(Row row, int scale) const
+int CardItem::cellWidth_px(Row row, const HackAtlas::Atlas& atlas) const
 {
-    return HackAtlas::kCellWidth * (row == 0 ? scale * 2 : scale);
+    return atlas.cellWidth * (row == 0 ? 2 : 1);
 }
 
-int CardItem::cellHeight_px(Row row, int scale) const
+int CardItem::cellHeight_px(Row row, const HackAtlas::Atlas& atlas) const
 {
-    return HackAtlas::kCellHeight * (row == 0 ? scale * 2 : scale);
+    // Pixels-per-inch implied by this atlas's own cellWidth (which
+    // tools/offline/bakeFont chose to match Card::kWidth_in/
+    // Body::kColsPerRow at some DPI) -- back-deriving it this way means
+    // this doesn't need a separate "current DPI" parameter of its own,
+    // and it automatically tracks whichever atlas Canvas::pickAtlas
+    // selects as the window resizes.
+    double pixelsPerInch = atlas.cellWidth * Body::kColsPerRow / Card::kWidth_in;
+    int bodyRowHeight_px = static_cast<int>(std::lround(pixelsPerInch * Card::kHeight_in / kRowUnits));
+    return bodyRowHeight_px * (row == 0 ? 2 : 1);
 }
 
-int CardItem::rowTop_px(Row row, int scale) const
+int CardItem::rowTop_px(Row row, const HackAtlas::Atlas& atlas) const
 {
     if (row == 0)
         return 0;
     // Every body row shares the same height, so any non-title row index
     // gives the right per-row height here.
-    return cellHeight_px(0, scale) + static_cast<int>(row - 1) * cellHeight_px(1, scale);
+    return cellHeight_px(0, atlas) + static_cast<int>(row - 1) * cellHeight_px(1, atlas);
 }
 
 Row CardItem::firstUserRow() const { return 1; }

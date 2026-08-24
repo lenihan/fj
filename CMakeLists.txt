@@ -84,4 +84,13 @@ if(WIN32)
     # startup that calls main() in both configs.
     set_target_properties(fj PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
     target_link_options(fj PRIVATE $<$<CONFIG:Release>:/ENTRY:mainCRTStartup>)
+
+    # Declares per-monitor-v2 DPI awareness in fj.exe's embedded manifest.
+    # win32Window.cpp's displayDpi() also calls SetProcessDpiAwarenessContext
+    # at runtime, but a runtime call can lose a race against DPI awareness
+    # already having been implicitly decided before main() runs (CRT
+    # startup, the first touch of USER32, etc.) -- a manifest is what
+    # Microsoft actually recommends, since the OS loader applies it before
+    # any of the process's own code executes, with no timing ambiguity.
+    set_target_properties(fj PROPERTIES VS_DPI_AWARE "PerMonitor")
 endif()

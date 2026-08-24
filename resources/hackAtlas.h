@@ -6,18 +6,24 @@
 
 namespace HackAtlas
 {
-inline constexpr int kCellWidth = 11;
-inline constexpr int kCellHeight = 21;
-inline constexpr int kBytesPerRow = 2;
-inline constexpr int kBytesPerGlyph = kBytesPerRow * kCellHeight;
-inline constexpr std::size_t kGlyphCount = 97;
 
 struct Glyph
 {
     char32_t codepoint;
-    const uint8_t* bits; // kBytesPerGlyph bytes, row-major, MSB-first, 1 = ink
+    const uint8_t* bits; // Atlas::bytesPerGlyph bytes, row-major, MSB-first, 1 = ink
 };
 
-extern const Glyph kGlyphs[kGlyphCount];
+struct Atlas
+{
+    int cellWidth;
+    int cellHeight;
+    int bytesPerRow;
+    int bytesPerGlyph;
+    std::size_t glyphCount;
+    const Glyph* glyphs;
+};
+
+inline constexpr std::size_t kAtlasCount = 9;
+extern const Atlas kAtlases[kAtlasCount]; // sorted ascending by cellWidth
 
 } // namespace HackAtlas
