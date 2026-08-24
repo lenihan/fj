@@ -10,7 +10,9 @@ namespace HackAtlas
 struct Glyph
 {
     char32_t codepoint;
-    const uint8_t* bits; // Atlas::bytesPerGlyph bytes, row-major, MSB-first, 1 = ink
+    const uint8_t* bits; // Atlas::bytesPerGlyph bytes, row-major, one byte per
+                         // pixel: 0 = no ink, 255 = full ink (grayscale coverage,
+                         // i.e. an alpha value -- see Canvas::blitGlyph)
 };
 
 struct Atlas

@@ -6,9 +6,12 @@
 // Deliberately minimal, derived from what those files actually draw today
 // (see PLAN_addendum.md), not a general 2D API: fillRect, fillTriangle,
 // line (built from two filled triangles -- see canvas.cpp), and glyph/text
-// drawing from the baked Hack atlas (hackAtlas.h). No anti-aliasing, no
-// rounded corners, no line caps, no clip regions beyond the canvas bounds
-// -- all deferred the same way non-blocky font scaling was.
+// drawing from the baked Hack atlas (hackAtlas.h). Glyphs ARE anti-aliased
+// (tools/offline/bakeFont bakes a grayscale coverage byte per pixel, and
+// blitGlyph alpha-blends it via blendRect) -- but the primitive shapes
+// (fillTriangle, line) are still hard-edged, no rounded corners, no line
+// caps, no clip regions beyond the canvas bounds, all deferred the same
+// way non-blocky primitive-shape scaling was.
 //
 // Canvas works entirely in pixel (_view) coordinates. Converting from the
 // scene's inch-based coordinate system (_scen -- see PLAN.md's
@@ -70,6 +73,13 @@ class Canvas
 
     void fillRect(Rect rect, Pixel color);
     void fillTriangle(Point p0, Point p1, Point p2, Pixel color);
+
+    // Blends color into the pixels already under rect, weighted by alpha
+    // (0 = rect unchanged, 255 = identical to fillRect). blitGlyph uses
+    // this to draw anti-aliased glyph edges from the atlas's coverage
+    // bytes instead of a hard-edged block; public because it's a genuine,
+    // reusable primitive now, not just glyph-drawing internals.
+    void blendRect(Rect rect, Pixel color, int alpha);
 
     // A filled quad along the segment; no rounded caps (see the header
     // comment -- same deferred-polish precedent as font scaling).

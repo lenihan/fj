@@ -1,6 +1,6 @@
 // bakeFont: offline, Windows-only tool that rasterizes Hack-Regular.ttf into
-// a ladder of 1bpp bitmap glyph atlases (one per target DPI) and emits them
-// as a single compiled-in C++ array of atlases.
+// a ladder of grayscale-coverage glyph atlases (one per target DPI) and
+// emits them as a single compiled-in C++ array of atlases.
 //
 // This is a one-time dev-machine tool (lives under tools/offline/, not
 // tools/, to make that explicit), not something fj ships or links at
@@ -94,7 +94,7 @@ std::optional<int> measureWidthAtHeight(HDC hdc, int height_px)
     lf.lfWeight = FW_REGULAR;
     lf.lfCharSet = ANSI_CHARSET;
     lf.lfOutPrecision = OUT_TT_ONLY_PRECIS;
-    lf.lfQuality = NONANTIALIASED_QUALITY; // hard black/white edges for clean 1bpp thresholding
+    lf.lfQuality = ANTIALIASED_QUALITY;
     lf.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
     wcscpy_s(lf.lfFaceName, L"Hack");
 
@@ -157,7 +157,11 @@ BakedFont bakeFont(HDC hdc, double dpi)
     lf.lfWeight = FW_REGULAR;
     lf.lfCharSet = ANSI_CHARSET;
     lf.lfOutPrecision = OUT_TT_ONLY_PRECIS;
-    lf.lfQuality = NONANTIALIASED_QUALITY;
+    lf.lfQuality = ANTIALIASED_QUALITY; // grayscale AA, not CLEARTYPE_QUALITY -- ClearType's
+                                        // RGB subpixel fringing assumes a fixed 1:1 physical
+                                        // pixel layout, which doesn't survive being reduced to
+                                        // a single coverage byte or later stretched (see
+                                        // Canvas::blitGlyph and win32Window.cpp's live resize).
     lf.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
     wcscpy_s(lf.lfFaceName, L"Hack");
     HFONT font = CreateFontIndirectW(&lf);
@@ -173,7 +177,7 @@ BakedFont bakeFont(HDC hdc, double dpi)
     BakedFont result;
     result.cellWidth_px = tm.tmAveCharWidth;
     result.cellHeight_px = tm.tmAscent + tm.tmDescent;
-    result.bytesPerRow = (result.cellWidth_px + 7) / 8;
+    result.bytesPerRow = result.cellWidth_px; // one coverage byte per pixel, no bit-packing
     result.codepoints = glyphCodepoints();
 
     // One reusable top-down 32bpp DIB section, cleared and redrawn per glyph.
@@ -201,20 +205,23 @@ BakedFont bakeFont(HDC hdc, double dpi)
         ExtTextOutW(hdc, 0, 0, ETO_OPAQUE, &cellRect, &ch, 1, nullptr);
         GdiFlush();
 
-        std::vector<uint8_t> glyphBits(static_cast<size_t>(result.bytesPerRow) * result.cellHeight_px, 0);
+        // GDI's grayscale AA renders black text on a white background with
+        // R==G==B at every pixel, the level directly reflecting how little
+        // ink covers that pixel (255 = pure background, 0 = pure ink) --
+        // invert it once here so the baked byte is coverage (0 = no ink,
+        // 255 = full ink), which is exactly the alpha Canvas::blitGlyph
+        // blends with.
+        std::vector<uint8_t> glyphCoverage(static_cast<size_t>(result.bytesPerRow) * result.cellHeight_px, 0);
         for (int y = 0; y < result.cellHeight_px; ++y)
         {
             for (int x = 0; x < result.cellWidth_px; ++x)
             {
                 uint32_t bgr = pixels[static_cast<size_t>(y) * result.cellWidth_px + x];
                 uint8_t r = static_cast<uint8_t>(bgr >> 16);
-                bool ink = r < 128;
-                if (ink)
-                    glyphBits[static_cast<size_t>(y) * result.bytesPerRow + (x / 8)] |=
-                        static_cast<uint8_t>(0x80 >> (x % 8));
+                glyphCoverage[static_cast<size_t>(y) * result.bytesPerRow + x] = static_cast<uint8_t>(255 - r);
             }
         }
-        result.bits.push_back(std::move(glyphBits));
+        result.bits.push_back(std::move(glyphCoverage));
     }
 
     SelectObject(hdc, oldBitmap);
@@ -274,7 +281,9 @@ void writeHeader(const std::vector<BakedFont>& atlases, const fs::path& outDir)
            "namespace HackAtlas\n{\n\n"
            "struct Glyph\n{\n"
            "    char32_t codepoint;\n"
-           "    const uint8_t* bits; // Atlas::bytesPerGlyph bytes, row-major, MSB-first, 1 = ink\n"
+           "    const uint8_t* bits; // Atlas::bytesPerGlyph bytes, row-major, one byte per\n"
+           "                         // pixel: 0 = no ink, 255 = full ink (grayscale coverage,\n"
+           "                         // i.e. an alpha value -- see Canvas::blitGlyph)\n"
            "};\n\n"
            "struct Atlas\n{\n"
            "    int cellWidth;\n"
@@ -358,8 +367,8 @@ void writePreviewBmp(const BakedFont& font, const fs::path& outDir)
         {
             for (int x = 0; x < font.cellWidth_px; ++x)
             {
-                bool ink = (bits[static_cast<size_t>(y) * font.bytesPerRow + (x / 8)] >> (7 - (x % 8))) & 1;
-                uint8_t v = ink ? 0x00 : 0xFF;
+                uint8_t coverage = bits[static_cast<size_t>(y) * font.bytesPerRow + x];
+                uint8_t v = static_cast<uint8_t>(255 - coverage); // coverage 0 (no ink) -> v 255 (white)
                 // BMP is bottom-up; flip y into the buffer.
                 int by = sheetH - 1 - (cellY + y);
                 size_t idx = static_cast<size_t>(by) * rowStride + (cellX + x) * 3;

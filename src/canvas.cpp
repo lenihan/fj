@@ -62,6 +62,41 @@ void Canvas::fillRect(Rect rect, Pixel color)
             m_pixels[static_cast<std::size_t>(y) * m_width + x] = color;
 }
 
+void Canvas::blendRect(Rect rect, Pixel color, int alpha)
+{
+    if (alpha <= 0)
+        return;
+    if (alpha >= 255)
+    {
+        fillRect(rect, color);
+        return;
+    }
+
+    int x0 = std::max(0, rect.x);
+    int y0 = std::max(0, rect.y);
+    int x1 = std::min(m_width, rect.x + rect.w);
+    int y1 = std::min(m_height, rect.y + rect.h);
+
+    int fr = (color >> 16) & 0xFF;
+    int fg = (color >> 8) & 0xFF;
+    int fb = color & 0xFF;
+
+    for (int y = y0; y < y1; ++y)
+    {
+        for (int x = x0; x < x1; ++x)
+        {
+            Pixel& dst = m_pixels[static_cast<std::size_t>(y) * m_width + x];
+            int br = (dst >> 16) & 0xFF;
+            int bg = (dst >> 8) & 0xFF;
+            int bb = dst & 0xFF;
+            int r = (fr * alpha + br * (255 - alpha)) / 255;
+            int g = (fg * alpha + bg * (255 - alpha)) / 255;
+            int b = (fb * alpha + bb * (255 - alpha)) / 255;
+            dst = (static_cast<Pixel>(r) << 16) | (static_cast<Pixel>(g) << 8) | static_cast<Pixel>(b);
+        }
+    }
+}
+
 void Canvas::fillTriangle(Point p0, Point p1, Point p2, Pixel color)
 {
     long long area = edge(p0, p1, p2);
@@ -116,11 +151,16 @@ void Canvas::blitGlyph(const HackAtlas::Glyph& glyph, Point pos, Pixel color, in
     {
         for (int x = 0; x < m_atlas->cellWidth; ++x)
         {
-            std::uint8_t byte = glyph.bits[static_cast<std::size_t>(y) * m_atlas->bytesPerRow + x / 8];
-            bool ink = (byte >> (7 - (x % 8))) & 1;
-            if (!ink)
+            // One coverage byte per source pixel (0 = no ink, 255 = full
+            // ink -- see tools/offline/bakeFont). Used directly as
+            // blendRect's alpha: every scale x scale destination block
+            // gets the same blend weight as its one source pixel, which
+            // is nearest-neighbor upscaling of the coverage value, same
+            // as the old hard ink/no-ink blit did for the binary case.
+            std::uint8_t coverage = glyph.bits[static_cast<std::size_t>(y) * m_atlas->bytesPerRow + x];
+            if (coverage == 0)
                 continue;
-            fillRect({pos.x + x * scale, pos.y + y * scale, scale, scale}, color);
+            blendRect({pos.x + x * scale, pos.y + y * scale, scale, scale}, color, coverage);
         }
     }
 }
