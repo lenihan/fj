@@ -74,3 +74,14 @@ endif()
 add_executable(fj src/main.cpp)
 target_link_libraries(fj PRIVATE core)
 set_target_properties(fj PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
+if(WIN32)
+    # Debug: console subsystem, so stderr (window-creation failures, any
+    # future debug prints) is visible for free. Release: Windows subsystem,
+    # so fj launches without a console window alongside it. main.cpp stays
+    # plain `int main()` either way -- WIN32_EXECUTABLE alone would default
+    # the entry point to WinMainCRTStartup (needing a WinMain we don't
+    # have), so /ENTRY:mainCRTStartup pins it back to the ordinary CRT
+    # startup that calls main() in both configs.
+    set_target_properties(fj PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
+    target_link_options(fj PRIVATE $<$<CONFIG:Release>:/ENTRY:mainCRTStartup>)
+endif()
