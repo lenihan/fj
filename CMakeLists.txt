@@ -22,16 +22,16 @@ endif()
 
 ###############################################################################
 # core: the portable, no-platform-code half of the Qt-removal pivot (see
-# PLAN_addendum.md). Not wired into a real executable yet -- there's no
-# platform shell (Win32/Xlib/Emscripten) to drive it. The old Qt6/
-# QGraphicsItem app this replaces lives only on main now, not this branch.
+# PLAN_addendum.md). The old Qt6/QGraphicsItem app this replaces lives only
+# on main now, not this branch.
 #
-# platform.h has no .cpp of its own (each platform shell provides one);
-# listed here only so it shows up in IDEs. resources/hackAtlas.* is
-# bakeFont's generated output, not hand-maintained source -- included here
-# as data the core embeds, not code to edit.
+# platform.h's declarations are implemented by exactly one platform shell
+# source (win32Window.cpp on Windows) selected below -- only one is ever
+# compiled into a given binary (see platform.h's file comment). resources/
+# hackAtlas.* is bakeFont's generated output, not hand-maintained source --
+# included here as data the core embeds, not code to edit.
 
-add_library(core STATIC
+set(CORE_SOURCES
     src/canvas.cpp
     src/canvas.h
     src/cardItem.cpp
@@ -51,5 +51,26 @@ add_library(core STATIC
     resources/hackAtlas.cpp
     resources/hackAtlas.h
 )
+if(WIN32)
+    list(APPEND CORE_SOURCES src/win32Window.cpp)
+endif()
+
+add_library(core STATIC ${CORE_SOURCES})
 target_include_directories(core PUBLIC src resources)
 set_target_properties(core PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
+if(WIN32)
+    target_link_libraries(core PUBLIC gdi32 user32)
+    # win32Window.cpp calls the W-suffixed Win32 API explicitly throughout,
+    # but a few macros (IDC_ARROW, MAKEINTRESOURCE) still switch on
+    # UNICODE/_UNICODE rather than the call site -- define both so they
+    # resolve to the wide forms those calls actually expect.
+    target_compile_definitions(core PUBLIC UNICODE _UNICODE)
+endif()
+
+###############################################################################
+# fj: the actual app -- core plus main.cpp's platform-agnostic composition
+# of Cursor/Canvas/PlatformWindow (see main.cpp's file comment).
+
+add_executable(fj src/main.cpp)
+target_link_libraries(fj PRIVATE core)
+set_target_properties(fj PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)

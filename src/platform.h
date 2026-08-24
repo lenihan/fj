@@ -88,8 +88,23 @@ class PlatformWindow
     // Presents a finished frame. pixels.size() must equal w * h.
     void present(std::span<const Pixel> pixels, int w, int h);
 
-  private:
+    // Public only so a platform shell's free functions (a WndProc, a
+    // low-level keyboard hook proc -- neither of which can be a
+    // PlatformWindow member, since the OS calls them by plain function
+    // pointer) can name the type to reach their window's state. It's still
+    // opaque everywhere outside that one .cpp: forward-declared here and
+    // never defined except there.
     struct Impl;
+
+  private:
+    // createPlatformWindow is the only way to get a live Impl (a real HWND/
+    // Xlib Window/...) into a PlatformWindow -- m_impl is private, so
+    // without this friendship the free function below couldn't construct
+    // one despite being declared right next to the class it builds.
+    friend std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px,
+                                                                             const char* title);
+    explicit PlatformWindow(std::unique_ptr<Impl> impl);
+
     std::unique_ptr<Impl> m_impl;
 };
 
@@ -99,3 +114,14 @@ class PlatformWindow
 // error) is exactly the kind of information a bool or null pointer throws
 // away and a caller building an error dialog or log line will want back.
 std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, const char* title);
+
+// Primary display DPI (pixels per inch), queried once before any window
+// exists. Not a resize/DPI-change API (see the file comment -- that's out
+// of scope): its one caller is main(), which needs it exactly once, before
+// createPlatformWindow(), to pick the integer glyph-atlas render scale
+// that best maps onto Card::kWidth_in/kHeight_in (see layout.h and
+// PLAN_addendum.md's "Coordinate system (core)"). X-axis DPI only -- Y
+// differs in practice by a pixel or two on real hardware, which this
+// ignores the same way the best-fit scale itself is already an
+// approximation.
+int displayDpi();
