@@ -1,134 +1,106 @@
 #include "cardItem.h"
-#include "rowItem.h"
-#include <QPen>
+#include "hackAtlas.h"
+#include "textUtil.h"
 
-CardItem::CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
-    : QGraphicsRectItem(parent), m_cardNum(cardNumber), m_year(year)
+#include <cassert>
+#include <cmath>
+
+namespace
 {
-    // Reserve space for rows
-    m_rows.reserve(Card::kNumRows);
+// Body-row height in inches, so the card's total rendered height actually
+// matches Card::kHeight_in -- see cellHeight_px. Deriving it from the
+// atlas's own glyph height instead (as an earlier version of this did)
+// let the card's real shape drift wherever the font's natural glyph
+// proportions happened to land (for Hack, that's ~2.6:1 wide:tall, not
+// Card::kWidth_in/kHeight_in's 5:3), because nothing tied row height to
+// the card's declared physical size at all. kRowUnits counts the title
+// row as 2 (it renders at 2x a body row's height, same as its 2x width).
+constexpr double kRowUnits = 2.0 + (Card::kNumRows - 1);
+} // namespace
 
-    for (int i = 0; i < Card::kNumRows; ++i)
-        m_rows.emplaceBack(new RowItem(static_cast<Row>(i), this));
+CardItem::CardItem(CardNumber cardNumber, Year year) : m_cardNum(cardNumber), m_year(year)
+{
+    for (Row row = 0; row < Card::kNumRows; ++row)
+        m_rows[row].text.assign(colPerRow(row), U' ');
 
     setupLastRow();
 }
 
 bool CardItem::isTOC() const { return cardType() == Type::TOC; }
-
 bool CardItem::isContent() const { return cardType() == Type::Content; }
+bool CardItem::isThreadStart() const { return m_threadStart == this; }
+bool CardItem::isThreadEnd() const { return m_threadNext == nullptr; }
 
-bool CardItem::isThreadStart() const
+void CardItem::setChar(char32_t c, Row row, Col col)
 {
-    return m_threadStart == this;
+    assert(col < colPerRow(row));
+    m_rows[row].text[col] = c;
 }
 
-bool CardItem::isThreadEnd() const
+void CardItem::setText(Row row, const std::u32string& text)
 {
-    return m_threadNext == nullptr;
+    assert(text.size() <= colPerRow(row));
+    m_rows[row].text = text;
+    m_rows[row].text.resize(colPerRow(row), U' ');
 }
 
-void CardItem::setChar(const QChar c, Row row, Col col)
+std::u32string CardItem::text(Row row) const
 {
-    Q_ASSERT(row < Card::kNumRows);
-    m_rows[row]->setChar(c, row, col);
-}
-
-void CardItem::setText(Row row, const QString& text)
-{
-    m_rows[row]->setText(text);
+    return m_rows[row].text;
 }
 
 ColCount CardItem::colPerRow(Row row) const
 {
-    Q_ASSERT(row <= Card::kNumRows);
-    return m_rows[row]->colPerRow();
+    return row == 0 ? Title::kColsPerRow : Body::kColsPerRow;
 }
 
-qreal CardItem::rowLineY_scen(Row row) const
+CardNumber CardItem::cardNumber() const { return m_cardNum; }
+Year CardItem::year() const { return m_year; }
+
+int CardItem::cellWidth_px(Row row, const HackAtlas::Atlas& atlas) const
 {
-    qreal y_scen =
-        Card::kTop_scen + Title::kRowHeight_scen + (row * Body::kRowHeight_scen);
-    return y_scen;
+    return atlas.cellWidth * (row == 0 ? 2 : 1);
 }
 
-RowItem* CardItem::firstRowItem()
+int CardItem::cellHeight_px(Row row, const HackAtlas::Atlas& atlas) const
 {
-    return m_rows[0];
+    // Pixels-per-inch implied by this atlas -- back-deriving it from
+    // cardWidth_px (the card's true rendered width, margins included,
+    // which tools/offline/bakeFont's atlas sizing targets Card::kWidth_in
+    // for) means this doesn't need a separate "current DPI" parameter of
+    // its own, and it automatically tracks whichever atlas
+    // Canvas::pickAtlas selects as the window resizes.
+    double pixelsPerInch = cardWidth_px(atlas) / Card::kWidth_in;
+    int bodyRowHeight_px = static_cast<int>(std::lround(pixelsPerInch * Card::kHeight_in / kRowUnits));
+    return bodyRowHeight_px * (row == 0 ? 2 : 1);
 }
 
-RowItem* CardItem::lastRowItem()
+int CardItem::sideMargin_px(const HackAtlas::Atlas& atlas) const
 {
-    return m_rows[Card::kNumRows - 1];
+    return atlas.cellWidth * 2;
 }
 
-void CardItem::setThreadStart(CardItem* threadStart)
+int CardItem::cardWidth_px(const HackAtlas::Atlas& atlas) const
 {
-    m_threadStart = threadStart;
+    return Body::kColsPerRow * cellWidth_px(1, atlas) + 2 * sideMargin_px(atlas);
 }
 
-CardItem* CardItem::threadStart() const
+int CardItem::cardHeight_px(const HackAtlas::Atlas& atlas) const
 {
-    return m_threadStart;
+    Row lastRow = Card::kNumRows - 1;
+    return rowTop_px(lastRow, atlas) + cellHeight_px(lastRow, atlas);
 }
 
-CardNumber CardItem::cardNumber() const
+int CardItem::rowTop_px(Row row, const HackAtlas::Atlas& atlas) const
 {
-    return m_cardNum;
+    if (row == 0)
+        return 0;
+    // Every body row shares the same height, so any non-title row index
+    // gives the right per-row height here.
+    return cellHeight_px(0, atlas) + static_cast<int>(row - 1) * cellHeight_px(1, atlas);
 }
 
-Year CardItem::year() const
-{
-    return m_year;
-}
-
-void CardItem::setThreadPrev(CardItem* card)
-{
-    m_threadPrev = card;
-    setupLastRow();
-
-    m_links.clear();
-    setupLinks();
-}
-
-CardItem* CardItem::threadPrev()
-{
-    return m_threadPrev;
-}
-
-void CardItem::setThreadNext(CardItem* card)
-{
-    m_threadNext = card;
-    setupLastRow();
-
-    m_links.clear();
-    setupLinks();
-}
-
-CardItem* CardItem::threadNext()
-{
-    return m_threadNext;
-}
-
-void CardItem::setDeleted(bool deleted)
-{
-    if (m_threadStart->cardNumber() == 0)
-    {
-        // Don't allow deleting TOC for card stack
-        return;
-    }
-    m_deleted = deleted;
-}
-
-bool CardItem::deleted() const
-{
-    return m_deleted;
-}
-
-Row CardItem::firstUserRow() const
-{
-    return 1;
-}
+Row CardItem::firstUserRow() const { return 1; }
 
 Row CardItem::lastUserRow() const
 {
@@ -136,220 +108,160 @@ Row CardItem::lastUserRow() const
     return lastRow - 1;
 }
 
-Col CardItem::lastColAt(Row row) const
-{
-    return colPerRow(row) - 1;
-}
-
-Col CardItem::firstColAt(Row row) const
-{
-    return 0;
-}
+Col CardItem::lastColAt(Row row) const { return colPerRow(row) - 1; }
+Col CardItem::firstColAt(Row) const { return 0; }
 
 CardItem* CardItem::tableOfContents()
 {
-    Q_ASSERT(m_threadStart);
+    assert(m_threadStart);
     CardItem* toc = m_threadStart->isTOC() ? m_threadStart : m_threadStart->threadPrev();
-    Q_ASSERT(toc);
-    Q_ASSERT(toc->isTOC());
+    assert(toc);
+    assert(toc->isTOC());
     return toc;
 }
 
-void CardItem::setReadOnly(bool readOnly)
-{
-    m_readOnly = readOnly;
-}
+void CardItem::setThreadStart(CardItem* threadStart) { m_threadStart = threadStart; }
+CardItem* CardItem::threadStart() const { return m_threadStart; }
 
-bool CardItem::readOnly() const
+void CardItem::setThreadPrev(CardItem* card)
 {
-    return m_readOnly;
+    m_threadPrev = card;
+    setupLastRow();
+    m_links.clear();
+    setupLinks();
 }
+CardItem* CardItem::threadPrev() const { return m_threadPrev; }
 
-bool CardItem::hasLinks() const
+void CardItem::setThreadNext(CardItem* card)
 {
-    if (m_links.size() > 0)
-        return true;
-    else
-        return false;
+    m_threadNext = card;
+    setupLastRow();
+    m_links.clear();
+    setupLinks();
 }
+CardItem* CardItem::threadNext() const { return m_threadNext; }
+
+void CardItem::setDeleted(bool deleted)
+{
+    if (m_threadStart->cardNumber() == 0)
+        return; // Don't allow deleting the TOC for a card stack
+    m_deleted = deleted;
+}
+bool CardItem::deleted() const { return m_deleted; }
+
+void CardItem::setReadOnly(bool readOnly) { m_readOnly = readOnly; }
+bool CardItem::readOnly() const { return m_readOnly; }
+
+void CardItem::setRowReadOnly(Row row, bool readOnly) { m_rows[row].readOnly = readOnly; }
+bool CardItem::rowReadOnly(Row row) const { return m_rows[row].readOnly; }
+
+bool CardItem::hasLinks() const { return !m_links.empty(); }
 
 CardItem::CardLink CardItem::currentLink() const
 {
-    Q_ASSERT(m_currentLinkIndex < m_links.size());
-    Q_ASSERT(m_currentLinkIndex > -1);
+    assert(m_currentLinkIndex >= 0);
+    assert(static_cast<size_t>(m_currentLinkIndex) < m_links.size());
     return m_links[m_currentLinkIndex];
 }
 
 void CardItem::nextLink()
 {
-    Q_ASSERT(m_links.size() > 0);
-    if (m_currentLinkIndex < m_links.size() - 1)
-        m_currentLinkIndex++;
+    assert(!m_links.empty());
+    if (static_cast<size_t>(m_currentLinkIndex) < m_links.size() - 1)
+        ++m_currentLinkIndex;
 }
 
 void CardItem::prevLink()
 {
-    Q_ASSERT(m_links.size() > 0);
+    assert(!m_links.empty());
     if (m_currentLinkIndex != 0)
-        m_currentLinkIndex--;
+        --m_currentLinkIndex;
 }
 
 void CardItem::setCurrentLink(CardItem* card)
 {
-    Q_ASSERT(card);
+    assert(card);
     m_currentLinkIndex = -1;
-    for (int i = 0; i < m_links.size(); ++i)
+    for (size_t i = 0; i < m_links.size(); ++i)
     {
         if (m_links[i].targetCard == card)
         {
-            m_currentLinkIndex = i;
+            m_currentLinkIndex = static_cast<int>(i);
             return;
         }
     }
-    Q_ASSERT(false); // should have found the card in the links
+    assert(false); // should have found the card in the links
 }
 
 void CardItem::setupPrevLink()
 {
     if (m_threadPrev)
     {
-        QString prev = linkStr(m_threadPrev);
+        std::u32string prev = linkStr(m_threadPrev);
         Row lastRow = Card::kNumRows - 1;
-        Col col = 0;
-        ColCount colCount = prev.length();
-        m_links.append({lastRow, col, colCount, m_threadPrev});
+        m_links.push_back({lastRow, 0, static_cast<ColCount>(prev.size()), m_threadPrev});
     }
 }
 
 void CardItem::setupNextLink()
 {
-   if (m_threadNext)
+    if (m_threadNext)
     {
-        QString next = linkStr(m_threadNext);
+        std::u32string next = linkStr(m_threadNext);
         Row lastRow = Card::kNumRows - 1;
-        Col col = lastRowItem()->colPerRow() - next.length();
-        ColCount colCount = next.length();
-        m_links.append({lastRow, col, colCount, m_threadNext});
+        Col col = static_cast<Col>(colPerRow(lastRow) - next.size());
+        m_links.push_back({lastRow, col, static_cast<ColCount>(next.size()), m_threadNext});
     }
- }
+}
 
 void CardItem::setupLinks()
 {
     setupPrevLink();
     setupNextLink();
-    m_currentLinkIndex = m_links.size() - 1;
+    m_currentLinkIndex = static_cast<int>(m_links.size()) - 1;
 }
 
-QVariant CardItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value)
+// Examples: up-arrow 4, right-arrow 2026-42
+std::u32string CardItem::linkStr(CardItem* card) const
 {
-    if (change == ItemVisibleHasChanged)
-    {
-        if (value.toBool())
-        { // <-- just became visible
-            Q_ASSERT(threadStart());
-            const QString title = threadStart()->firstRowItem()->text();
-            firstRowItem()->setText(title);
-            update(); // request repaint
-        }
-    }
-    return QGraphicsItem::itemChange(change, value);
-}
-
-void CardItem::setupBackground()
-{
-    setRect(Card::kRect_scen);
-    setPen(Qt::NoPen);
-    setBrush(QBrush(Card::kColor));
-}
-
-void CardItem::setupLines()
-{
-    for (int i = 0; i < Card::kNumRows - 1; ++i)
-    {
-        auto* line = new QGraphicsLineItem(this);
-        qreal y_scen = rowLineY_scen(i);
-        line->setLine(Card::kLeft_scen, y_scen, Card::kRight_scen, y_scen);
-
-        QPen pen(i == 0 ? Title::kLineColor : Body::kLineColor);
-        pen.setWidthF(3.0);
-        pen.setCosmetic(true);
-        line->setPen(pen);
-    }
-}
-
-// Examples: ↑4, →2026-42
-QString CardItem::linkStr(CardItem* card) const
-{
-    QString str;
-
     if (!card)
-        return str;
+        return {};
 
-    // Prefix
-    if (m_threadStart == this && card == m_threadPrev)
-        str = "↑"; // Parent TOC
-    else
-        str = "→"; // Thread
+    std::u32string str = (m_threadStart == this && card == m_threadPrev) ? U"↑" : U"→";
 
-    // Year
     if (m_year != card->year())
     {
-        str += (card->year() == Master::kYear) ? "Master" : QString::number(card->year());
-        str += "-";
+        str += (card->year() == Master::kYear) ? U"Master" : toU32(card->year());
+        str += U"-";
     }
-    // Card number
-    str += QString::number(card->cardNumber() + 1);
-
+    str += toU32(card->cardNumber() + 1);
     return str;
 }
 
 void CardItem::setupLastRow()
 {
-    RowItem* lastRow = lastRowItem();
-    lastRow->setReadOnly(true);
+    Row lastRow = Card::kNumRows - 1;
+    setRowReadOnly(lastRow, true);
 
-    // Last line: Prev thread       card num         next thread
-    ColCount colCount = lastRow->colPerRow();
-    QString text(colCount, ' ');
-    qsizetype pos;
-    qsizetype n;
+    // Last line: prev thread       card num       next thread
+    ColCount colCount = colPerRow(lastRow);
+    std::u32string text(colCount, U' ');
 
-    // prev (master card 1...has no prev thread)
     if (m_threadPrev)
     {
-        QString prev = linkStr(m_threadPrev);
-        pos = 0;
-        n = prev.length();
-        text.replace(pos, n, prev);
+        std::u32string prev = linkStr(m_threadPrev);
+        text.replace(0, prev.size(), prev);
     }
 
-    // card num
-    QString cardNumStr = QString::number(m_cardNum + 1);
-    pos = (colCount - cardNumStr.length()) / 2;
-    n = cardNumStr.length();
-    text.replace(pos, n, cardNumStr);
+    std::u32string cardNumStr = toU32(m_cardNum + 1);
+    size_t pos = (colCount - cardNumStr.size()) / 2;
+    text.replace(pos, cardNumStr.size(), cardNumStr);
 
-    // next
     if (m_threadNext)
     {
-        QString next = linkStr(m_threadNext);
-        pos = colCount - next.length();
-        n = next.length();
-        text.replace(pos, n, next);
+        std::u32string next = linkStr(m_threadNext);
+        text.replace(colCount - next.size(), next.size(), next);
     }
 
-    Q_ASSERT(text.length() == colCount);
-    lastRow->setText(text);
-}
-
-const RowItem* CardItem::rowItem(Row row) const
-{
-    Q_ASSERT(row <= Card::kNumRows);
-    return m_rows[row];
-}
-
-RowItem* CardItem::rowItemAt(Row row)
-{
-    Q_ASSERT(row <= Card::kNumRows);
-    return m_rows[row];
+    setText(lastRow, text);
 }

@@ -1,9 +1,5 @@
 #include "contentItem.h"
-#include <QPen>
 
-ContentItem::ContentItem(CardNumber cardNumber, Year year, QGraphicsItem* parent)
-    : CardItem(cardNumber, year, parent)
+ContentItem::ContentItem(CardNumber cardNumber, Year year) : CardItem(cardNumber, year)
 {
-    setupBackground();
-    setupLines();
 }

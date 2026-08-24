@@ -1,11 +1,41 @@
+// cardItem.h -- fj's card model, ported off QGraphicsRectItem.
+//
+// RowItem is gone: once painting and QFont metrics left, there wasn't
+// enough left in it (just per-row text + a read-only flag) to justify a
+// separate class, so CardItem owns that data directly (see RowData below).
+//
+// Row text is std::u32string, not std::string: linkStr() below builds
+// strings containing the link arrows U+2191/U+2192, and every column
+// calculation in this class and Cursor (lastColAt, dot-fill widths, link
+// positions, ...) assumes one string element == one glyph cell. A
+// std::string holding UTF-8 would count 3 bytes for each arrow and quietly
+// break that arithmetic; std::u32string keeps 1 element == 1 codepoint ==
+// 1 cell, and hands off to Canvas::drawText's char32_t span with no
+// conversion.
+//
+// Ownership: CardStack owns CardItems (see cardStack.h) via
+// unique_ptr<CardItem>, so the destructor must be virtual -- deleting a
+// TOCItem/ContentItem through a CardItem* base pointer without one is UB.
+// cardType()/setupLinks() stay virtual too: unlike PlatformWindow (only
+// ever one implementation per binary), a single CardStack genuinely mixes
+// TOCItem and ContentItem instances together at runtime, so this is a case
+// where dynamic dispatch is actually earning its keep.
+
 #pragma once
 
-#include "common.h"
-#include <QGraphicsRectItem>
+#include "layout.h"
+#include "types.h"
 
-class RowItem;
+#include <array>
+#include <string>
+#include <vector>
 
-class CardItem : public QGraphicsRectItem
+namespace HackAtlas
+{
+struct Atlas;
+}
+
+class CardItem
 {
   public:
     enum class Type
@@ -14,38 +44,77 @@ class CardItem : public QGraphicsRectItem
         TOC,
         Content
     };
+
     struct CardLink
     {
         Row row{0};
         Col col{0};
-        ColCount charCount{0}; 
+        ColCount charCount{0};
         CardItem* targetCard{nullptr};
     };
 
-    CardItem(CardNumber cardNumber, Year year, QGraphicsItem* parent = nullptr);
+    CardItem(CardNumber cardNumber, Year year);
+    virtual ~CardItem() = default;
 
     virtual Type cardType() const { return Type::Unknown; }
-    bool isTOC() const; 
+    bool isTOC() const;
     bool isContent() const;
     bool isThreadStart() const;
     bool isThreadEnd() const;
 
-    void setChar(QChar c, Row row, Col col);
-    void setText(Row row, const QString& text);
-    
+    void setChar(char32_t c, Row row, Col col);
+
+    // Pads `text` with trailing spaces out to the row's full width if it's
+    // shorter (matches the old RowItem::setText, which only ever
+    // overwrote a prefix and left the rest as the row's initial spaces --
+    // every real caller either passes a full-width string already or sets
+    // a short title on a still-blank row, so padding is equivalent and
+    // simpler than replicating "leave the old suffix alone" exactly).
+    void setText(Row row, const std::u32string& text);
+
+    // Virtual, returned by value (not const&): TOCItem overrides this to
+    // compute content-row text on demand from the cards it lists, rather
+    // than caching it -- see tocItem.h.
+    virtual std::u32string text(Row row) const;
+
     ColCount colPerRow(Row row) const;
-    qreal rowLineY_scen(Row row) const;
-    const RowItem* rowItem(Row row) const;
     CardNumber cardNumber() const;
     Year year() const;
-    
-    RowItem* rowItemAt(Row row);
-    RowItem* firstRowItem();
-    RowItem* lastRowItem();
+
+    // Pixel geometry for row `row`, given whichever baked atlas is active
+    // for this frame (picked by Canvas::pickAtlas against the current
+    // window size -- see PLAN.md's "Coordinate system (core)").
+    // cellWidth_px comes directly from the atlas; cellHeight_px is instead
+    // anchored to Card::kHeight_in (see cardItem.cpp) so the card's total
+    // rendered shape actually matches its declared physical size, rather
+    // than whatever the font's own glyph proportions happen to produce --
+    // rows are generally taller than a glyph's own pixel height as a
+    // result, with the glyph vertically centered inside (see Cursor::
+    // draw's drawCard). Title rows render at exactly 2x a body row's size
+    // either way, same as the atlas-reuse trick Canvas::drawText's
+    // `scale` param implements.
+    int cellWidth_px(Row row, const HackAtlas::Atlas& atlas) const;
+    int cellHeight_px(Row row, const HackAtlas::Atlas& atlas) const;
+    int rowTop_px(Row row, const HackAtlas::Atlas& atlas) const;
+
+    // Blank horizontal margin on each side of every row's text, so the
+    // first/last character isn't flush against the card's own edge --
+    // see cardItem.cpp. Same value regardless of row, so title and body
+    // text line up on the left.
+    int sideMargin_px(const HackAtlas::Atlas& atlas) const;
+
+    // Total rendered card size in pixels, atlas included -- unlike
+    // cellWidth_px/cellHeight_px/rowTop_px, which describe one row's
+    // cell, these describe the whole card (width including
+    // sideMargin_px on both sides). The only two callers needing this
+    // (Cursor::draw and main.cpp) used to each keep their own private
+    // copy of this arithmetic; promoted here once cellHeight_px's own
+    // physical-accuracy math (above) needed the true total width too.
+    int cardWidth_px(const HackAtlas::Atlas& atlas) const;
+    int cardHeight_px(const HackAtlas::Atlas& atlas) const;
 
     Row firstUserRow() const;
     Row lastUserRow() const;
-
     Col lastColAt(Row row) const;
     Col firstColAt(Row row) const;
 
@@ -53,43 +122,46 @@ class CardItem : public QGraphicsRectItem
 
     void setThreadStart(CardItem* threadStart);
     CardItem* threadStart() const;
-    
     void setThreadPrev(CardItem* card);
-    CardItem* threadPrev();
-
+    CardItem* threadPrev() const;
     void setThreadNext(CardItem* card);
-    CardItem* threadNext();
+    CardItem* threadNext() const;
 
     void setDeleted(bool deleted);
     bool deleted() const;
 
     void setReadOnly(bool readOnly);
     bool readOnly() const;
+    void setRowReadOnly(Row row, bool readOnly);
+    bool rowReadOnly(Row row) const;
 
     bool hasLinks() const;
     CardLink currentLink() const;
     void nextLink();
     void prevLink();
-    void setCurrentLink(CardItem *card);
+    void setCurrentLink(CardItem* card);
     void setupPrevLink();
     void setupNextLink();
     virtual void setupLinks();
 
   protected:
-    QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant& value);
     void setupLastRow();
-    void setupBackground();
-    void setupLines();
-    QString linkStr(CardItem* card) const;
-    QList<CardLink> m_links;
-    qsizetype m_currentLinkIndex{-1};
+    std::u32string linkStr(CardItem* card) const;
 
+    std::vector<CardLink> m_links;
+    int m_currentLinkIndex{-1};
 
   private:
+    struct RowData
+    {
+        std::u32string text;
+        bool readOnly{false};
+    };
+
     CardItem* m_threadPrev{nullptr};
     CardItem* m_threadNext{nullptr};
     CardItem* m_threadStart{nullptr};
-    QList<RowItem*> m_rows;
+    std::array<RowData, Card::kNumRows> m_rows;
     CardNumber m_cardNum{0};
     Year m_year{0};
     bool m_deleted{false};

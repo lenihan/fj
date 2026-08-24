@@ -1,198 +1,119 @@
 #include "cursor.h"
-#include "cardItem.h"
-#include "cardStack.h"
-#include "common.h"
-#include "rowItem.h"
+#include "canvas.h"
+#include "hackAtlas.h"
 #include "tocItem.h"
-#include <QDate>
-#include <QGraphicsScene>
-#include <QMap>
-#include <QPainter>
-#include <QPen>
 
-Cursor::Cursor(QGraphicsScene* scene) : m_scene(scene)
+#include <cassert>
+
+namespace
 {
-    Q_ASSERT(m_scene);
+constexpr Pixel kCardColor = 0x00FDF9F0;       // Card::kColor "#fdf9f0"
+constexpr Pixel kTitleLineColor = 0x00C9A1AE;  // Title::kLineColor
+constexpr Pixel kBodyLineColor = 0x007D93EA;   // Body::kLineColor (alpha dropped -- was opaque anyway)
+constexpr Pixel kBlack = 0x00000000;
+constexpr Pixel kLightGray = 0x00A3A3A3;       // Colors::kLightGray
+constexpr Pixel kOrangishRed = 0x00E33B24;     // Colors::kOrangishRed
+constexpr Pixel kDeletedRed = 0x00FF0000;
 
-    // Deleted pen setup
-    m_deletedPen.setColor(Qt::red);
-    m_deletedPen.setWidthF(Pen::kDeletedWidth);
-    m_deletedPen.setCosmetic(true);
-    m_deletedPen.setCapStyle(Qt::RoundCap);
+// Cosmetic pen widths in the old Qt code (Pen::kDeletedWidth,
+// kTypingModeCursorWidth) were screen-pixel-fixed regardless of view
+// zoom -- the direct translation is a fixed pixel width, independent of
+// which atlas is active or how the final present-time stretch scales it.
+constexpr int kDeletedLineWidth_px = 10;
+constexpr int kCursorOutlineWidth_px = 2;
 
-    // Typing mode cursor pen setup
-    m_typingModeCursorPen.setColor(Colors::kOrangishRed);
-    m_typingModeCursorPen.setCosmetic(true);
-    m_typingModeCursorPen.setWidthF(Pen::kTypingModeCursorWidth);
+void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
+{
+    canvas.line({r.x, r.y}, {r.x + r.w, r.y}, color, thickness);
+    canvas.line({r.x + r.w, r.y}, {r.x + r.w, r.y + r.h}, color, thickness);
+    canvas.line({r.x + r.w, r.y + r.h}, {r.x, r.y + r.h}, color, thickness);
+    canvas.line({r.x, r.y + r.h}, {r.x, r.y}, color, thickness);
+}
 
-    // Darken brush setup
-    m_darkenedBrush.setStyle(Qt::SolidPattern);
-    m_darkenedBrush.setColor(Colors::kDarkenedColor);
+// Background, row separator lines, and every row's text. Old Qt code did
+// this via CardItem::setupBackground()/setupLines() (once, at construction
+// time, as child scene items) plus RowItem::paint() (once per row, called
+// by the scene automatically). With no scene, it all happens here, drawn
+// fresh from the card's current data every time Cursor::draw() runs.
+//
+// NOTE: doesn't implement the old "darken all but the current row while
+// typing" effect -- that relied on Qt's alpha-blended brush
+// (Colors::kDarkenedColor has alpha=50); Canvas::blendRect could do this
+// now, but nothing wires it up yet. Deferred alongside the other visual
+// polish (rounded corners, line caps).
+void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atlas)
+{
+    int width = card.cardWidth_px(atlas);
+    int height = card.cardHeight_px(atlas);
+    canvas.fillRect({0, 0, width, height}, kCardColor);
 
-    // Command mode cursor brush setup
-    m_commandModeCursorBrush.setColor(Colors::kOrangishRed);
+    // Text is inset by sideMargin_px so the first/last character isn't
+    // flush against the card's own edge; the separator lines below still
+    // span the card's full width, like ruled paper.
+    int marginX = card.sideMargin_px(atlas);
 
-    // Setup master card stack
+    for (Row row = 0; row < Card::kNumRows; ++row)
+    {
+        int top = card.rowTop_px(row, atlas);
+        int cellH = card.cellHeight_px(row, atlas);
+        int rowScale = row == 0 ? 2 : 1; // Title renders at exactly 2x Body's cell size
+
+        if (row < Card::kNumRows - 1)
+        {
+            Pixel lineColor = row == 0 ? kTitleLineColor : kBodyLineColor;
+            canvas.line({0, top + cellH}, {width, top + cellH}, lineColor, 1);
+        }
+
+        // Rows are generally taller than a glyph's own pixel height (see
+        // CardItem::cellHeight_px) -- center the glyph within the row
+        // rather than pinning it to the top.
+        int glyphHeight = atlas.cellHeight * rowScale;
+        int textY = top + (cellH - glyphHeight) / 2;
+
+        Pixel textColor = card.rowReadOnly(row) ? kLightGray : kBlack;
+        canvas.drawText(card.text(row), {marginX, textY}, textColor, rowScale);
+    }
+}
+
+} // namespace
+
+Cursor::Cursor()
+{
     m_year = Master::kYear;
-    Q_ASSERT(!m_yearToCardStack.contains(m_year));
-    auto* masterCS = new CardStack(m_year, scene);
-    m_yearToCardStack.insert(m_year, masterCS);
-    Q_ASSERT(m_yearToCardStack.contains(m_year));
+    auto masterStack = std::make_unique<CardStack>(m_year);
+    CardStack* masterCS = masterStack.get();
+    m_yearToCardStack.emplace(m_year, std::move(masterStack));
+
     showCard(masterCS->tableOfContents());
 
     addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("Help");
-    addNewCard(CardItem::Type::TOC);
-    CardItem* test = masterCS->lastCardItem();
-    masterCS->lastCardItem()->firstRowItem()->setText("TEST TOC");
-    addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("a");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("b");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("c");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("d");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("e");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("f");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("g");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("h");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("i");
-    showCard(test);
-   addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("j");
-    showCard(test);
-
-
-
-
-    #if 0
-
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::TOC);
-    masterCS->lastCardItem()->firstRowItem()->setText("TOC 1");
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::TOC);
-    masterCS->lastCardItem()->firstRowItem()->setText("TOC 2");
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::TOC);
-    masterCS->lastCardItem()->firstRowItem()->setText("TOC 3");
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::TOC);
-    masterCS->lastCardItem()->firstRowItem()->setText("TOC 4");
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::TOC);
-    masterCS->lastCardItem()->firstRowItem()->setText("TOC 5");
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::TOC);
-    masterCS->lastCardItem()->firstRowItem()->setText("TOC 6");
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::TOC);
-    masterCS->lastCardItem()->firstRowItem()->setText("TOC 7");
-    showCard(masterCS->tableOfContents());
-    addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->firstRowItem()->setText("Content 1");
-    showCard(masterCS->tableOfContents());
-#endif
+    masterCS->lastCardItem()->setText(0, U"Help");
 
     m_row = 1;
     enterTypingMode();
 
-#if 0   
-    // Setup current year card stack
-    const Year currentYear = QDate::currentDate().year();
-    Q_ASSERT(!m_yearToCardStack.contains(currentYear));
-
-    auto* yearCS = new CardStack(currentYear, this);
-    m_yearToCardStack.insert(currentYear, yearCS);
-    Q_ASSERT(m_yearToCardStack.contains(currentYear));
-    /* these should be set in constructor
-    
-    // Init
-    m_year = QDate::currentDate().year();
-    m_currentCard = masterCS.toc();
-    m_row = m_currentCard->firstEditableRow();
-    m_col = 0;
-    */
-#endif
-
-    Q_ASSERT(m_currentCard);
+    assert(m_currentCard);
 }
 
 CardNumber Cursor::lastCardNumber() const
 {
-    Q_ASSERT(m_yearToCardStack.contains(m_year));
-    const auto* cardStack = m_yearToCardStack[m_year];
-    return cardStack->lastCardNumber();
+    return m_yearToCardStack.at(m_year)->lastCardNumber();
 }
 
-QGraphicsScene* Cursor::scene()
-{
-    return m_scene;
-}
+Year Cursor::year() const { return m_year; }
+void Cursor::setYear(Year year) { m_year = year; }
 
-Year Cursor::year() const
-{
-    return m_year;
-}
+Row Cursor::row() const { return m_row; }
+void Cursor::setRow(Row row) { m_row = row; }
 
-void Cursor::setYear(Year year)
-{
-    m_year = year;
-}
+Col Cursor::col() const { return m_col; }
+void Cursor::setCol(Col col) { m_col = col; }
 
-Row Cursor::row() const
-{
-    return m_row;
-}
+CardItem* Cursor::currentCard() { return m_currentCard; }
+void Cursor::setCurrentCard(CardItem* card) { m_currentCard = card; }
 
-void Cursor::setRow(Row row)
-{
-    m_row = row;
-}
-
-Col Cursor::col() const
-{
-    return m_col;
-}
-
-void Cursor::setCol(Col col)
-{
-    m_col = col;
-}
-
-CardItem* Cursor::currentCard()
-{
-    return m_currentCard;
-}
-
-void Cursor::setCurrentCard(CardItem* card)
-{
-    m_currentCard = card;
-}
-
-bool Cursor::isTypingMode() const
-{
-    return m_keyboardMode == KeyboardMode::Typing;
-}
-
-bool Cursor::isCommandMode() const
-{
-    return m_keyboardMode == KeyboardMode::Command;
-}
+bool Cursor::isTypingMode() const { return m_keyboardMode == KeyboardMode::Typing; }
+bool Cursor::isCommandMode() const { return m_keyboardMode == KeyboardMode::Command; }
 
 void Cursor::enterTypingMode()
 {
@@ -203,7 +124,7 @@ void Cursor::enterTypingMode()
             shakeCardNo();
             return;
         }
-        m_row = 0; // Move to title
+        m_row = 0; // move to title
     }
 
     if (m_currentCard->readOnly() || m_currentCard->deleted())
@@ -215,29 +136,25 @@ void Cursor::enterTypingMode()
     m_navigationMode = NavigationMode::Cursor; // so you can use navigation keys
 }
 
-void Cursor::enterCommandMode()
-{
-    m_keyboardMode = KeyboardMode::Command;
-}
+void Cursor::enterCommandMode() { m_keyboardMode = KeyboardMode::Command; }
 
 void Cursor::toggleNavigationMode()
 {
     if (m_currentCard->isTOC())
     {
         m_navigationMode = m_row == 0
-            ? NavigationMode::Cursor // Title can only do curor navigation
-            : NavigationMode::Link; // TOC only has link navigation mode
+            ? NavigationMode::Cursor // title can only do cursor navigation
+            : NavigationMode::Link;  // TOC only has link navigation
     }
     else
-        m_navigationMode = (m_navigationMode == NavigationMode::Link)
-                               ? NavigationMode::Cursor
-                               : NavigationMode::Link;
+        m_navigationMode =
+            (m_navigationMode == NavigationMode::Link) ? NavigationMode::Cursor : NavigationMode::Link;
 }
 
 void Cursor::up()
 {
     if (m_row == 0)
-        return; //  can't leave title via up
+        return; // can't leave title via up
 
     if (m_navigationMode == NavigationMode::Link)
     {
@@ -246,13 +163,13 @@ void Cursor::up()
     }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
-        uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
+        ColCount oldColsPerRow = m_currentCard->colPerRow(m_row);
         prevRow();
-        uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
-        m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
+        ColCount newColsPerRow = m_currentCard->colPerRow(m_row);
+        m_col = static_cast<Col>(static_cast<unsigned>(m_col) * newColsPerRow / oldColsPerRow);
     }
     else
-        Q_ASSERT(false); // unknown navigation mode
+        assert(false); // unknown navigation mode
 }
 
 void Cursor::down()
@@ -268,28 +185,25 @@ void Cursor::down()
             nextRow();
         else
         {
-            uint32_t oldColsPerRow = m_currentCard->colPerRow(m_row);
+            ColCount oldColsPerRow = m_currentCard->colPerRow(m_row);
             nextRow();
-            uint32_t newColsPerRow = m_currentCard->colPerRow(m_row);
-            m_col = static_cast<uint32_t>(m_col) * newColsPerRow / oldColsPerRow;
+            ColCount newColsPerRow = m_currentCard->colPerRow(m_row);
+            m_col = static_cast<Col>(static_cast<unsigned>(m_col) * newColsPerRow / oldColsPerRow);
         }
     }
     else
-        Q_ASSERT(false); // unknown navigation mode
+        assert(false); // unknown navigation mode
 }
 
 void Cursor::left()
 {
     if (m_navigationMode == NavigationMode::Link)
     {
-        // go to back
-        if (m_linkHistory.isEmpty())
+        if (m_linkHistory.empty())
             return; // noop
-        else
-        {
-            CardItem* prevCard = m_linkHistory.takeLast();
-            showCard(prevCard);
-        }
+        CardItem* prevCard = m_linkHistory.back();
+        m_linkHistory.pop_back();
+        showCard(prevCard);
     }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
@@ -298,12 +212,11 @@ void Cursor::left()
         else
         {
             if (m_row == 0 && m_col == 0)
-                return; // can't leave whle working on title
-            bool nextLeftIsTOC = m_row == 1 &&
-                                 m_col == m_currentCard->firstColAt(m_row) &&
-                                 m_currentCard->isThreadStart();
+                return; // can't leave while working on title
+            bool nextLeftIsTOC = m_row == 1 && m_col == m_currentCard->firstColAt(m_row) &&
+                                  m_currentCard->isThreadStart();
             if (nextLeftIsTOC)
-                return; // Can't leave content for TOC via arrow keys
+                return; // can't leave content for TOC via arrow keys
             if (m_col == m_currentCard->firstColAt(m_row))
             {
                 Row oldRow = m_row;
@@ -322,30 +235,23 @@ void Cursor::right()
     if (m_row == 0)
     {
         if (m_col == m_currentCard->lastColAt(m_row))
-            return; // can't leave whle working on title
-        else
-            m_col++;
+            return; // can't leave while working on title
+        m_col++;
     }
     else if (m_navigationMode == NavigationMode::Link)
     {
-        // Follow current link
         if (m_currentCard->hasLinks())
         {
             CardItem::CardLink link = m_currentCard->currentLink();
             CardItem* targetCard = link.targetCard;
-            Q_ASSERT(targetCard);
+            assert(targetCard);
             if (targetCard == m_currentCard->threadPrev())
             {
-                // Following prev thread, same as pressing back in link history
-                // Remove last link from history
-                if (!m_linkHistory.isEmpty())
-                {
-                    if (m_linkHistory.last() == targetCard)
-                        m_linkHistory.removeLast();
-                }
+                if (!m_linkHistory.empty() && m_linkHistory.back() == targetCard)
+                    m_linkHistory.pop_back();
             }
             else
-                m_linkHistory.append(m_currentCard);
+                m_linkHistory.push_back(m_currentCard);
             showCard(targetCard);
         }
     }
@@ -354,18 +260,17 @@ void Cursor::right()
         if (m_currentCard->isTOC())
         {
             auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
-            Q_ASSERT(toc);
+            assert(toc);
             if (toc->numberContent() > 0)
             {
                 CardItem* newCard = toc->cardAtRow(m_row);
 
-                // Skip over deleted cards
                 CardItem* nextCard = newCard;
                 while (nextCard && nextCard->deleted())
                     nextCard = nextCard->threadNext();
                 if (nextCard && !nextCard->deleted())
                     newCard = nextCard;
-                Q_ASSERT(newCard);
+                assert(newCard);
 
                 showCard(newCard);
             }
@@ -392,9 +297,7 @@ void Cursor::enter()
         // Done with title
         m_row++;
         if (m_currentCard->isContent())
-        {
             enterTypingMode();
-        }
         else if (m_currentCard->isTOC())
         {
             enterCommandMode();
@@ -421,7 +324,8 @@ void Cursor::enter()
             }
             thread = thread->threadNext();
         }
-        // If we have a thread with every card deleted, 'enter' will add a new card to end of thread
+        // If we have a thread with every card deleted, 'enter' adds a new
+        // card to the end of the thread.
         if (threadDeleted)
         {
             m_currentCard = last;
@@ -431,7 +335,7 @@ void Cursor::enter()
     else if (m_currentCard->isContent())
     {
         if (m_currentCard->readOnly())
-            Q_ASSERT(false); // TODO: Add new content to m_year, connected to this thread
+            assert(false); // TODO: add new content to m_year, connected to this thread
         else
             nextRowCreateCard();
     }
@@ -445,20 +349,16 @@ void Cursor::backspace()
     else
     {
         if (m_col == m_currentCard->firstColAt(m_row))
-        {
-            // noop
             shakeCardNo();
-        }
         else
         {
-            // Delete prev character
             m_col--;
-            m_currentCard->setChar(' ', m_row, m_col);
+            m_currentCard->setChar(U' ', m_row, m_col);
         }
     }
 }
 
-void Cursor::charTyped(QChar c)
+void Cursor::charTyped(char32_t c)
 {
     if (m_currentCard->deleted() || m_currentCard->readOnly())
     {
@@ -480,15 +380,14 @@ void Cursor::nextRow()
         if (m_row == m_currentCard->lastUserRow())
         {
             if (m_currentCard->threadNext() == nullptr)
-                return; // on last row, last thread...noop
-            else
-                nextThreadCard(); // onlast row...go to next thread
+                return; // last row, last thread -- noop
+            nextThreadCard();
         }
         else
         {
             auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
             if (m_row >= toc->numberContent())
-                ; // last row...noop
+                ; // last content row -- noop
             else
                 m_row++;
         }
@@ -503,15 +402,13 @@ void Cursor::nextRow()
                 m_row = m_currentCard->firstUserRow();
         }
         else
-        {
             m_row++;
-        }
     }
 }
 
 void Cursor::nextRowCreateCard()
 {
-    Q_ASSERT(m_row == 0 || m_currentCard->isContent());
+    assert(m_row == 0 || m_currentCard->isContent());
     if (m_row == m_currentCard->lastUserRow())
         nextThreadCardCreateCard();
     else
@@ -520,7 +417,7 @@ void Cursor::nextRowCreateCard()
 
 void Cursor::prevRow()
 {
-    Q_ASSERT(m_row != 0);
+    assert(m_row != 0);
     if (m_row == m_currentCard->firstUserRow() && !m_currentCard->isThreadStart())
     {
         CardItem* oldCard = m_currentCard;
@@ -536,18 +433,16 @@ void Cursor::nextCard()
 {
     if (m_currentCard->cardNumber() == lastCardNumber())
     {
-        // Last card...Stop!
-        shakeCardNo();
+        shakeCardNo(); // last card
     }
     else
     {
-        Q_ASSERT(m_yearToCardStack.contains(m_year));
-        auto* cardStack = m_yearToCardStack[m_year];
+        CardStack* cardStack = m_yearToCardStack.at(m_year).get();
         CardNumber cardNum = m_currentCard->cardNumber();
-        CardItem* nextCard = cardStack->cardItemAt(cardNum + 1);
-        if (nextCard->isTOC())
+        CardItem* next = cardStack->cardItemAt(cardNum + 1);
+        if (next->isTOC())
             tocCurrent();
-        showCard(nextCard);
+        showCard(next);
     }
 }
 
@@ -555,27 +450,24 @@ void Cursor::prevCard()
 {
     if (m_currentCard->cardNumber() == 0)
     {
-        // First card...Stop!
-        shakeCardNo();
+        shakeCardNo(); // first card
     }
     else
     {
-        Q_ASSERT(m_yearToCardStack.contains(m_year));
-        auto* cardStack = m_yearToCardStack[m_year];
+        CardStack* cardStack = m_yearToCardStack.at(m_year).get();
         CardNumber cardNumber = m_currentCard->cardNumber();
-        CardItem* prevCard = cardStack->cardItemAt(cardNumber - 1);
-        if (prevCard->isTOC())
+        CardItem* prev = cardStack->cardItemAt(cardNumber - 1);
+        if (prev->isTOC())
             tocCurrent();
-        showCard(prevCard);
+        showCard(prev);
     }
 }
 
 void Cursor::prevThreadCard()
 {
-    Q_ASSERT(m_currentCard);
+    assert(m_currentCard);
     CardItem* prevCard = m_currentCard->threadPrev();
 
-    // Skip over deleted cards
     while (prevCard && prevCard->deleted())
         prevCard = prevCard->threadPrev();
 
@@ -593,14 +485,11 @@ void Cursor::prevThreadCard()
 
 void Cursor::nextThreadCard()
 {
-    Q_ASSERT(m_currentCard);
+    assert(m_currentCard);
     CardItem* nextCard = m_currentCard->threadNext();
 
-    // Skip over deleted cards
     while (nextCard && nextCard->deleted())
-    {
         nextCard = nextCard->threadNext();
-    }
 
     if (nextCard && !nextCard->deleted())
     {
@@ -614,13 +503,18 @@ void Cursor::nextThreadCardCreateCard()
 {
     CardItem* nextCard = m_currentCard->threadNext();
     if (nextCard)
-        showCard(nextCard);
-    else
     {
-        Q_ASSERT(m_yearToCardStack.contains(m_year));
-        m_row = nextCard->firstUserRow();
-        addContinuationCard(CardItem::Type::Content);
+        showCard(nextCard);
+        return;
     }
+
+    // Old code dereferenced `nextCard` here even though this branch is
+    // only reached when it's null (harmless in practice only because
+    // firstUserRow() never touches `this`, but still a real null-deref
+    // bug). Fixed: create the continuation card first, then ask *it* for
+    // its first user row.
+    addContinuationCard(CardItem::Type::Content);
+    m_row = m_currentCard->firstUserRow();
 }
 
 void Cursor::addNewCard(CardItem::Type type)
@@ -639,158 +533,148 @@ void Cursor::addContinuationCard(CardItem::Type type)
 
 void Cursor::moveToTOCForNewCard()
 {
-    Q_ASSERT(m_yearToCardStack.contains(m_year));
-    Q_ASSERT(m_currentCard);
+    assert(m_currentCard);
 
-    TOCItem* toc = dynamic_cast<TOCItem*>(m_currentCard->tableOfContents());
-    Q_ASSERT(toc);
+    auto* toc = dynamic_cast<TOCItem*>(m_currentCard->tableOfContents());
+    assert(toc);
     while (toc->threadNext())
     {
-        Q_ASSERT(toc->isFull());
+        assert(toc->isFull());
         toc = dynamic_cast<TOCItem*>(toc->threadNext());
-        Q_ASSERT(toc);
+        assert(toc);
     }
     m_currentCard = toc;
     if (toc->isFull())
-    {
         addContinuationCard(CardItem::Type::TOC);
-    }
-    Q_ASSERT(m_currentCard->isTOC());
-    Q_ASSERT(m_currentCard->isThreadEnd());
+
+    assert(m_currentCard->isTOC());
+    assert(m_currentCard->isThreadEnd());
 }
 
 void Cursor::toggleDeleteCard()
 {
-    Q_ASSERT(m_currentCard);
+    assert(m_currentCard);
     m_currentCard->setDeleted(!m_currentCard->deleted());
-
-    // Remove/add delete slash
-    scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
 
-void Cursor::draw(QPainter* painter, const QRectF& rect, bool capsDown)
+void Cursor::handleKey(const KeyEvent& event)
 {
-    Q_ASSERT(m_currentCard);
-
-    // Draw delete slash if the card is deleted
-    if (m_currentCard->deleted())
+    if (event.kind == KeyEvent::Kind::CapsLock && !event.pressed)
     {
-        QRectF r_scen = m_currentCard->sceneBoundingRect();
-        qreal inset_scen = Body::kRowHeight_scen;
-        QPointF p1_scen = r_scen.topLeft() + QPointF(inset_scen, inset_scen);
-        QPointF p2_scen = r_scen.bottomRight() - QPointF(inset_scen, inset_scen);
+        m_capsDown = false;
+        if (m_lastKeyKind == KeyEvent::Kind::CapsLock)
+            enterCommandMode();
+        else if (m_wasTypingMode)
+            enterTypingMode();
+        else
+            enterCommandMode();
+        return; // release doesn't update m_lastKeyKind, matching the old
+                // code's keyReleaseEvent never touching m_lastKeyPress
+    }
 
-        painter->setPen(m_deletedPen);
-        painter->drawLine(p1_scen, p2_scen);
+    m_lastKeyKind = event.kind;
+
+    if (event.kind == KeyEvent::Kind::CapsLock) // press
+    {
+        m_capsDown = true;
+        m_wasTypingMode = isTypingMode();
+        enterCommandMode();
+        return;
+    }
+    if (event.kind == KeyEvent::Kind::Enter)
+    {
+        enter();
+        return;
+    }
+    if (event.kind == KeyEvent::Kind::Backspace)
+    {
+        backspace();
         return;
     }
 
-    RowItem* rowItem = m_currentCard->rowItemAt(m_row);
-    Q_ASSERT(rowItem);
-
-    KeyboardMode tempMode = m_keyboardMode;
-    if (capsDown)
-        tempMode = KeyboardMode::Command;
-
-    // If typing, darken all but current row
-    if (tempMode == KeyboardMode::Typing)
+    // event.kind == Char: home-row command dispatch, or literal typing.
+    if (isCommandMode() || m_capsDown)
     {
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(m_darkenedBrush);
+        switch (event.codepoint)
+        {
+            case U'i': up(); break;
+            case U'k': down(); break;
+            case U'j': left(); break;
+            case U'l': right(); break;
+            case U'e': enterTypingMode(); break;
+            case U'u': prevCard(); break;
+            case U'o': nextCard(); break;
+            case U'd': toggleDeleteCard(); break;
+            case U'c': addNewCard(CardItem::Type::Content); break;
+            case U't': addNewCard(CardItem::Type::TOC); break;
+            case U'n': toggleNavigationMode(); break;
+            case U'm': prevThreadCard(); break;
+            case U'.': nextThreadCard(); break;
+            default: break; // unmapped command-mode key: noop
+        }
+    }
+    else
+        charTyped(event.codepoint);
+}
 
-        qreal rowHeight_scen = rowItem->rowHeight_scen();
-        qreal lineY_scen = m_currentCard->rowLineY_scen(m_row);
+void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const
+{
+    assert(m_currentCard);
 
-        qreal x = Card::kLeft_scen;
-        qreal y = lineY_scen - rowHeight_scen;
-        qreal w = Card::kRight_scen - Card::kLeft_scen;
-        qreal h = rowHeight_scen;
-        QRectF row_scen(x, y, w, h);
+    drawCard(*m_currentCard, canvas, atlas);
 
-        QRectF card_locl = m_currentCard->rect();
-        QPolygonF card_scen = m_currentCard->mapRectToScene(card_locl);
-
-        // Build a path: outer rect minus inner rect
-        QPainterPath path;
-        path.addPolygon(card_scen);                                // outer
-        path.addRoundedRect(row_scen, 5.0, 5.0, Qt::RelativeSize); // inner (will be subtracted)
-
-        // Set fill rule so the inner area becomes a "hole"
-        path.setFillRule(Qt::OddEvenFill); // or WindingFill; OddEven usually works best for holes
-        painter->drawPath(path);           // draws only the outline with hole
+    if (m_currentCard->deleted())
+    {
+        int inset = m_currentCard->cellHeight_px(1, atlas); // one body-row-height inset
+        Point p1{inset, inset};
+        Point p2{m_currentCard->cardWidth_px(atlas) - inset, m_currentCard->cardHeight_px(atlas) - inset};
+        canvas.line(p1, p2, kDeletedRed, kDeletedLineWidth_px);
+        return;
     }
 
-    // Draw cursor
+    KeyboardMode tempMode = m_capsDown ? KeyboardMode::Command : m_keyboardMode;
+    int marginX = m_currentCard->sideMargin_px(atlas); // drawCard insets text by this too -- keep cursor indicators aligned with it
+    int rowTop = m_currentCard->rowTop_px(m_row, atlas);
+    int cellW = m_currentCard->cellWidth_px(m_row, atlas);
+    int cellH = m_currentCard->cellHeight_px(m_row, atlas);
+
+    if (tempMode == KeyboardMode::Command && m_navigationMode == NavigationMode::Link)
     {
-        painter->setPen(m_typingModeCursorPen);
-        painter->setBrush(Qt::transparent);
-
-        qreal rowHeight_scen = rowItem->rowHeight_scen();
-        qreal charHeight_scen = rowItem->charHeight_scen();
-        qreal charWidth_scen = rowItem->charWidth_scen();
-        qreal lineY_scen = m_currentCard->rowLineY_scen(m_row);
-
-        // Draw hollow square around links
-        if (tempMode == KeyboardMode::Command && m_navigationMode == NavigationMode::Link)
+        if (m_currentCard->hasLinks())
         {
-            if (m_currentCard->hasLinks())
-            {
-                CardItem::CardLink link = m_currentCard->currentLink();
-                qreal linkLineY_scen = link.targetCard->rowLineY_scen(link.row);
-                Q_ASSERT(link.targetCard);
-                QPointF topLeft(link.col * charWidth_scen + Card::kBorder_scen,
-                                linkLineY_scen - rowHeight_scen + (rowHeight_scen - charHeight_scen) / 2.0);
-                QPointF bottomRight(topLeft.x() + link.charCount * charWidth_scen,
-                                    linkLineY_scen - (rowHeight_scen - charHeight_scen) / 2.0);
-                QRectF cursorRect(topLeft, bottomRight);
-                qreal percentage = 15.0;
-                painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
-            }
+            CardItem::CardLink link = m_currentCard->currentLink();
+            int linkTop = m_currentCard->rowTop_px(link.row, atlas);
+            int linkCellW = m_currentCard->cellWidth_px(link.row, atlas);
+            int linkCellH = m_currentCard->cellHeight_px(link.row, atlas);
+            Rect box{marginX + link.col * linkCellW, linkTop, link.charCount * linkCellW, linkCellH};
+            drawBoxOutline(canvas, box, kOrangishRed, kCursorOutlineWidth_px);
         }
-        // Draw cursor in typing mode as a hollow square
-        else if (tempMode == KeyboardMode::Typing) // hollow square
-        {
-            QPointF topLeft(m_col * charWidth_scen + Card::kBorder_scen,
-                            lineY_scen - rowHeight_scen + (rowHeight_scen - charHeight_scen) / 2.0);
-            QPointF bottomRight(topLeft.x() + charWidth_scen,
-                                lineY_scen - (rowHeight_scen - charHeight_scen) / 2.0);
-            QRectF cursorRect(topLeft, bottomRight);
-            qreal percentage = 15.0;
-            painter->drawRoundedRect(cursorRect, percentage, percentage, Qt::RelativeSize);
-        }
-        // Draw cursor in command mode as an arrow pointing up under the current character
-        else
-        {
-            painter->setBrush(m_commandModeCursorBrush);
-            qreal deltaCharRow = rowHeight_scen - charHeight_scen;
-            qreal centerX = m_col * charWidth_scen + Card::kBorder_scen + charWidth_scen / 2.0;
-            qreal x1 = centerX;
-            qreal y1 = lineY_scen - deltaCharRow / 2.0;
-            qreal x2 = centerX - charWidth_scen / 2.0;
-            qreal y2 = lineY_scen - deltaCharRow / 10.0;
-            qreal x3 = centerX + charWidth_scen / 2.0;
-            qreal y3 = lineY_scen - deltaCharRow / 10.0;
-
-            QPointF points[3] = {QPointF(x1, y1),
-                                 QPointF(x2, y2),
-                                 QPointF(x3, y3)};
-            painter->drawPolygon(points, 3);
-        }
+    }
+    else if (tempMode == KeyboardMode::Typing) // hollow square
+    {
+        Rect box{marginX + m_col * cellW, rowTop, cellW, cellH};
+        drawBoxOutline(canvas, box, kOrangishRed, kCursorOutlineWidth_px);
+    }
+    else // Command mode, cursor navigation: upward arrow under the current character
+    {
+        // Sized directly from the cell -- apex 3/4 down the cell, base at
+        // the bottom (unlike drawCard's text, not vertically centered:
+        // this is a UI indicator, not row content).
+        int centerX = marginX + m_col * cellW + cellW / 2;
+        int apexY = rowTop + cellH * 3 / 4;
+        int baseY = rowTop + cellH;
+        canvas.fillTriangle({centerX, apexY}, {centerX - cellW / 2, baseY}, {centerX + cellW / 2, baseY},
+                             kOrangishRed);
     }
 }
 
 void Cursor::showCard(CardItem* card)
 {
-    Q_ASSERT(card);
-    if (m_currentCard)
-        m_currentCard->hide();
-    card->show();
+    assert(card);
     m_currentCard = card;
 
     if (m_currentCard->isTOC())
         m_navigationMode = NavigationMode::Link;
-
-    scene()->invalidate(QRectF(), QGraphicsScene::ForegroundLayer);
 }
 
 void Cursor::tocCurrent()
@@ -802,14 +686,13 @@ void Cursor::tocCurrent()
 
 void Cursor::addCard(CardItem::Type type, CardStack::ThreadMode threadMode)
 {
-    Q_ASSERT(m_yearToCardStack.contains(m_year));
-    m_linkHistory.append(m_currentCard);
-    CardItem* newCard = m_yearToCardStack[m_year]->add(type, threadMode, m_currentCard);
+    m_linkHistory.push_back(m_currentCard);
+    CardItem* newCard = m_yearToCardStack.at(m_year)->add(type, threadMode, m_currentCard);
     showCard(newCard);
 }
 
 void Cursor::shakeCardNo() const
 {
-    // TODO: make card shake left and right quickly like it is saying "no"
-    //       to give user feedback they can't do something
+    // TODO: make the card shake left/right quickly like it's saying "no",
+    // to give the user feedback they can't do something.
 }

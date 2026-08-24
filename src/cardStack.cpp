@@ -1,101 +1,75 @@
 #include "cardStack.h"
 #include "contentItem.h"
-#include "cursor.h"
-#include "rowItem.h"
+#include "textUtil.h"
 #include "tocItem.h"
 
-#include <QGraphicsScene>
+#include <cassert>
 
-CardStack::CardStack(Year year, QGraphicsScene* scene) : m_year(year), m_scene(scene)
+CardStack::CardStack(Year year) : m_year(year)
 {
-    Q_ASSERT(m_scene);
-    
-    // Create cardstack's TOC
     CardItem* newCard = add(CardItem::Type::TOC, ThreadMode::New);
-    
     newCard->setReadOnly(true);
-    
-    // Title
-    QString title = m_year == Master::kYear ? "Master TOC" : QString::number(m_year) = " TOC";
-    newCard->firstRowItem()->setText(title);
-    newCard->firstRowItem()->setReadOnly(true);
+
+    // Old Qt code had `QString::number(m_year) = " TOC"` here -- an `=`
+    // where a `+` was clearly meant, so every non-master year's TOC title
+    // silently rendered as just " TOC" with the year missing. Fixed here.
+    std::u32string title = (m_year == Master::kYear) ? U"Master TOC" : (toU32(m_year) + U" TOC");
+    newCard->setText(0, title); // setText pads out to the full title row width
+    newCard->setRowReadOnly(0, true);
 }
 
 CardItem* CardStack::cardItemAt(CardNumber cardNumber)
 {
-    Q_ASSERT(cardNumber <= lastCardNumber());
-    return m_cards[cardNumber];
+    assert(cardNumber < m_cards.size());
+    return m_cards[cardNumber].get();
 }
 
 TOCItem* CardStack::tableOfContents()
 {
-    CardItem* first = m_cards.at(0);
-    TOCItem* toc = dynamic_cast<TOCItem*>(first);
-    Q_ASSERT(toc);
+    TOCItem* toc = dynamic_cast<TOCItem*>(m_cards.at(0).get());
+    assert(toc);
     return toc;
 }
 
-CardItem* CardStack::lastCardItem()
-{
-    return m_cards.last();
-}
+CardItem* CardStack::lastCardItem() { return m_cards.back().get(); }
 
-CardNumber CardStack::lastCardNumber() const
-{
-    return m_cards.size() - 1;
-}
+CardNumber CardStack::lastCardNumber() const { return static_cast<CardNumber>(m_cards.size() - 1); }
 
-void CardStack::setReadOnly(bool readOnly)
-{
-    m_readOnly = readOnly;
-}
-
-bool CardStack::readOnly() const
-{
-    return m_readOnly;
-}
+void CardStack::setReadOnly(bool readOnly) { m_readOnly = readOnly; }
+bool CardStack::readOnly() const { return m_readOnly; }
 
 CardItem* CardStack::add(CardItem::Type type, ThreadMode threadMode, CardItem* currentCard)
 {
-    // Create
-    CardNumber newCardNumber = lastCardNumber() + 1;
-    CardItem* newCard = nullptr;
-    if (type == CardItem::Type::Content)
-        newCard = new ContentItem(newCardNumber, m_year);
-    else if (type == CardItem::Type::TOC)
-        newCard = new TOCItem(newCardNumber, m_year);
-    
-    // Add to scene
-    m_scene->addItem(newCard);
-    
-    // Add to card stack
-    m_cards.append(newCard);
+    CardNumber newCardNumber = m_cards.empty() ? 0 : static_cast<CardNumber>(lastCardNumber() + 1);
 
-    // Connections
+    std::unique_ptr<CardItem> owned;
+    if (type == CardItem::Type::Content)
+        owned = std::make_unique<ContentItem>(newCardNumber, m_year);
+    else if (type == CardItem::Type::TOC)
+        owned = std::make_unique<TOCItem>(newCardNumber, m_year);
+
+    CardItem* newCard = owned.get();
+    m_cards.push_back(std::move(owned));
+
     if (threadMode == ThreadMode::New)
     {
-        // newCard
         newCard->setThreadStart(newCard);
         newCard->setThreadPrev(currentCard);
 
-        // TOC
         if (currentCard)
         {
             auto* toc = dynamic_cast<TOCItem*>(currentCard);
-            Q_ASSERT(toc);
+            assert(toc);
             toc->addToTOC(newCard);
         }
     }
     else if (threadMode == ThreadMode::Continue)
     {
-        // newCard
         newCard->setThreadStart(currentCard->threadStart());
         newCard->setThreadPrev(currentCard);
-        QString title = currentCard->firstRowItem()->text();
-        newCard->firstRowItem()->setText(title);
-        newCard->firstRowItem()->setReadOnly(true);
-        
-        // currentCard
+        newCard->setText(0, currentCard->text(0));
+        newCard->setRowReadOnly(0, true);
+
         currentCard->setThreadNext(newCard);
     }
     return newCard;

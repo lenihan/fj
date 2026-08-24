@@ -3,7 +3,9 @@
 ## DESIGN
 
 - Glossary
-  - Card - A 3" x 5" index card, with typing on one side
+  - Card - A 3" x 5" index card, with typing on one side (colloquial
+    name; renders landscape, 5in wide x 3in tall -- see `layout.h`'s
+    `Card::kWidth_in`/`kHeight_in`)
     - Content card - Contains anything you want, has lines indicating rows
     - TOC card - Table of contents card that points to other TOC/content cards, no lines (blank)
   - Card stack - 1 or more cards
@@ -40,24 +42,164 @@
   - ↑CARDNUM or ↑YEAR-CARDNUM - A link to parent TOC card
   - YEAR- prefix is dropped if YEAR is same as card stack's YEAR
 
-## Coordinate System
+## ARCHITECTURE
 
-- Variables denote coordsys via "_XXXX" with XXXX as the 4 char coordsys
+fj is a fully self-contained, zero-third-party-dependency implementation:
+only OS-native APIs, so the build "just works" on each platform without
+depending on the status of any external library, and stays small/efficient
+enough to run on low-end hardware. It isn't really a Windows app that
+happens to draw a card -- it's an emulator for a piece of keyboard-only
+hardware that doesn't exist yet, and the window is that hardware's
+monitor (see `main.cpp`'s file comment). The original Qt6/QGraphicsItem
+implementation has been fully removed from this branch.
 
-- Scene (_scen) is in inches with 0, 0 in upper-left
-- Font (_font) is for fonts
-- View (_view) is in pixels on the screen, with 0, 0 at upper left of window
-- Local (_locl) is in pixels, with 0,0 at upper left of bounding rect
+### Dependency policy
+
+- Windows: Win32 only (window/message loop, GDI for pixel presentation)
+  -- **implemented**, see `src/win32Window.cpp`
+- Linux: Xlib only (window/events; XShm for fast blitting) -- this is
+  treated as "native," not third-party, since it ships with the OS --
+  **not started**
+- Web: browser-native Canvas API (`putImageData`), reached via Emscripten
+  -- Emscripten is a compiler/toolchain, not a linked runtime dependency
+  -- **not started**
+- No Freetype/fontconfig/GDI-text/DirectWrite/etc. Text is fj's own
+  bitmap font + rasterizer, baked offline (see "Font atlas" below) -- the
+  one place native text APIs diverge most across platforms (Linux has no
+  OS-bundled equivalent to DirectWrite) is sidestepped entirely.
+
+### Core / platform-shell split
+
+- **Core** (`src/cardItem.*`, `cardStack.*`, `contentItem.*`, `tocItem.*`,
+  `cursor.*`, `canvas.*`, `layout.h`, `types.h`, `textUtil.h`) -- fully
+  portable, no platform code. Owns the pixel buffer (`Canvas`), the baked
+  font atlas ladder, drawing primitives, and all fj logic (card/stack/TOC
+  model, cursor, navigation state machine).
+- **Platform shell** (`src/win32Window.cpp` on Windows; one small file per
+  platform otherwise) -- implements `platform.h`'s contract: open a
+  window, forward keyboard/resize events into the core, present the
+  core's finished pixel buffer. Only one shell is ever compiled into a
+  given binary (selected by CMake).
+- The contract itself (`PlatformWindow`, `KeyEvent`, `createPlatformWindow`,
+  `displayDpi`) is `src/platform.h` -- read it before touching either side
+  of the boundary. Its comments, and `src/canvas.h`'s, cover the design
+  decisions (why no vtable/template for `PlatformWindow`, why
+  `std::expected` for window creation, what's and isn't anti-aliased,
+  etc.) in more depth than belongs here.
+
+Build order: **Win32 (done)**, then Linux (Xlib), then Web.
+
+### Coordinate system
+
+Two units, marked with a `_px`/`_in` suffix since both are genuinely in
+play:
+
+- `_px` -- plain pixels, origin top-left, +x right, +y down (matches
+  `Canvas`'s pixel buffer layout and a top-down Win32 DIB). What
+  `CardItem`/`Cursor` compute row/col layout and draw calls in.
+- `_in` -- physical inches. The source of truth for card/monitor size
+  (`Card::kWidth_in`/`kHeight_in`, `Monitor::kWidth_in`/`kHeight_in` in
+  `layout.h`) -- genuinely meant to render at that physical size on
+  screen (see "Physical accuracy" below), not just however big the
+  fixed-pixel font happens to make it.
+
+(The original Qt implementation used four coordinate systems --
+`_scen`/`_font`/`_view`/`_locl` -- because it juggled inches, font-metric
+units, view pixels, and item-local space all at once. That's gone along
+with Qt.)
+
+### Physical accuracy
+
+fj's window is meant to be true to life: 1 inch on screen is meant to be
+1 physical inch, and the monitor being emulated (`Monitor::kWidth_in`/
+`kHeight_in`, 5"x5") should measure that with a ruler. Getting this right
+took several real fixes, all in `src/win32Window.cpp`:
+
+- `GetDeviceCaps(..., LOGPIXELSX)` returns the OS's display-scaling
+  percentage, not the monitor's real pixel density -- fixed by computing
+  DPI from `HORZSIZE`/`HORZRES` (the monitor's physical size vs its
+  resolution) instead.
+- `AdjustWindowRect`'s border-size prediction isn't DPI-parameterized and
+  didn't reliably land the client area on the requested size --
+  `createPlatformWindow` measures what `CreateWindowExW` actually
+  produced and self-corrects via `SetWindowPos`.
+- Plain "system DPI aware" mode can have the whole window silently
+  bitmap-scaled by DWM if the monitor's real scaling differs from the
+  system's -- fixed by declaring true per-monitor-v2 DPI awareness via a
+  manifest (`CMakeLists.txt`'s `VS_DPI_AWARE`), not a runtime API call.
+- Some displays (especially laptop/tablet built-in panels) report their
+  own physical size to the OS imprecisely, which no DPI-awareness fix can
+  correct -- `KeyEvent::Kind::Calibrate` (F5, or the window's system-menu
+  "Fix Calibration..." item) is the escape hatch: drag-resize against a
+  physical ruler, then calibrate, and the result persists to
+  `%APPDATA%\fj\calibration.txt`.
+
+### Font atlas
+
+`tools/offline/bakeFont` is a one-time, dev-machine-only tool (not
+shipped, never linked into `fj.exe`) that rasterizes
+`resources/fonts/Hack-Regular.ttf` via GDI into a ladder of
+grayscale-coverage glyph atlases -- one per standard Windows
+display-scale step (100%-350%) -- and emits them as
+`resources/hackAtlas.h/.cpp`, a compiled-in C++ array the core embeds.
+`Canvas::pickAtlas` selects whichever baked atlas is closest to the
+window's current size at runtime, so live resizing re-renders close to
+native resolution instead of blowing up one small bitmap. Glyphs are
+anti-aliased (`Canvas::blendRect` blends each pixel by its baked coverage
+byte). Only re-run `bakeFont.exe` if the font, the DPI ladder, or the
+glyph set changes -- its output is checked in and not expected to change
+otherwise.
 
 ## TODO
 
+### Platform / architecture
+
+- [ ] Linux (Xlib) platform shell
+- [ ] Web (Emscripten/Canvas) platform shell
+- [ ] Manual pass through the keyboard flows below (typing, navigation
+      mode, TOC links, delete toggle, caps-lock handling) now that
+      there's a real window to test against -- hasn't had a dedicated
+      end-to-end check since the resize/calibration/rendering work landed
+- [ ] Port the old "darken all but the current row while typing" effect
+      -- `Canvas::blendRect` (real alpha blending) exists now, nothing
+      uses it for this yet
+- [ ] `CMakePresets.json`'s `windows-x64`/`windows-arm64` configure
+      presets still set `CMAKE_PREFIX_PATH` to the old Qt install path --
+      dead now that Qt is gone, harmless but unused
+- [ ] ARM64 has never actually been built on this branch (only x64 has
+      been compiled/run)
+- [ ] `tools/offline/bakeFont`'s target-width formula uses a hardcoded
+      4.8in "usable width" (assuming a margin) rather than the real
+      `CardItem::sideMargin_px` -- a small precision gap between the
+      atlas's chosen resolution and the card's true rendered margin
+- [ ] `README.md` still describes the old Qt-based build (generic
+      `cmake -S . -B build`, `scripts/setup.ps1`) -- needs updating for
+      the current preset-based workflow (`cmake --workflow --preset
+      windows-x64-debug`) and dropped Qt dependency
+- [ ] Known regression from the Qt port: retroactive title propagation to
+      *already-created* continuation cards when the thread's title
+      changes isn't implemented (`CardStack::add`'s `ThreadMode::Continue`
+      only copies the title at creation time) -- judged low-value at the
+      time, flagged here in case it matters later
+
+### App features
+
 - [ ] Proof of Concept
   - [X] When typing, hold caps down, enter should be shackCardNo
-  - [ ] Convert RowItem to be derived from QGraphicsItem
-  - [ ] RowItem does background, is shadeded when not active row.
-    - [ ] Remove background drawing from card
-    - [ ] Remove highlighting current row code from cursor draw
-  - [ ] Update variables to use coodsys _XXXX as described above
+  - [~] Convert RowItem to be derived from QGraphicsItem -- superseded:
+        `RowItem`/`QGraphicsItem` don't exist anymore, see ARCHITECTURE
+  - [~] RowItem does background, is shadeded when not active row. --
+        superseded by the "darken while typing" TODO under
+        Platform/architecture above (same effect, `Canvas::blendRect` is
+        the modern equivalent of what this item was asking for); the two
+        sub-items below (moving background drawing out of `CardItem`,
+        removing highlight code from `Cursor::draw`) describe a
+        Qt-specific refactor that's moot -- `Cursor::draw`'s `drawCard`
+        drawing the background directly is the current design, not a
+        leftover
+  - [X] Update variables to use coodsys _XXXX as described above -- the
+        `_px`/`_in` convention (see "Coordinate system" above) is used
+        consistently throughout the current core
   - [X] When navigating links, left goes to previous location
   - [X] When you follow a TOC to a page, start in navigation mode with the prev thread link highlighted
   - [X] CMake presets
@@ -197,27 +339,6 @@
     shift z x c v b     n m , . / shift
            spacebar     spacebar
 
-
-
-
-
-
-
-scratch   
-  enum class KeyboardMode { Command, Typing };
-  enum class NavigationMode { Link, Cursor };
-
-  e -> typing
-         Caps would be command mode with cursor keys so you can move cursor and go back to typing
-
-typing -> commands -> typing
-
-commands -> typing
-
-exit typing mode to access commands
-
-command e -> typing mode
-typing caps -> command mode
-
-
-  
+Mode-transition dispatch (Command/Typing keyboard mode, Link/Cursor
+navigation mode) sketched here originally is now real, implemented code
+-- see `Cursor::handleKey` in `src/cursor.cpp`.

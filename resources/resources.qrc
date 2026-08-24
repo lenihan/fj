@@ -1,9 +1,0 @@
-<!DOCTYPE RCC>
-<RCC version="1.0">
-    <qresource prefix="/">
-        <file>fonts/Hack-Bold.ttf</file>
-        <file>fonts/Hack-BoldItalic.ttf</file>
-        <file>fonts/Hack-Italic.ttf</file>
-        <file>fonts/Hack-Regular.ttf</file>
-    </qresource>
-</RCC>
