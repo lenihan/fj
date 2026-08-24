@@ -26,22 +26,26 @@ endif()
 # platform shell (Win32/Xlib/Emscripten) to drive it. The old Qt6/
 # QGraphicsItem app this replaces lives only on main now, not this branch.
 #
-# cardItem/cardStack/contentItem/cursor/tocItem have no .cpp yet (headers
-# only, still being drafted); platform.h has no .cpp of its own (each
-# platform shell provides one). Both are listed here only so they show up
-# in IDEs. resources/hackAtlas.* is bakeFont's generated output, not
-# hand-maintained source -- included here as data the core embeds, not
-# code to edit.
+# platform.h has no .cpp of its own (each platform shell provides one);
+# listed here only so it shows up in IDEs. resources/hackAtlas.* is
+# bakeFont's generated output, not hand-maintained source -- included here
+# as data the core embeds, not code to edit.
 
 add_library(core STATIC
     src/canvas.cpp
     src/canvas.h
+    src/cardItem.cpp
     src/cardItem.h
+    src/cardStack.cpp
     src/cardStack.h
+    src/contentItem.cpp
     src/contentItem.h
+    src/cursor.cpp
     src/cursor.h
     src/layout.h
     src/platform.h
+    src/textUtil.h
+    src/tocItem.cpp
     src/tocItem.h
     src/types.h
     resources/hackAtlas.cpp
