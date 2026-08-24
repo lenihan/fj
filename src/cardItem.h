@@ -58,6 +58,13 @@ class CardItem
     bool isThreadEnd() const;
 
     void setChar(char32_t c, Row row, Col col);
+
+    // Pads `text` with trailing spaces out to the row's full width if it's
+    // shorter (matches the old RowItem::setText, which only ever
+    // overwrote a prefix and left the rest as the row's initial spaces --
+    // every real caller either passes a full-width string already or sets
+    // a short title on a still-blank row, so padding is equivalent and
+    // simpler than replicating "leave the old suffix alone" exactly).
     void setText(Row row, const std::u32string& text);
 
     // Virtual, returned by value (not const&): TOCItem overrides this to
