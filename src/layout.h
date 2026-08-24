@@ -28,6 +28,20 @@ inline constexpr Row kNumBodyNavigationRows = 1;
 inline constexpr RowCount kNumUserBodyRows = kNumRows - kNumTitleRows - kNumBodyNavigationRows;
 } // namespace Card
 
+// The physical size of the (currently fictional -- see main.cpp's file
+// comment) hardware fj is an emulator for. Deliberately separate from
+// Card::kWidth_in/kHeight_in: the card is content shown *on* the
+// monitor, not the monitor itself, and the two aren't the same shape --
+// a 5x3 card centered on a 5x5 monitor leaves a margin above and below.
+// kWidth_in matching Card::kWidth_in exactly is what makes that margin
+// purely vertical (see main.cpp's redraw): the card already spans the
+// monitor's full width.
+namespace Monitor
+{
+inline constexpr double kWidth_in = 5.0;
+inline constexpr double kHeight_in = 5.0;
+} // namespace Monitor
+
 namespace Title
 {
 inline constexpr Col kColsPerRow = 30;

@@ -62,6 +62,22 @@ void Canvas::fillRect(Rect rect, Pixel color)
             m_pixels[static_cast<std::size_t>(y) * m_width + x] = color;
 }
 
+void Canvas::blit(const Canvas& src, Point at)
+{
+    int x0 = std::max(0, at.x);
+    int y0 = std::max(0, at.y);
+    int x1 = std::min(m_width, at.x + src.m_width);
+    int y1 = std::min(m_height, at.y + src.m_height);
+
+    for (int y = y0; y < y1; ++y)
+    {
+        int srcY = y - at.y;
+        Pixel* dstRow = &m_pixels[static_cast<std::size_t>(y) * m_width + x0];
+        const Pixel* srcRow = &src.m_pixels[static_cast<std::size_t>(srcY) * src.m_width + (x0 - at.x)];
+        std::copy(srcRow, srcRow + (x1 - x0), dstRow);
+    }
+}
+
 void Canvas::blendRect(Rect rect, Pixel color, int alpha)
 {
     if (alpha <= 0)

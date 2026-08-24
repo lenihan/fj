@@ -74,6 +74,13 @@ class Canvas
     void fillRect(Rect rect, Pixel color);
     void fillTriangle(Point p0, Point p1, Point p2, Pixel color);
 
+    // Copies src's entire pixel buffer onto this canvas at `at`, clipped
+    // to this canvas's bounds. No blending -- src is opaque, fully
+    // rendered content (e.g. main.cpp compositing the card canvas onto
+    // the larger monitor canvas that actually gets presented, centering
+    // it within whatever margin the monitor's own shape leaves).
+    void blit(const Canvas& src, Point at);
+
     // Blends color into the pixels already under rect, weighted by alpha
     // (0 = rect unchanged, 255 = identical to fillRect). blitGlyph uses
     // this to draw anti-aliased glyph edges from the atlas's coverage
