@@ -224,7 +224,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         // stretched card blit() draws) is never distorted and present()
         // never needs letterbox/fill-color logic -- a deliberate departure
         // from the old Qt app, which allowed free-aspect resize and
-        // letterboxed instead (see PLAN_addendum.md).
+        // letterboxed instead (see PLAN.md).
         auto* dragRect = reinterpret_cast<RECT*>(lParam);
         RECT windowRect{};
         RECT clientRect{};

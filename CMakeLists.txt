@@ -22,7 +22,7 @@ endif()
 
 ###############################################################################
 # core: the portable, no-platform-code half of the Qt-removal pivot (see
-# PLAN_addendum.md). The old Qt6/QGraphicsItem app this replaces lives only
+# PLAN.md). The old Qt6/QGraphicsItem app this replaces lives only
 # on main now, not this branch.
 #
 # platform.h's declarations are implemented by exactly one platform shell

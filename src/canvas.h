@@ -4,7 +4,7 @@
 // through.
 //
 // Deliberately minimal, derived from what those files actually draw today
-// (see PLAN_addendum.md), not a general 2D API: fillRect, fillTriangle,
+// (see PLAN.md), not a general 2D API: fillRect, fillTriangle,
 // line (built from two filled triangles -- see canvas.cpp), and glyph/text
 // drawing from the baked Hack atlas (hackAtlas.h). Glyphs ARE anti-aliased
 // (tools/offline/bakeFont bakes a grayscale coverage byte per pixel, and
@@ -94,7 +94,7 @@ class Canvas
 
     // Looks up codepoint in this Canvas's atlas and blits it at pos,
     // scaled by an integer factor (2 for Title rows reusing the Body
-    // atlas's own bitmaps, per PLAN_addendum.md -- everything else always
+    // atlas's own bitmaps, per PLAN.md -- everything else always
     // passes 1; window-fit scaling is pickAtlas's job now, not this
     // parameter's). Silently no-ops if codepoint isn't baked -- there are
     // only 97 of them (ASCII 0x20-0x7E plus the two link arrows

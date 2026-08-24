@@ -3,7 +3,7 @@
 // and Qt-dependent) rather than shared.
 //
 // Card size is a real physical target, not just "however big the
-// fixed-pixel atlas happens to render it" -- see PLAN_addendum.md's
+// fixed-pixel atlas happens to render it" -- see PLAN.md's
 // "Coordinate system (core)" section for how _in reconciles with the
 // fixed-pixel atlas via a best-fit integer render scale chosen from the
 // display's DPI at window-creation time.

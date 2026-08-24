@@ -83,7 +83,7 @@ class CardItem
 
     // Pixel geometry for row `row`, given whichever baked atlas is active
     // for this frame (picked by Canvas::pickAtlas against the current
-    // window size -- see PLAN_addendum.md's "Coordinate system (core)").
+    // window size -- see PLAN.md's "Coordinate system (core)").
     // cellWidth_px comes directly from the atlas; cellHeight_px is instead
     // anchored to Card::kHeight_in (see cardItem.cpp) so the card's total
     // rendered shape actually matches its declared physical size, rather

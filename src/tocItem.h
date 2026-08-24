@@ -6,7 +6,7 @@
 // once via setupRowAt() and re-materialized all of it whenever the TOC
 // became visible again (QGraphicsItem::itemChange), to pick up title
 // edits made to a referenced card elsewhere. With show()/hide() gone (see
-// PLAN_addendum.md), there's no "about to be shown" moment left to hook a
+// PLAN.md), there's no "about to be shown" moment left to hook a
 // resync into, so text() just recomputes from m_content every call --
 // simpler, and can't go stale. Not a meaningful cost at 11 rows max.
 

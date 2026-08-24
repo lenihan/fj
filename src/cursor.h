@@ -1,6 +1,6 @@
 // cursor.h -- navigation/edit state machine, and the cursor's own draw
 // pass. Ported off Qt: no QGraphicsScene (no scene graph at all anymore --
-// see PLAN_addendum.md's show()/hide() removal), no QPen/QBrush (Canvas
+// see PLAN.md's show()/hide() removal), no QPen/QBrush (Canvas
 // calls take a Pixel color directly), std:: containers and char32_t
 // instead of Qt types.
 //
@@ -94,7 +94,7 @@ class Cursor
 
     // Draws the current card (background/lines/text) and the cursor
     // itself, using whichever baked atlas is active for this frame (see
-    // PLAN_addendum.md's "Coordinate system (core)"). Unlike the old
+    // PLAN.md's "Coordinate system (core)"). Unlike the old
     // draw(QPainter*, QRectF, bool capsDown), caps state isn't a
     // parameter -- handleKey() already tracks it.
     void draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const;

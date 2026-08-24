@@ -2,7 +2,7 @@
 // (platform.h) into a running app. Deliberately has no #ifdef/platform
 // header of its own: everything it touches is the platform.h contract, so
 // this file is meant to be shared as-is once Linux/web shells exist (see
-// PLAN_addendum.md), not rewritten per platform.
+// PLAN.md), not rewritten per platform.
 //
 // fj isn't really a Windows app that happens to draw a card -- it's an
 // emulator for a piece of keyboard-only hardware that doesn't exist yet

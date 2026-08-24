@@ -13,7 +13,7 @@
 // this boundary.
 //
 // Scoped to exactly what src/cursor.cpp and src/cardItem.cpp need today
-// (see PLAN_addendum.md) -- no focus/mouse events, no window-close
+// (see PLAN.md) -- no focus/mouse events, no window-close
 // callback, no Escape key, because nothing in the current code uses them.
 // Resize *is* part of the contract (run()'s onResize) -- live window
 // resizing is a real feature (see main.cpp), not just window-chrome noise.
@@ -72,7 +72,7 @@ struct KeyEvent
 
 // Declared, never defined, in this header -- each platform's .cpp provides
 // the one implementation compiled into a given binary. No virtual base and
-// no template backend parameter (see PLAN_addendum.md): since only one
+// no template backend parameter (see PLAN.md): since only one
 // implementation is ever linked in, neither buys anything, and both cost
 // build time or runtime indirection for nothing.
 //
@@ -142,13 +142,15 @@ class PlatformWindow
 //
 // aspectRatio (width/height) is what the platform shell locks the window
 // to while the user drags a resize border (see win32Window.cpp's
-// WM_SIZING) so the card's rendered content is only ever scaled
-// uniformly, never distorted. In practice this is Card::kWidth_in/
-// kHeight_in (main.cpp passes it directly): CardItem::cellHeight_px
-// anchors row height to Card::kHeight_in specifically so the card's own
-// rendered shape matches that ratio (see cardItem.cpp) -- it isn't
-// implied automatically by the baked font's glyph proportions the way
-// cellWidth_px's DPI-targeting is (see tools/offline/bakeFont).
+// WM_SIZING) so the window (the emulated monitor -- see main.cpp's file
+// comment) is only ever scaled uniformly, never distorted. In practice
+// this is Monitor::kWidth_in/kHeight_in (main.cpp passes it directly),
+// the *monitor's* declared shape (layout.h) -- not Card::kWidth_in/
+// kHeight_in, the card shown on it, though CardItem::cellHeight_px
+// anchoring row height to Card::kHeight_in (see cardItem.cpp) is what
+// makes the card's own rendered shape match Card::kWidth_in/kHeight_in
+// in the first place, rather than whatever the baked font's glyph
+// proportions would otherwise imply (see tools/offline/bakeFont).
 std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, double aspectRatio,
                                                                   const char* title);
 
@@ -157,7 +159,7 @@ std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, in
 // of scope): its one caller is main(), which needs it exactly once, before
 // createPlatformWindow(), to pick the integer glyph-atlas render scale
 // that best maps onto Card::kWidth_in/kHeight_in (see layout.h and
-// PLAN_addendum.md's "Coordinate system (core)"). X-axis DPI only -- Y
+// PLAN.md's "Coordinate system (core)"). X-axis DPI only -- Y
 // differs in practice by a pixel or two on real hardware, which this
 // ignores the same way the best-fit scale itself is already an
 // approximation.
