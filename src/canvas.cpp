@@ -44,9 +44,8 @@ const HackAtlas::Atlas& pickAtlas(int desiredCellWidth_px)
     return *best;
 }
 
-Canvas::Canvas(int width_px, int height_px, const HackAtlas::Atlas& atlas)
-    : m_width(width_px), m_height(height_px), m_atlas(&atlas),
-      m_pixels(static_cast<std::size_t>(width_px) * height_px, 0)
+Canvas::Canvas(int width_px, int height_px)
+    : m_width(width_px), m_height(height_px), m_pixels(static_cast<std::size_t>(width_px) * height_px, 0)
 {
 }
 
@@ -75,6 +74,76 @@ void Canvas::blit(const Canvas& src, Point at)
         Pixel* dstRow = &m_pixels[static_cast<std::size_t>(y) * m_width + x0];
         const Pixel* srcRow = &src.m_pixels[static_cast<std::size_t>(srcY) * src.m_width + (x0 - at.x)];
         std::copy(srcRow, srcRow + (x1 - x0), dstRow);
+    }
+}
+
+void Canvas::blitScaled(const Canvas& src, Rect destRect, bool smooth)
+{
+    if (destRect.w <= 0 || destRect.h <= 0 || src.m_width <= 0 || src.m_height <= 0)
+        return;
+
+    int x0 = std::max(0, destRect.x);
+    int y0 = std::max(0, destRect.y);
+    int x1 = std::min(m_width, destRect.x + destRect.w);
+    int y1 = std::min(m_height, destRect.y + destRect.h);
+
+    if (!smooth)
+    {
+        // Nearest-neighbor: an index-and-copy loop, no per-pixel
+        // floating-point interpolation -- see this method's header
+        // comment for why the live-resize-tick caller needs this instead
+        // of the smooth path below.
+        for (int y = y0; y < y1; ++y)
+        {
+            int srcY = std::clamp((y - destRect.y) * src.m_height / destRect.h, 0, src.m_height - 1);
+            const Pixel* srcRow = &src.m_pixels[static_cast<std::size_t>(srcY) * src.m_width];
+            Pixel* dstRow = &m_pixels[static_cast<std::size_t>(y) * m_width];
+            for (int x = x0; x < x1; ++x)
+            {
+                int srcX = std::clamp((x - destRect.x) * src.m_width / destRect.w, 0, src.m_width - 1);
+                dstRow[x] = srcRow[srcX];
+            }
+        }
+        return;
+    }
+
+    auto channel = [](Pixel p, int shift) { return static_cast<double>((p >> shift) & 0xFF); };
+
+    for (int y = y0; y < y1; ++y)
+    {
+        // +0.5/-0.5: samples at each destination pixel's center mapped
+        // back into source space, not its top-left corner -- the usual
+        // resize-filter convention, otherwise the whole image drifts half
+        // a source pixel toward the top-left.
+        double srcYf = ((y - destRect.y) + 0.5) * src.m_height / destRect.h - 0.5;
+        int sy0 = std::clamp(static_cast<int>(std::floor(srcYf)), 0, src.m_height - 1);
+        int sy1 = std::clamp(sy0 + 1, 0, src.m_height - 1);
+        double fy = std::clamp(srcYf - std::floor(srcYf), 0.0, 1.0);
+
+        for (int x = x0; x < x1; ++x)
+        {
+            double srcXf = ((x - destRect.x) + 0.5) * src.m_width / destRect.w - 0.5;
+            int sx0 = std::clamp(static_cast<int>(std::floor(srcXf)), 0, src.m_width - 1);
+            int sx1 = std::clamp(sx0 + 1, 0, src.m_width - 1);
+            double fx = std::clamp(srcXf - std::floor(srcXf), 0.0, 1.0);
+
+            Pixel p00 = src.m_pixels[static_cast<std::size_t>(sy0) * src.m_width + sx0];
+            Pixel p10 = src.m_pixels[static_cast<std::size_t>(sy0) * src.m_width + sx1];
+            Pixel p01 = src.m_pixels[static_cast<std::size_t>(sy1) * src.m_width + sx0];
+            Pixel p11 = src.m_pixels[static_cast<std::size_t>(sy1) * src.m_width + sx1];
+
+            auto lerp = [&](int shift)
+            {
+                double top = channel(p00, shift) + (channel(p10, shift) - channel(p00, shift)) * fx;
+                double bot = channel(p01, shift) + (channel(p11, shift) - channel(p01, shift)) * fx;
+                return top + (bot - top) * fy;
+            };
+
+            auto r = static_cast<Pixel>(std::lround(lerp(16)));
+            auto g = static_cast<Pixel>(std::lround(lerp(8)));
+            auto b = static_cast<Pixel>(std::lround(lerp(0)));
+            m_pixels[static_cast<std::size_t>(y) * m_width + x] = (r << 16) | (g << 8) | b;
+        }
     }
 }
 
@@ -161,35 +230,40 @@ void Canvas::line(Point p0, Point p1, Pixel color, int thickness)
     fillTriangle(a, c, d, color);
 }
 
-void Canvas::blitGlyph(const HackAtlas::Glyph& glyph, Point pos, Pixel color, int scale)
+void Canvas::blitGlyph(const HackAtlas::Glyph& glyph, Point pos, Pixel color, const HackAtlas::Atlas& atlas)
 {
-    for (int y = 0; y < m_atlas->cellHeight; ++y)
+    // One coverage byte per source pixel (0 = no ink, 255 = full ink --
+    // see tools/offline/bakeFont), used directly as blendRect's alpha.
+    // Always exact, 1:1, no scale/interpolation: a bigger glyph now means
+    // the caller picked a bigger baked atlas (see canvas.h's class
+    // comment and cursor.cpp's drawCard), not a stretch of this one.
+    // Nearest-neighbor block-replication and bilinear resampling of the
+    // coverage grid were both tried, for Title rows reusing the (smaller)
+    // Body atlas at 2x -- neither looked right, since replicating or
+    // interpolating already anti-aliased coverage data can't add
+    // resolution the small source atlas never had; it just reads as
+    // softer than a glyph actually baked at that size (confirmed by
+    // direct comparison -- see PLAN.md).
+    for (int y = 0; y < atlas.cellHeight; ++y)
     {
-        for (int x = 0; x < m_atlas->cellWidth; ++x)
+        for (int x = 0; x < atlas.cellWidth; ++x)
         {
-            // One coverage byte per source pixel (0 = no ink, 255 = full
-            // ink -- see tools/offline/bakeFont). Used directly as
-            // blendRect's alpha: every scale x scale destination block
-            // gets the same blend weight as its one source pixel, which
-            // is nearest-neighbor upscaling of the coverage value, same
-            // as the old hard ink/no-ink blit did for the binary case.
-            std::uint8_t coverage = glyph.bits[static_cast<std::size_t>(y) * m_atlas->bytesPerRow + x];
+            std::uint8_t coverage = glyph.bits[static_cast<std::size_t>(y) * atlas.bytesPerRow + x];
             if (coverage == 0)
                 continue;
-            blendRect({pos.x + x * scale, pos.y + y * scale, scale, scale}, color, coverage);
+            blendRect({pos.x + x, pos.y + y, 1, 1}, color, coverage);
         }
     }
 }
 
-void Canvas::drawChar(char32_t codepoint, Point pos, Pixel color, int scale)
+void Canvas::drawChar(char32_t codepoint, Point pos, Pixel color, const HackAtlas::Atlas& atlas)
 {
-    if (const HackAtlas::Glyph* glyph = findGlyph(*m_atlas, codepoint))
-        blitGlyph(*glyph, pos, color, scale);
+    if (const HackAtlas::Glyph* glyph = findGlyph(atlas, codepoint))
+        blitGlyph(*glyph, pos, color, atlas);
 }
 
-void Canvas::drawText(std::span<const char32_t> text, Point pos, Pixel color, int scale)
+void Canvas::drawText(std::span<const char32_t> text, Point pos, Pixel color, const HackAtlas::Atlas& atlas)
 {
-    int advance = m_atlas->cellWidth * scale;
     for (std::size_t i = 0; i < text.size(); ++i)
-        drawChar(text[i], {pos.x + static_cast<int>(i) * advance, pos.y}, color, scale);
+        drawChar(text[i], {pos.x + static_cast<int>(i) * atlas.cellWidth, pos.y}, color, atlas);
 }

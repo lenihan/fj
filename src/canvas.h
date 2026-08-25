@@ -56,13 +56,17 @@ const HackAtlas::Atlas& pickAtlas(int desiredCellWidth_px);
 class Canvas
 {
   public:
-    // atlas is the one this Canvas draws glyphs from for its whole
-    // lifetime (a Canvas is one rendered frame -- see main.cpp -- and a
-    // frame is drawn with exactly one atlas). Stored as a pointer, not a
-    // reference, purely so Canvas keeps ordinary (if never-used) copy/move
-    // assignment; the constructor takes a reference to document that it's
-    // never null.
-    Canvas(int width_px, int height_px, const HackAtlas::Atlas& atlas);
+    // A Canvas doesn't own or assume a single atlas: drawChar/drawText
+    // each take whichever one they want glyphs from, so one Canvas (one
+    // rendered frame -- see main.cpp) can mix atlases freely, e.g. a
+    // Title row drawn from a separately-picked, larger-baked atlas than
+    // Body's (see cursor.cpp's drawCard) rather than one atlas's glyphs
+    // upscaled to stand in for the other's -- naive upscaling of already
+    // anti-aliased coverage data (tried first, both nearest-neighbor and
+    // bilinear) reads as noticeably softer than a glyph actually baked at
+    // that size, since neither can add resolution the small source atlas
+    // never had.
+    Canvas(int width_px, int height_px);
 
     int width() const { return m_width; }
     int height() const { return m_height; }
@@ -81,6 +85,33 @@ class Canvas
     // it within whatever margin the monitor's own shape leaves).
     void blit(const Canvas& src, Point at);
 
+    // Resamples src's entire pixel buffer to fill destRect (clipped to
+    // this canvas's bounds) -- unlike blit (an exact, unscaled copy),
+    // this scales src to whatever size destRect asks for. main.cpp uses
+    // this to fit the square monitor canvas into a window that isn't
+    // square without distorting it: destRect is the largest centered
+    // square that fits the window, and whatever this canvas was already
+    // filled with outside that rect (letterboxing/pillarboxing bars) is
+    // left untouched. The one resample implementation in the whole
+    // codebase -- win32Window.cpp/xlibWindow.cpp's present() used to each
+    // have their own copy of this same math to bridge an analogous gap;
+    // that responsibility (and the risk of the two drifting out of sync)
+    // lives here now instead, and present() just presents pixels already
+    // sized to match the window exactly.
+    //
+    // smooth picks bilinear (a per-pixel floating-point loop) vs.
+    // nearest-neighbor (an index-and-copy loop, much cheaper). main.cpp
+    // passes false on every live-resize tick, where src is often being
+    // stretched by a large, constantly-changing factor and needs to
+    // stay fast enough to keep up with the drag (per platform.h's
+    // run() comment on why that tick has to be cheap) -- bilinear's
+    // extra quality doesn't matter for a few hundred milliseconds of
+    // in-flight dragging anyway. true (the default) is for the one
+    // settled redraw once a resize actually ends, where src is already
+    // close to destRect's size (a freshly re-picked atlas) and it's
+    // worth the cost to smooth that small remaining gap.
+    void blitScaled(const Canvas& src, Rect destRect, bool smooth = true);
+
     // Blends color into the pixels already under rect, weighted by alpha
     // (0 = rect unchanged, 255 = identical to fillRect). blitGlyph uses
     // this to draw anti-aliased glyph edges from the atlas's coverage
@@ -92,28 +123,26 @@ class Canvas
     // comment -- same deferred-polish precedent as font scaling).
     void line(Point p0, Point p1, Pixel color, int thickness);
 
-    // Looks up codepoint in this Canvas's atlas and blits it at pos,
-    // scaled by an integer factor (2 for Title rows reusing the Body
-    // atlas's own bitmaps, per PLAN.md -- everything else always
-    // passes 1; window-fit scaling is pickAtlas's job now, not this
-    // parameter's). Silently no-ops if codepoint isn't baked -- there are
-    // only 97 of them (ASCII 0x20-0x7E plus the two link arrows
-    // CardItem::linkStr() uses).
-    void drawChar(char32_t codepoint, Point pos, Pixel color, int scale = 1);
+    // Looks up codepoint in atlas and blits it at pos, 1:1 -- the caller
+    // picks whichever baked atlas its target size actually calls for
+    // (see canvas.h's class comment and cursor.cpp's drawCard); window-
+    // fit scaling is pickAtlas's job, not this call's. Silently no-ops if
+    // codepoint isn't baked -- there are only 97 of them (ASCII 0x20-0x7E
+    // plus the two link arrows CardItem::linkStr() uses).
+    void drawChar(char32_t codepoint, Point pos, Pixel color, const HackAtlas::Atlas& atlas);
 
-    // Draws each codepoint left-to-right, advancing by the atlas cell
+    // Draws each codepoint left-to-right, advancing by atlas's cell
     // width per character -- fj is fixed-pitch-only, so this is genuinely
     // just repeated drawChar. Takes decoded codepoints rather than a
     // UTF-8/QString byte sequence so this header doesn't need an opinion
     // on string encoding; that's the core model's call (phase 3), not the
     // renderer's.
-    void drawText(std::span<const char32_t> text, Point pos, Pixel color, int scale = 1);
+    void drawText(std::span<const char32_t> text, Point pos, Pixel color, const HackAtlas::Atlas& atlas);
 
   private:
-    void blitGlyph(const HackAtlas::Glyph& glyph, Point pos, Pixel color, int scale);
+    void blitGlyph(const HackAtlas::Glyph& glyph, Point pos, Pixel color, const HackAtlas::Atlas& atlas);
 
     int m_width;
     int m_height;
-    const HackAtlas::Atlas* m_atlas;
     std::vector<Pixel> m_pixels;
 };

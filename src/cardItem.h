@@ -83,16 +83,20 @@ class CardItem
 
     // Pixel geometry for row `row`, given whichever baked atlas is active
     // for this frame (picked by Canvas::pickAtlas against the current
-    // window size -- see PLAN.md's "Coordinate system (core)").
+    // window size -- see PLAN.md's "Coordinate system (core)"). This is
+    // layout math, not a statement about which atlas's glyph bitmaps
+    // actually get drawn -- Title rows are laid out as exactly 2x a body
+    // row's cell size here regardless of which atlas Cursor::draw's
+    // drawCard actually renders their glyphs from (see cursor.h's draw
+    // comment and PLAN.md's Font atlas section for why Title uses its
+    // own separately-picked atlas rather than a scaled-up Body one).
     // cellWidth_px comes directly from the atlas; cellHeight_px is instead
     // anchored to Card::kHeight_in (see cardItem.cpp) so the card's total
     // rendered shape actually matches its declared physical size, rather
     // than whatever the font's own glyph proportions happen to produce --
     // rows are generally taller than a glyph's own pixel height as a
     // result, with the glyph vertically centered inside (see Cursor::
-    // draw's drawCard). Title rows render at exactly 2x a body row's size
-    // either way, same as the atlas-reuse trick Canvas::drawText's
-    // `scale` param implements.
+    // draw's drawCard).
     int cellWidth_px(Row row, const HackAtlas::Atlas& atlas) const;
     int cellHeight_px(Row row, const HackAtlas::Atlas& atlas) const;
     int rowTop_px(Row row, const HackAtlas::Atlas& atlas) const;

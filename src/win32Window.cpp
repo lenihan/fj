@@ -27,9 +27,10 @@ struct PlatformWindow::Impl
     HWND hwnd{nullptr};
     HHOOK capsLockHook{nullptr};
     bool originalCapsLockOn{false};
-    double aspectRatio{1.0}; // width/height locked during interactive resize; see WM_SIZING
+    bool inSizeMove{false}; // between WM_ENTERSIZEMOVE and WM_EXITSIZEMOVE -- see run()'s platform.h comment
     std::function<void(const KeyEvent&)> onKey;
     std::function<void(int width_px, int height_px)> onResize;
+    std::function<void(int width_px, int height_px)> onResizeEnd;
 
     // Kept so WM_PAINT (e.g. after alt-tab, or another window dragged over
     // ours) has something to redraw with -- present() doesn't get called
@@ -110,30 +111,25 @@ void addCalibrateMenuItem(HWND hwnd)
     AppendMenuW(sysMenu, MF_STRING, kCalibrateMenuId, L"Fix Calibration...");
 }
 
-// Stretches a top-down 32bpp buffer to fill whatever the window's client
-// area currently is -- not necessarily srcW x srcH. That mismatch is
-// exactly what makes live resizing feel continuous: the rendered card
-// only changes resolution in the discrete steps of whichever baked atlas
-// is active (main.cpp's onResize), but this stretch covers every pixel in
-// between, every time Windows repaints (interactive drag included, since
-// CS_HREDRAW | CS_VREDRAW forces a repaint on every size change). `pixels`
+// Blits a top-down 32bpp buffer at exactly srcW x srcH, no stretch --
+// pixels already matches the window's live client size by contract (see
+// platform.h's present() comment: main.cpp builds its output canvas at
+// exactly that size every time), so there's nothing to fit here, just a
+// direct SetDIBitsToDevice. An earlier version instead queried
+// GetClientRect and StretchDIBits'd (with HALFTONE) to fill whatever
+// that returned, on the theory that main.cpp might hand over some other
+// size and rely on this to cover the gap -- main.cpp doesn't do that
+// anymore, and independently re-querying "the window's real size" here
+// instead of trusting srcW/srcH turned out to be actively harmful on the
+// Xlib side (a real race against a fast live resize that made nearly
+// every tick fall back to an expensive resample -- see PLAN.md);
+// dropping the equivalent query here avoids the same risk rather than
+// relying on it having gone unnoticed on Windows specifically. `pixels`
 // already matches Pixel's documented in-memory layout (platform.h), so
-// this is a direct StretchDIBits with no per-pixel conversion.
-//
-// HALFTONE gives a properly area-averaged resample instead of nearest-
-// neighbor's blockiness; it requires SetBrushOrgEx after every
-// SetStretchBltMode(HALFTONE) call or the dither pattern drifts (a
-// documented GDI quirk, not optional).
+// no per-pixel conversion is needed either way.
 void blit(HDC hdc, const Pixel* pixels, int srcW, int srcH)
 {
     if (!pixels || srcW <= 0 || srcH <= 0)
-        return;
-
-    RECT client{};
-    GetClientRect(WindowFromDC(hdc), &client);
-    int destW = client.right - client.left;
-    int destH = client.bottom - client.top;
-    if (destW <= 0 || destH <= 0)
         return;
 
     BITMAPINFO bmi{};
@@ -144,9 +140,8 @@ void blit(HDC hdc, const Pixel* pixels, int srcW, int srcH)
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    SetStretchBltMode(hdc, HALFTONE);
-    SetBrushOrgEx(hdc, 0, 0, nullptr);
-    StretchDIBits(hdc, 0, 0, destW, destH, 0, 0, srcW, srcH, pixels, &bmi, DIB_RGB_COLORS, SRCCOPY);
+    SetDIBitsToDevice(hdc, 0, 0, static_cast<DWORD>(srcW), static_cast<DWORD>(srcH), 0, 0, 0,
+                       static_cast<UINT>(srcH), pixels, &bmi, DIB_RGB_COLORS);
 }
 
 // Mirrors CapsLockModifier::onWindowActiveChanged(): force system Caps
@@ -213,55 +208,42 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             return 0;
         }
         break;
+    case WM_ENTERSIZEMOVE:
+        if (impl)
+            impl->inSizeMove = true;
+        break;
+    case WM_EXITSIZEMOVE:
+        if (impl)
+        {
+            impl->inSizeMove = false;
+            if (impl->onResizeEnd)
+            {
+                RECT client{};
+                GetClientRect(hwnd, &client);
+                impl->onResizeEnd(client.right - client.left, client.bottom - client.top);
+            }
+        }
+        break;
     case WM_SIZE:
-        if (impl && impl->onResize)
-            impl->onResize(LOWORD(lParam), HIWORD(lParam));
+        // No WM_SIZING aspect-ratio clamp here (an earlier version had
+        // one): fighting the OS's own live-resize tracking to hold a
+        // fixed shape made interactive dragging feel glitchy. The window
+        // can be any shape now -- main.cpp fits the square monitor into
+        // whatever shape this reports, letterboxed/pillarboxed, via
+        // Canvas::blitScaled.
+        if (impl)
+        {
+            if (impl->onResize)
+                impl->onResize(LOWORD(lParam), HIWORD(lParam));
+            // A non-interactive resize (maximize, an Aero-snap, a future
+            // programmatic one) never goes through WM_ENTERSIZEMOVE/
+            // WM_EXITSIZEMOVE at all, so this is the only onResizeEnd
+            // it'll ever get; an actual click-drag defers to
+            // WM_EXITSIZEMOVE above instead, once the drag ends.
+            if (!impl->inSizeMove && impl->onResizeEnd)
+                impl->onResizeEnd(LOWORD(lParam), HIWORD(lParam));
+        }
         return 0;
-    case WM_SIZING:
-    {
-        // Keeps the window locked to the card's aspect ratio while the
-        // user drags a resize border, so the client area (and thus the
-        // stretched card blit() draws) is never distorted and present()
-        // never needs letterbox/fill-color logic -- a deliberate departure
-        // from the old Qt app, which allowed free-aspect resize and
-        // letterboxed instead (see PLAN.md).
-        auto* dragRect = reinterpret_cast<RECT*>(lParam);
-        RECT windowRect{};
-        RECT clientRect{};
-        GetWindowRect(hwnd, &windowRect);
-        GetClientRect(hwnd, &clientRect); // size only; origin is client-relative (0,0)
-        int chromeW = (windowRect.right - windowRect.left) - (clientRect.right - clientRect.left);
-        int chromeH = (windowRect.bottom - windowRect.top) - (clientRect.bottom - clientRect.top);
-
-        int clientW = (dragRect->right - dragRect->left) - chromeW;
-        int clientH = (dragRect->bottom - dragRect->top) - chromeH;
-
-        // Dragging a pure top/bottom edge drives from the new height;
-        // every other edge/corner (including all four corners) drives
-        // from the new width -- a common simplification for aspect-locked
-        // resize that keeps corner-dragging from fighting a "which
-        // dimension leads" ambiguity.
-        double aspectRatio = impl ? impl->aspectRatio : 1.0;
-        if (wParam == WMSZ_TOP || wParam == WMSZ_BOTTOM)
-            clientW = static_cast<int>(std::lround(clientH * aspectRatio));
-        else
-            clientH = static_cast<int>(std::lround(clientW / aspectRatio));
-
-        int newW = clientW + chromeW;
-        int newH = clientH + chromeH;
-
-        if (wParam == WMSZ_LEFT || wParam == WMSZ_TOPLEFT || wParam == WMSZ_BOTTOMLEFT)
-            dragRect->left = dragRect->right - newW;
-        else
-            dragRect->right = dragRect->left + newW;
-
-        if (wParam == WMSZ_TOP || wParam == WMSZ_TOPLEFT || wParam == WMSZ_TOPRIGHT)
-            dragRect->top = dragRect->bottom - newH;
-        else
-            dragRect->bottom = dragRect->top + newH;
-
-        return TRUE;
-    }
     case WM_KEYDOWN:
         if (impl && impl->onKey)
         {
@@ -314,10 +296,12 @@ PlatformWindow::PlatformWindow(PlatformWindow&&) noexcept = default;
 PlatformWindow& PlatformWindow::operator=(PlatformWindow&&) noexcept = default;
 
 void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
-                          std::function<void(int width_px, int height_px)> onResize)
+                          std::function<void(int width_px, int height_px)> onResize,
+                          std::function<void(int width_px, int height_px)> onResizeEnd)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
+    m_impl->onResizeEnd = std::move(onResizeEnd);
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) > 0)
@@ -345,8 +329,7 @@ void PlatformWindow::setTitle(const std::string& title)
     SetWindowTextW(m_impl->hwnd, toWide(title.c_str()).c_str());
 }
 
-std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, double aspectRatio,
-                                                                  const char* title)
+std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, const char* title)
 {
     HINSTANCE hInstance = GetModuleHandleW(nullptr);
 
@@ -366,7 +349,6 @@ std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, in
     }
 
     auto impl = std::make_unique<PlatformWindow::Impl>();
-    impl->aspectRatio = aspectRatio;
 
     // width_px/height_px are the desired CLIENT area (the canvas' pixel
     // size, chosen in main() to match the physical card target) -- grow
@@ -413,7 +395,7 @@ std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, in
     return PlatformWindow(std::move(impl));
 }
 
-int displayDpi()
+std::optional<int> displayDpi()
 {
     // Must happen before any DPI query or window creation to take effect;
     // idempotent, so calling it here (this is always main()'s first call
@@ -450,11 +432,12 @@ int displayDpi()
     // screen == 1 physical inch" actually requires.
     //
     // Some displays (especially virtual/remote ones, or a bad EDID) report
-    // HORZSIZE as 0 or nonsense; 96 (the ordinary "unscaled" baseline) is
-    // a reasonable fallback rather than dividing by zero or trusting a
-    // clearly-wrong value.
+    // HORZSIZE as 0 or nonsense; nullopt rather than dividing by zero or
+    // trusting a clearly-wrong value -- main.cpp is the one that decides
+    // what fallback to use, and whether to say so in the title (see
+    // platform.h's displayDpi comment).
     if (widthMm <= 0)
-        return 96;
+        return std::nullopt;
 
     double widthIn = widthMm / 25.4;
     return static_cast<int>(std::lround(widthPx / widthIn));

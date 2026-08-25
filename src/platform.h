@@ -24,6 +24,7 @@
 #include <expected>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 
@@ -96,18 +97,53 @@ class PlatformWindow
     PlatformWindow& operator=(PlatformWindow&&) noexcept;
 
     // Blocks, owns the event loop, and invokes onKey for every input event
-    // and onResize for every change in client-area size (including the
-    // implicit one right after window creation isn't reported here -- the
-    // caller already knows its own initial size, since it's what it asked
-    // createPlatformWindow for) until the window is closed. The core has
-    // no other work competing for the thread, so this is deliberately
-    // synchronous, not pollable/async.
-    void run(std::function<void(const KeyEvent&)> onKey, std::function<void(int width_px, int height_px)> onResize);
+    // until the window is closed. The core has no other work competing
+    // for the thread, so this is deliberately synchronous, not
+    // pollable/async.
+    //
+    // Two different resize callbacks, not one, because they're genuinely
+    // different jobs: onResize fires on every tick of a live resize
+    // (including the implicit one right after window creation isn't
+    // reported here -- the caller already knows its own initial size,
+    // since it's what it asked createPlatformWindow for) and is expected
+    // to be cheap -- main.cpp just re-stretches whatever it already
+    // rendered into the new size (see Canvas::blitScaled), not re-picking
+    // a baked atlas or rebuilding anything. onResizeEnd fires once, after
+    // a resize settles (the user releases the mouse, or a non-interactive
+    // resize like a maximize/snap completes), and is where main.cpp
+    // actually re-picks the best atlas and redraws crisply. Calling
+    // onResizeEnd's work on every onResize tick instead (an earlier
+    // version did) meant a big drag visibly stepped through several
+    // discrete crisp re-renders along the way, not a single one at the
+    // end -- distinct from smooth continuous stretching, which is what
+    // dragging should look like.
+    //
+    // "Settled" has no portable definition at the X11 protocol level the
+    // way it does on Win32 (WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE) --
+    // xlibWindow.cpp debounces instead (no new ConfigureNotify for a
+    // short window). Both platforms guarantee onResizeEnd fires exactly
+    // once per completed resize, interactive or not.
+    void run(std::function<void(const KeyEvent&)> onKey, std::function<void(int width_px, int height_px)> onResize,
+             std::function<void(int width_px, int height_px)> onResizeEnd);
 
-    // Presents a finished frame. pixels.size() must equal w * h. The
-    // platform shell stretches this to whatever the window's current
-    // client size actually is (not necessarily w x h -- see onResize
-    // above), so present() itself never needs to know the window size.
+    // Presents a finished frame. pixels.size() must equal w * h, which
+    // should already match the window's current client size (see
+    // onResize above) -- main.cpp builds its output canvas at exactly
+    // that size every time (see Canvas::blitScaled), rather than handing
+    // over some other size and relying on this call to stretch/fit it. A
+    // platform shell should present w x h as given, not independently
+    // re-query its own live client rect to compare against it -- that
+    // query is itself real latency (an X round-trip under Xlib), and
+    // during a fast live resize it can easily observe a *newer* size
+    // than the one that produced these pixels, turning "let me
+    // defensively handle a mismatch" into "manufacture one on nearly
+    // every tick, falling back to an expensive resample that made a live
+    // resize unable to keep up with its own drag" (see PLAN.md; an
+    // earlier version of xlibWindow.cpp did exactly this). If the window
+    // has already moved on by the time this lands on screen, trust that
+    // the next present() -- already imminent, another resize tick either
+    // just fired or is about to -- corrects it, rather than guarding
+    // against a race here.
     void present(std::span<const Pixel> pixels, int w, int h);
 
     // Updates the title bar text (e.g. a live "fj - 5.00"x3.00" 100%"
@@ -128,7 +164,7 @@ class PlatformWindow
     // without this friendship the free function below couldn't construct
     // one despite being declared right next to the class it builds.
     friend std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px,
-                                                                             double aspectRatio, const char* title);
+                                                                             const char* title);
     explicit PlatformWindow(std::unique_ptr<Impl> impl);
 
     std::unique_ptr<Impl> m_impl;
@@ -140,19 +176,17 @@ class PlatformWindow
 // error) is exactly the kind of information a bool or null pointer throws
 // away and a caller building an error dialog or log line will want back.
 //
-// aspectRatio (width/height) is what the platform shell locks the window
-// to while the user drags a resize border (see win32Window.cpp's
-// WM_SIZING) so the window (the emulated monitor -- see main.cpp's file
-// comment) is only ever scaled uniformly, never distorted. In practice
-// this is Monitor::kWidth_in/kHeight_in (main.cpp passes it directly),
-// the *monitor's* declared shape (layout.h) -- not Card::kWidth_in/
-// kHeight_in, the card shown on it, though CardItem::cellHeight_px
-// anchoring row height to Card::kHeight_in (see cardItem.cpp) is what
-// makes the card's own rendered shape match Card::kWidth_in/kHeight_in
-// in the first place, rather than whatever the baked font's glyph
-// proportions would otherwise imply (see tools/offline/bakeFont).
-std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, double aspectRatio,
-                                                                  const char* title);
+// No aspect-ratio parameter: the window can be resized to any shape the
+// user wants (see main.cpp's file comment) -- main.cpp fits the square
+// monitor into whatever shape the window actually is, letterboxed/
+// pillarboxed, rather than the platform shell constraining the window's
+// own shape during the drag. An earlier version locked the window to a
+// fixed aspect ratio here (win32Window.cpp's WM_SIZING, xlibWindow.cpp's
+// ConfigureNotify correction); both turned out to fight the OS's own
+// live-resize tracking and make interactive dragging feel glitchy on
+// both platforms, for a constraint the rendering side can now satisfy on
+// its own without the window itself needing to cooperate.
+std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, int height_px, const char* title);
 
 // Primary display DPI (pixels per inch), queried once before any window
 // exists. Not a resize/DPI-change API (see the file comment -- that's out
@@ -163,4 +197,16 @@ std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, in
 // differs in practice by a pixel or two on real hardware, which this
 // ignores the same way the best-fit scale itself is already an
 // approximation.
-int displayDpi();
+//
+// nullopt, not some baked-in fallback number, when the platform genuinely
+// can't determine a real reading (bad/missing EDID data, a virtual
+// display with no physical output at all -- see win32Window.cpp's and
+// xlibWindow.cpp's own comments for their specific unknown cases). Each
+// platform shell used to silently return 96 in that case, which let
+// main.cpp's title bar claim a confident "100%" for a size that was
+// actually just a guess -- the same "plausible-but-wrong beats an honest
+// unknown" mistake PLAN.md's Physical accuracy section already covers
+// elsewhere. main.cpp is the one place that gets to decide what to do
+// with "unknown" (pick a fallback for initial sizing, but say so in the
+// title), not this layer.
+std::optional<int> displayDpi();
