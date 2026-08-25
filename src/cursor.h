@@ -93,11 +93,18 @@ class Cursor
     void handleKey(const KeyEvent& event);
 
     // Draws the current card (background/lines/text) and the cursor
-    // itself, using whichever baked atlas is active for this frame (see
-    // PLAN.md's "Coordinate system (core)"). Unlike the old
-    // draw(QPainter*, QRectF, bool capsDown), caps state isn't a
-    // parameter -- handleKey() already tracks it.
-    void draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const;
+    // itself. atlas drives all layout (row heights, margins, cell
+    // positions -- see cardItem.h) and Body row glyphs; titleAtlas is a
+    // separately-picked, larger-baked atlas Title rows render their
+    // glyphs from instead of upscaling atlas's own (see cursor.cpp's
+    // drawCard and PLAN.md's Font atlas section) -- layout still assumes
+    // Title is exactly 2x atlas's cell size regardless of titleAtlas's
+    // own exact dimensions, so text may not perfectly fill to the row's
+    // nominal right edge; a deliberate trade for real per-size AA over
+    // pixel-exact column alignment. Unlike the old draw(QPainter*,
+    // QRectF, bool capsDown), caps state isn't a parameter -- handleKey()
+    // already tracks it.
+    void draw(Canvas& canvas, const HackAtlas::Atlas& atlas, const HackAtlas::Atlas& titleAtlas) const;
 
   private:
     enum class NavigationMode

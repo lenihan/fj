@@ -41,7 +41,7 @@ void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
 // (Colors::kDarkenedColor has alpha=50); Canvas::blendRect could do this
 // now, but nothing wires it up yet. Deferred alongside the other visual
 // polish (rounded corners, line caps).
-void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atlas)
+void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atlas, const HackAtlas::Atlas& titleAtlas)
 {
     int width = card.cardWidth_px(atlas);
     int height = card.cardHeight_px(atlas);
@@ -56,7 +56,7 @@ void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atla
     {
         int top = card.rowTop_px(row, atlas);
         int cellH = card.cellHeight_px(row, atlas);
-        int rowScale = row == 0 ? 2 : 1; // Title renders at exactly 2x Body's cell size
+        const HackAtlas::Atlas& rowAtlas = row == 0 ? titleAtlas : atlas; // see cursor.h's draw comment
 
         if (row < Card::kNumRows - 1)
         {
@@ -67,11 +67,11 @@ void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atla
         // Rows are generally taller than a glyph's own pixel height (see
         // CardItem::cellHeight_px) -- center the glyph within the row
         // rather than pinning it to the top.
-        int glyphHeight = atlas.cellHeight * rowScale;
+        int glyphHeight = rowAtlas.cellHeight;
         int textY = top + (cellH - glyphHeight) / 2;
 
         Pixel textColor = card.rowReadOnly(row) ? kLightGray : kBlack;
-        canvas.drawText(card.text(row), {marginX, textY}, textColor, rowScale);
+        canvas.drawText(card.text(row), {marginX, textY}, textColor, rowAtlas);
     }
 }
 
@@ -617,11 +617,11 @@ void Cursor::handleKey(const KeyEvent& event)
         charTyped(event.codepoint);
 }
 
-void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas) const
+void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas, const HackAtlas::Atlas& titleAtlas) const
 {
     assert(m_currentCard);
 
-    drawCard(*m_currentCard, canvas, atlas);
+    drawCard(*m_currentCard, canvas, atlas, titleAtlas);
 
     if (m_currentCard->deleted())
     {

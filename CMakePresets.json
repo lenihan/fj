@@ -37,6 +37,22 @@
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "../qt_v6.8.3/install_arm64"
       }
+    },
+
+    {
+      "name": "linux",
+      "displayName": "Linux - Native",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
     }
   ],
 
@@ -48,7 +64,10 @@
     { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "Release" },
 
     { "name": "bakeFont-windows-x64",   "configurePreset": "windows-x64",   "configuration": "Debug", "targets": ["bakeFont"] },
-    { "name": "bakeFont-windows-arm64", "configurePreset": "windows-arm64", "configuration": "Debug", "targets": ["bakeFont"] }
+    { "name": "bakeFont-windows-arm64", "configurePreset": "windows-arm64", "configuration": "Debug", "targets": ["bakeFont"] },
+
+    { "name": "linux-debug",   "configurePreset": "linux", "configuration": "Debug" },
+    { "name": "linux-release", "configurePreset": "linux", "configuration": "Release" }
   ],
 
   "workflowPresets": [
@@ -98,6 +117,22 @@
       "steps": [
         { "type": "configure", "name": "windows-arm64" },
         { "type": "build",     "name": "bakeFont-windows-arm64" }
+      ]
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Configure + build fj (Linux, Debug)",
+      "steps": [
+        { "type": "configure", "name": "linux" },
+        { "type": "build",     "name": "linux-debug" }
+      ]
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Configure + build fj (Linux, Release)",
+      "steps": [
+        { "type": "configure", "name": "linux" },
+        { "type": "build",     "name": "linux-release" }
       ]
     }
   ]

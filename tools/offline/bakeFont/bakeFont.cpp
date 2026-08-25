@@ -28,6 +28,7 @@
 //           dpis     = Windows' standard scale-factor steps (100%-350%,
 //                      96 dpi = 100%). Pass --dpis to bake a different set.
 
+#define NOMINMAX // windows.h's max()/min() macros would otherwise break every std::max/std::min call below
 #include <windows.h>
 
 #include <algorithm>
@@ -45,13 +46,23 @@ namespace fs = std::filesystem;
 namespace
 {
 
-// Mirrors Card::kUseabledWidth_scen / Body::kColsPerRow in src/common.h.
-// Body rows fill the usable card width with 60 columns; that's the cell
-// width each atlas is baked at. Title rows use the same usable width with
-// 30 columns, i.e. exactly 2x this cell width -- the core reuses whichever
-// atlas is active for Title rows via integer 2x nearest-neighbor scaling.
-constexpr double kUsableWidth_in = 5.0 - 2 * 0.1;
-constexpr int kBodyColsPerRow = 60;
+// Mirrors CardItem::sideMargin_px/cardWidth_px in src/cardItem.cpp: the
+// card's true rendered width is (Body::kColsPerRow + 2*kSideMarginCells)
+// cells -- 60 of body text plus a kSideMarginCells-cell margin on each
+// side -- spanning exactly Card::kWidth_in (src/layout.h) end to end, so
+// that's the target this atlas's cell width has to hit for "1 inch on
+// screen == 1 physical inch" to actually hold. (An earlier version of
+// this used a hardcoded 4.8in "usable width" over 60 columns, ignoring
+// that the margin itself takes up real width -- baking cells about 2.4%
+// too wide, which meant even pickAtlas's closest match still needed a
+// shrinking resample every time, a small but constant blur main.cpp's
+// stretch could never fully hide.) Title rows use the same cell width
+// with 30 columns, i.e. exactly 2x this cell width -- the core reuses
+// whichever atlas is active for Title rows via integer 2x
+// nearest-neighbor scaling.
+constexpr double kCardWidth_in = 5.0; // Card::kWidth_in
+constexpr int kBodyColsPerRow = 60;   // Body::kColsPerRow
+constexpr int kSideMarginCells = 2;   // CardItem::sideMargin_px == atlas.cellWidth * 2, each side
 
 // 100%, 125%, 150%, 175%, 200%, 225%, 250%, 300%, 350% of the Windows
 // baseline 96 dpi -- covers the standard Windows display-scaling steps.
@@ -124,12 +135,14 @@ std::optional<int> measureWidthAtHeight(HDC hdc, int height_px)
 
 // Binary search isn't safe here (width vs. height isn't guaranteed strictly
 // monotonic at small sizes due to hinting/rounding), so scan linearly and
-// keep whichever height's width is closest to target.
+// keep whichever height's width is closest to target. Upper bound has
+// headroom for kSupersample's inflated targets (see bakeFont), not just
+// the final baked sizes.
 int findBestHeightForWidth(HDC hdc, int targetWidth_px)
 {
     int bestHeight = -1;
     int bestDelta = INT_MAX;
-    for (int h = 4; h <= 96; ++h)
+    for (int h = 4; h <= 512; ++h)
     {
         auto w = measureWidthAtHeight(hdc, h);
         if (!w)
@@ -147,20 +160,80 @@ int findBestHeightForWidth(HDC hdc, int targetWidth_px)
     return bestHeight;
 }
 
+// GDI's own AA, asked for directly at these small target sizes (8-26px
+// cells), looked genuinely bad on inspection: thin/faint gray strokes at
+// the small end (not enough pixels for the AA gradient to represent a
+// stroke's shape, so it reads as smudged gray rather than crisp ink) --
+// switching to GDI's non-AA rendering fixed that, but introduced visible
+// staircasing on curves/diagonals at the large end instead, where AA was
+// actually doing useful work. Rendering at kSupersample x the target
+// resolution (still with GDI's AA -- which looks good at that larger,
+// more-detailed size) and box-filtering back down to the target gets
+// both: crisp, confident edges from the area-average downsample, and
+// smooth curves/diagonals from the extra source resolution feeding it,
+// rather than GDI's own small-size AA compromise.
+constexpr int kSupersample = 4;
+
+// Box-filter downsample of one glyph's coverage from super x super
+// pixels to final x final -- a proper area average (each output pixel is
+// the mean of the source pixels it covers), not nearest-neighbor or
+// bilinear (see win32Window.cpp/xlibWindow.cpp's present() for those --
+// different job, smoothing a live runtime stretch, not deciding what a
+// baked glyph's ink should look like in the first place). Left as a
+// graduated 0-255 alpha, not thresholded to pure 0/255: a hard threshold
+// was tried and made diagonals/curves visibly staircase at the large end
+// of the ladder, trading one real defect (jagged edges) for a fix aimed
+// at a different bug entirely (the window/atlas resample mismatches
+// fixed separately in main.cpp/platform.h's resizeTo) -- graduated
+// coverage is what actually makes a diagonal line read as smooth instead
+// of stepped, which is the whole reason GDI's AA is asked for at
+// kSupersample x resolution in the first place rather than skipped.
+std::vector<uint8_t> downsampleCoverage(const std::vector<uint8_t>& superCoverage, int superW, int superH,
+                                         int finalW, int finalH)
+{
+    std::vector<uint8_t> out(static_cast<size_t>(finalW) * finalH, 0);
+    for (int fy = 0; fy < finalH; ++fy)
+    {
+        int sy0 = fy * superH / finalH;
+        int sy1 = std::max(sy0 + 1, (fy + 1) * superH / finalH);
+        for (int fx = 0; fx < finalW; ++fx)
+        {
+            int sx0 = fx * superW / finalW;
+            int sx1 = std::max(sx0 + 1, (fx + 1) * superW / finalW);
+
+            int sum = 0;
+            int count = 0;
+            for (int sy = sy0; sy < sy1 && sy < superH; ++sy)
+            {
+                for (int sx = sx0; sx < sx1 && sx < superW; ++sx)
+                {
+                    sum += superCoverage[static_cast<size_t>(sy) * superW + sx];
+                    ++count;
+                }
+            }
+            out[static_cast<size_t>(fy) * finalW + fx] = static_cast<uint8_t>(count > 0 ? sum / count : 0);
+        }
+    }
+    return out;
+}
+
 BakedFont bakeFont(HDC hdc, double dpi)
 {
-    const int targetWidth_px = static_cast<int>(std::lround(kUsableWidth_in / kBodyColsPerRow * dpi));
-    const int height_px = findBestHeightForWidth(hdc, targetWidth_px);
+    const int targetWidth_px =
+        static_cast<int>(std::lround(kCardWidth_in / (kBodyColsPerRow + 2 * kSideMarginCells) * dpi));
+    const int superWidth_px = targetWidth_px * kSupersample;
+    const int superHeight_px = findBestHeightForWidth(hdc, superWidth_px);
 
     LOGFONTW lf{};
-    lf.lfHeight = -height_px;
+    lf.lfHeight = -superHeight_px;
     lf.lfWeight = FW_REGULAR;
     lf.lfCharSet = ANSI_CHARSET;
     lf.lfOutPrecision = OUT_TT_ONLY_PRECIS;
     lf.lfQuality = ANTIALIASED_QUALITY; // grayscale AA, not CLEARTYPE_QUALITY -- ClearType's
                                         // RGB subpixel fringing assumes a fixed 1:1 physical
                                         // pixel layout, which doesn't survive being reduced to
-                                        // a single coverage byte or later stretched (see
+                                        // a single coverage byte, downsampled (see
+                                        // downsampleCoverage above), or later stretched (see
                                         // Canvas::blitGlyph and win32Window.cpp's live resize).
     lf.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
     wcscpy_s(lf.lfFaceName, L"Hack");
@@ -174,17 +247,23 @@ BakedFont bakeFont(HDC hdc, double dpi)
     SetTextColor(hdc, RGB(0, 0, 0));
     SetBkMode(hdc, OPAQUE);
 
+    const int superCellWidth_px = tm.tmAveCharWidth;
+    const int superCellHeight_px = tm.tmAscent + tm.tmDescent;
+
     BakedFont result;
-    result.cellWidth_px = tm.tmAveCharWidth;
-    result.cellHeight_px = tm.tmAscent + tm.tmDescent;
+    result.cellWidth_px = std::max(1, static_cast<int>(std::lround(static_cast<double>(superCellWidth_px) / kSupersample)));
+    result.cellHeight_px =
+        std::max(1, static_cast<int>(std::lround(static_cast<double>(superCellHeight_px) / kSupersample)));
     result.bytesPerRow = result.cellWidth_px; // one coverage byte per pixel, no bit-packing
     result.codepoints = glyphCodepoints();
 
-    // One reusable top-down 32bpp DIB section, cleared and redrawn per glyph.
+    // One reusable top-down 32bpp DIB section, cleared and redrawn per
+    // glyph, at the supersampled cell size -- downsampled per-glyph below,
+    // after extracting coverage, not before.
     BITMAPINFO bmi{};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = result.cellWidth_px;
-    bmi.bmiHeader.biHeight = -result.cellHeight_px; // negative = top-down
+    bmi.bmiHeader.biWidth = superCellWidth_px;
+    bmi.bmiHeader.biHeight = -superCellHeight_px; // negative = top-down
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
@@ -197,7 +276,7 @@ BakedFont bakeFont(HDC hdc, double dpi)
     SelectObject(hdc, font); // re-select after SelectObject(dib) reset it on some drivers
 
     const auto* pixels = static_cast<const uint32_t*>(dibPixels);
-    RECT cellRect{0, 0, result.cellWidth_px, result.cellHeight_px};
+    RECT cellRect{0, 0, superCellWidth_px, superCellHeight_px};
 
     for (char32_t cp : result.codepoints)
     {
@@ -210,18 +289,19 @@ BakedFont bakeFont(HDC hdc, double dpi)
         // ink covers that pixel (255 = pure background, 0 = pure ink) --
         // invert it once here so the baked byte is coverage (0 = no ink,
         // 255 = full ink), which is exactly the alpha Canvas::blitGlyph
-        // blends with.
-        std::vector<uint8_t> glyphCoverage(static_cast<size_t>(result.bytesPerRow) * result.cellHeight_px, 0);
-        for (int y = 0; y < result.cellHeight_px; ++y)
+        // blends with (and downsampleCoverage below expects).
+        std::vector<uint8_t> superCoverage(static_cast<size_t>(superCellWidth_px) * superCellHeight_px, 0);
+        for (int y = 0; y < superCellHeight_px; ++y)
         {
-            for (int x = 0; x < result.cellWidth_px; ++x)
+            for (int x = 0; x < superCellWidth_px; ++x)
             {
-                uint32_t bgr = pixels[static_cast<size_t>(y) * result.cellWidth_px + x];
+                uint32_t bgr = pixels[static_cast<size_t>(y) * superCellWidth_px + x];
                 uint8_t r = static_cast<uint8_t>(bgr >> 16);
-                glyphCoverage[static_cast<size_t>(y) * result.bytesPerRow + x] = static_cast<uint8_t>(255 - r);
+                superCoverage[static_cast<size_t>(y) * superCellWidth_px + x] = static_cast<uint8_t>(255 - r);
             }
         }
-        result.bits.push_back(std::move(glyphCoverage));
+        result.bits.push_back(downsampleCoverage(superCoverage, superCellWidth_px, superCellHeight_px,
+                                                  result.cellWidth_px, result.cellHeight_px));
     }
 
     SelectObject(hdc, oldBitmap);

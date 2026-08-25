@@ -26,10 +26,11 @@ endif()
 # on main now, not this branch.
 #
 # platform.h's declarations are implemented by exactly one platform shell
-# source (win32Window.cpp on Windows) selected below -- only one is ever
-# compiled into a given binary (see platform.h's file comment). resources/
-# hackAtlas.* is bakeFont's generated output, not hand-maintained source --
-# included here as data the core embeds, not code to edit.
+# source (win32Window.cpp on Windows, xlibWindow.cpp on Linux) selected
+# below -- only one is ever compiled into a given binary (see platform.h's
+# file comment). resources/hackAtlas.* is bakeFont's generated output, not
+# hand-maintained source -- included here as data the core embeds, not
+# code to edit.
 
 set(CORE_SOURCES
     src/canvas.cpp
@@ -53,6 +54,15 @@ set(CORE_SOURCES
 )
 if(WIN32)
     list(APPEND CORE_SOURCES src/win32Window.cpp)
+elseif(UNIX AND NOT APPLE)
+    list(APPEND CORE_SOURCES src/xlibWindow.cpp)
+    find_package(X11 REQUIRED)
+    if(NOT X11_Xext_FOUND)
+        message(FATAL_ERROR "libXext (XShm) not found -- install libxext-dev / libXext-devel")
+    endif()
+    if(NOT X11_Xrandr_FOUND)
+        message(FATAL_ERROR "libXrandr not found -- install libxrandr-dev / libXrandr-devel")
+    endif()
 endif()
 
 add_library(core STATIC ${CORE_SOURCES})
@@ -65,6 +75,9 @@ if(WIN32)
     # UNICODE/_UNICODE rather than the call site -- define both so they
     # resolve to the wide forms those calls actually expect.
     target_compile_definitions(core PUBLIC UNICODE _UNICODE)
+elseif(UNIX AND NOT APPLE)
+    target_include_directories(core PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(core PUBLIC ${X11_LIBRARIES} ${X11_Xext_LIB} ${X11_Xrandr_LIB})
 endif()
 
 ###############################################################################

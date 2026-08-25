@@ -17,14 +17,17 @@
 #include "canvas.h"
 #include "cardItem.h"
 #include "cursor.h"
+#include "hackAtlas.h"
 #include "layout.h"
 #include "platform.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -44,28 +47,46 @@ int desiredCellWidth_px(int width_px)
     return width_px / (Body::kColsPerRow + 4);
 }
 
-// "fj (emulated) - 5.00"x5.00" 100% -- right-click titlebar to fix
-// calibration" -- describes the *monitor* (Monitor::kWidth_in/kHeight_in),
-// not the card on it, since the window represents the monitor now (see
-// this file's top comment). percent is width_px (the window's actual
-// current width) against Monitor::kWidth_in at the display's true DPI.
-// Width only: Monitor::kWidth_in == Card::kWidth_in, and
-// CardItem::cellHeight_px anchors row height to Card::kHeight_in, so a
-// height-based percent would track this one almost exactly anyway --
-// width alone is simpler and matches the precedent already set by
-// tools/offline/bakeFont (which only ever targets width when choosing
-// what to bake) and createPlatformWindow's aspectRatio parameter. ceil
-// matches the old Qt app's rounding (PLAN.md): never displays a percent
-// lower than what's actually achieved. The trailing hint exists purely so
-// win32Window.cpp's system-menu "Fix Calibration..." item (see its
-// addCalibrateMenuItem comment) is discoverable at all -- there's no
-// other UI surface pointing at it. "(emulated)" is there so the title
-// itself keeps making the point this file's top comment makes.
-std::string titleFor(int width_px, int dpi)
+// "fj (emulated) - 5.00"x5.00" 100% -- press F5 to fix calibration" --
+// describes the *monitor* (Monitor::kWidth_in/kHeight_in), not the card
+// on it, since the window represents the monitor now (see this file's top
+// comment). squareSize_px is the rendered square monitor's actual on-
+// screen size -- min(window width, window height), since the window
+// itself can be any shape now (see createPlatformWindow's comment) and
+// the square is letterboxed/pillarboxed to fit whichever dimension is
+// smaller (see main()'s redraw). percent is that against Monitor::kWidth_in
+// at the display's true DPI. ceil matches the old Qt app's rounding
+// (PLAN.md): never displays a percent lower than what's actually
+// achieved. The trailing hint exists purely so
+// KeyEvent::Kind::Calibrate is discoverable at all -- there's no other UI
+// surface pointing at it. F5, not a platform-specific affordance like
+// win32Window.cpp's "Fix Calibration..." system-menu item: this file has
+// no #ifdef/platform header of its own (see the top comment) and stays
+// that way, so the one thing it advertises has to actually work
+// identically on every shell -- Xlib has no portable equivalent of
+// GetSystemMenu to hang a second hint off of. "(emulated)" is there so
+// the title itself keeps making the point this file's top comment makes.
+//
+// dpiKnown false means dpi is startupDpi()'s bare fallback guess, not a
+// real reading or a user calibration (see platform.h's displayDpi
+// comment) -- printing a specific "100%" in that case would be the exact
+// false-precision mistake PLAN.md's Physical accuracy section already
+// covers elsewhere: the window's initial size is deliberately computed
+// FROM that same guessed dpi (see main()), so it would always read
+// "100%" regardless of whether the guess bore any relation to the real
+// display. Showing "unconfirmed" instead is the honest version of the
+// same readout.
+std::string titleFor(int squareSize_px, int dpi, bool dpiKnown)
 {
-    double percent = width_px / (dpi * Monitor::kWidth_in) * 100.0;
     char buf[128];
-    std::snprintf(buf, sizeof(buf), "fj (emulated) - %.0f\"x%.0f\" %d%% -- right-click titlebar to fix calibration",
+    if (!dpiKnown)
+    {
+        std::snprintf(buf, sizeof(buf), "fj (emulated) - %.0f\"x%.0f\" size unconfirmed -- press F5 once sized correctly",
+                      Monitor::kWidth_in, Monitor::kHeight_in);
+        return buf;
+    }
+    double percent = squareSize_px / (dpi * Monitor::kWidth_in) * 100.0;
+    std::snprintf(buf, sizeof(buf), "fj (emulated) - %.0f\"x%.0f\" %d%% -- press F5 to fix calibration",
                   Monitor::kWidth_in, Monitor::kHeight_in, static_cast<int>(std::ceil(percent)));
     return buf;
 }
@@ -78,21 +99,45 @@ std::string titleFor(int width_px, int dpi)
 // makes that stick across launches instead of just for the one session.
 std::filesystem::path calibrationFilePath()
 {
-    // std::getenv is the portable standard call (this file is meant to be
-    // shared as-is on Linux/web -- see the file comment above); MSVC's
-    // /W4 flags it as unsafe purely because of a Windows-specific
-    // thread-safety caveat that doesn't apply to this single-threaded,
-    // read-immediately-and-discard use.
+    // Windows: %APPDATA%\fj\calibration.txt. Linux: the XDG Base
+    // Directory convention -- $XDG_CONFIG_HOME/fj/calibration.txt,
+    // falling back to ~/.config/fj/calibration.txt (the documented XDG
+    // default) when XDG_CONFIG_HOME isn't set. No #ifdef on which
+    // platform this is -- this file is meant to be shared as-is (see the
+    // top comment), so this just checks whichever of these env vars
+    // actually exists; at most one of the three branches below is ever
+    // going to fire on a given platform. (An earlier version of this
+    // only checked APPDATA -- calibration still worked for the running
+    // session on Linux, since main()'s own dpi variable gets updated
+    // regardless, but silently never persisted across relaunches.)
+#ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable : 4996)
-    const char* appData = std::getenv("APPDATA");
+#pragma warning(disable : 4996) // std::getenv: fine for this single-threaded, read-once use
+#endif
+    if (const char* appData = std::getenv("APPDATA"))
+        return std::filesystem::path(appData) / "fj" / "calibration.txt";
+    if (const char* xdgConfig = std::getenv("XDG_CONFIG_HOME"))
+        return std::filesystem::path(xdgConfig) / "fj" / "calibration.txt";
+    if (const char* home = std::getenv("HOME"))
+        return std::filesystem::path(home) / ".config" / "fj" / "calibration.txt";
+#ifdef _MSC_VER
 #pragma warning(pop)
-    if (!appData)
-        return {};
-    return std::filesystem::path(appData) / "fj" / "calibration.txt";
+#endif
+    return {};
 }
 
-int startupDpi()
+// known is false only when there's no saved calibration yet AND the
+// platform couldn't get a real reading (see platform.h's displayDpi
+// comment) -- 96 is then just a starting guess, not a trustworthy value,
+// which titleFor's dpiKnown parameter exists to say so honestly instead
+// of claiming a confident (but potentially meaningless) percentage.
+struct StartupDpi
+{
+    int value;
+    bool known;
+};
+
+StartupDpi startupDpi()
 {
     auto path = calibrationFilePath();
     if (!path.empty())
@@ -100,9 +145,11 @@ int startupDpi()
         std::ifstream in(path);
         double dpi = 0.0;
         if (in >> dpi && dpi > 0.0)
-            return static_cast<int>(std::lround(dpi));
+            return {static_cast<int>(std::lround(dpi)), true};
     }
-    return displayDpi();
+    if (std::optional<int> real = displayDpi())
+        return {*real, true};
+    return {96, false};
 }
 
 void saveCalibratedDpi(int dpi)
@@ -120,22 +167,23 @@ void saveCalibratedDpi(int dpi)
 int main()
 {
     Cursor cursor;
-    int dpi = startupDpi();
+    StartupDpi startup = startupDpi();
+    int dpi = startup.value;
+    bool dpiKnown = startup.known; // updated in Kind::Calibrate below, once the user confirms it
 
-    // The window always opens at the true, continuous 100% physical
-    // target -- exactly Monitor::kWidth_in/kHeight_in inches at this
-    // display's DPI -- not whatever pixel size the nearest baked atlas
-    // happens to render at. The initial card canvas below is still
-    // rendered at that nearest atlas's own resolution (so it's sharp),
-    // and present()'s stretch -- the same mechanism every resize already
-    // relies on -- covers the small gap between the two.
-    int width_px = static_cast<int>(std::lround(dpi * Monitor::kWidth_in));
-    int height_px = static_cast<int>(std::lround(dpi * Monitor::kHeight_in));
-    const HackAtlas::Atlas* atlas = &pickAtlas(desiredCellWidth_px(width_px));
+    // Initial window size: the true, continuous physical target (dpi *
+    // Monitor::kWidth_in/kHeight_in). Doesn't need to land on an atlas-
+    // exact pixel count the way an earlier version insisted on -- every
+    // redraw (below) already fits its content to whatever size the
+    // window actually is, startup included, so there's nothing special
+    // to get right here beyond a reasonable starting size.
+    int currentWidth_px = static_cast<int>(std::lround(dpi * Monitor::kWidth_in));
+    int currentHeight_px = static_cast<int>(std::lround(dpi * Monitor::kHeight_in));
 
-    double aspectRatio = Monitor::kWidth_in / Monitor::kHeight_in;
-
-    auto windowResult = createPlatformWindow(width_px, height_px, aspectRatio, "fj");
+    // No aspect-ratio parameter: the window can be resized to any shape
+    // (see platform.h's createPlatformWindow comment) -- redraw below
+    // fits the square monitor into whatever shape it actually is.
+    auto windowResult = createPlatformWindow(currentWidth_px, currentHeight_px, "fj");
     if (!windowResult)
     {
         std::fprintf(stderr, "fj: failed to create window: %s\n", windowResult.error().c_str());
@@ -143,44 +191,105 @@ int main()
     }
     PlatformWindow window = std::move(*windowResult);
 
-    Canvas cardCanvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas), *atlas);
+    // atlas/titleAtlas/cardCanvas are all sized for the square monitor's
+    // *content* resolution, picked from whichever window dimension is
+    // more constraining -- see redraw's letterboxing comment for why the
+    // window itself no longer has to be square for this to work.
+    const HackAtlas::Atlas* atlas = &pickAtlas(desiredCellWidth_px(std::min(currentWidth_px, currentHeight_px)));
 
-    int currentWidth_px = width_px; // tracked for Kind::Calibrate below
+    // Title rows render from their own, separately-picked atlas rather
+    // than upscaling atlas's own bitmaps -- see cursor.h's draw comment
+    // and PLAN.md's Font atlas section: nearest-neighbor and bilinear
+    // upscaling of already anti-aliased coverage data were both tried and
+    // both looked noticeably softer than a glyph actually baked at that
+    // size. Closest to exactly 2x atlas's cell width, matching the
+    // layout math CardItem::cellWidth_px already assumes for Title rows.
+    const HackAtlas::Atlas* titleAtlas = &pickAtlas(atlas->cellWidth * 2);
 
+    Canvas cardCanvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas));
+
+    // The size onResizeEnd last actually rebuilt the card for -- lets it
+    // skip that work when it fires again for a size that's already
+    // settled (e.g. the WM sending a late settling ConfigureNotify or two
+    // after the drag itself ends, past xlibWindow.cpp's debounce window),
+    // rather than visibly re-rendering again for no actual change.
+    int lastSettledWidth_px = currentWidth_px;
+    int lastSettledHeight_px = currentHeight_px;
+
+    // Square, cardCanvas.width() on a side: Monitor::kWidth_in ==
+    // Card::kWidth_in, so at whatever resolution the atlas rendered the
+    // card's width, that same pixel count is exactly Monitor::kHeight_in
+    // too (both 5in). A persistent Canvas, not a fresh local like
+    // cardCanvas -- renderContent (below) is the only thing that rebuilds
+    // it, so presentFrame can reuse whatever it last drew across any
+    // number of live-resize ticks without redoing that work.
+    Canvas monitorCanvas(cardCanvas.width(), cardCanvas.width());
+
+    // Draws the card and composites it onto monitorCanvas -- the
+    // "content changed" half of a frame, as opposed to presentFrame's
+    // "put it on screen" half below. Only needed when the card's own
+    // pixels actually changed (typing/navigation) or cardCanvas itself
+    // was just rebuilt at a new atlas (a resize settling); a live-resize
+    // tick's window-shape-only change never needs this, which is the
+    // whole reason it's split out rather than folded into presentFrame.
+    auto renderContent = [&]()
+    {
+        cursor.draw(cardCanvas, *atlas, *titleAtlas);
+        monitorCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
+        monitorCanvas.blit(cardCanvas, {0, (monitorCanvas.height() - cardCanvas.height()) / 2});
+    };
+
+    // Fits monitorCanvas into the window's actual shape -- which no
+    // longer has to be square itself (see createPlatformWindow's
+    // comment) -- letterboxed/pillarboxed rather than distorted: the
+    // largest centered square that fits, black filling whatever margin
+    // that leaves on the wider axis. Built at exactly the window's
+    // current size and handed to present() as-is, so the platform
+    // shell's own stretch (still there as a defensive fallback -- see
+    // platform.h) is normally a no-op, not a second resample on top of
+    // this one. smooth is Canvas::blitScaled's -- see its comment for
+    // why a live-resize tick needs false here, not the general redraw
+    // default of true.
+    auto presentFrame = [&](bool smooth)
+    {
+        Canvas outputCanvas(currentWidth_px, currentHeight_px);
+        outputCanvas.fillRect({0, 0, currentWidth_px, currentHeight_px}, 0x00000000);
+        int squareSize = std::min(currentWidth_px, currentHeight_px);
+        Rect squareRect{(currentWidth_px - squareSize) / 2, (currentHeight_px - squareSize) / 2, squareSize,
+                         squareSize};
+        outputCanvas.blitScaled(monitorCanvas, squareRect, smooth);
+        window.present(outputCanvas.pixels(), outputCanvas.width(), outputCanvas.height());
+    };
+
+    // The ordinary full refresh -- content changed, so re-render it and
+    // present smoothly. Startup, typing/navigation, and a settled resize
+    // all use this; only a live-resize tick skips renderContent and
+    // calls presentFrame directly (see the onResize callback below).
     auto redraw = [&]()
     {
-        cursor.draw(cardCanvas, *atlas);
-
-        // The monitor canvas is square, cardCanvas.width() on a side:
-        // Monitor::kWidth_in == Card::kWidth_in, so at whatever
-        // resolution the atlas rendered the card's width, that same
-        // pixel count is exactly Monitor::kHeight_in too (both 5in).
-        // That's also why only vertical centering is needed below -- the
-        // card already spans the monitor's full width. Rebuilt fresh
-        // every redraw (not just on resize) so there's never a stale
-        // pixel left over from a previous, differently-sized card; it's
-        // cheap (see the resize handler's own reasoning below).
-        Canvas monitorCanvas(cardCanvas.width(), cardCanvas.width(), *atlas);
-        monitorCanvas.blit(cardCanvas, {0, (monitorCanvas.height() - cardCanvas.height()) / 2});
-        window.present(monitorCanvas.pixels(), monitorCanvas.width(), monitorCanvas.height());
+        renderContent();
+        presentFrame(true);
     };
 
     redraw();
-    window.setTitle(titleFor(width_px, dpi));
+    window.setTitle(titleFor(std::min(currentWidth_px, currentHeight_px), dpi, dpiKnown));
 
     window.run(
         [&](const KeyEvent& event)
         {
             if (event.kind == KeyEvent::Kind::Calibrate)
             {
-                // The window's current width IS Monitor::kWidth_in, by
-                // the user's own ruler -- back-derive and persist
-                // whatever dpi makes that true, rather than trusting the
-                // OS. Not routed through Cursor: this is a window-
-                // physical-size concern, not a card-editing one.
-                dpi = static_cast<int>(std::lround(currentWidth_px / Monitor::kWidth_in));
+                // The window's current constraining dimension IS
+                // Monitor::kWidth_in, by the user's own ruler -- back-
+                // derive and persist whatever dpi makes that true, rather
+                // than trusting the OS. Not routed through Cursor: this
+                // is a window-physical-size concern, not a card-editing
+                // one.
+                int squareSize = std::min(currentWidth_px, currentHeight_px);
+                dpi = static_cast<int>(std::lround(squareSize / Monitor::kWidth_in));
+                dpiKnown = true; // user-confirmed via ruler now, whatever it was before
                 saveCalibratedDpi(dpi);
-                window.setTitle(titleFor(currentWidth_px, dpi));
+                window.setTitle(titleFor(squareSize, dpi, dpiKnown));
                 return;
             }
             cursor.handleKey(event);
@@ -188,20 +297,44 @@ int main()
         },
         [&](int newWidth_px, int newHeight_px)
         {
-            // Re-render fully on every resize tick -- cheap enough (a card
-            // is ~11 rows, well under a thousand glyph blits) that there's
-            // no need to debounce or wait for the drag to settle. The
-            // window's own live-client-rect stretch (win32Window.cpp)
-            // covers the continuous, sub-atlas-granularity part; this is
-            // what keeps the rendered content itself close to native
-            // resolution rather than always stretching one small bitmap.
-            (void)newHeight_px; // aspect-locked (WM_SIZING) -- width alone determines the atlas and canvas size
+            // Cheap per-tick path (see platform.h's run() comment): skips
+            // renderContent entirely (the card's own pixels haven't
+            // changed, only the window's shape) and presents with
+            // nearest-neighbor scaling, not bilinear -- src is often
+            // being stretched by a large, constantly-changing factor
+            // here, and a live drag needs this fast enough to keep up
+            // with every tick, not just visually smooth once it lands.
+            // Bilinear's extra quality is worth paying for once, in
+            // onResizeEnd below, not on every one of these.
             currentWidth_px = newWidth_px;
-            atlas = &pickAtlas(desiredCellWidth_px(newWidth_px));
+            currentHeight_px = newHeight_px;
+            presentFrame(false);
+            window.setTitle(titleFor(std::min(newWidth_px, newHeight_px), dpi, dpiKnown));
+        },
+        [&](int newWidth_px, int newHeight_px)
+        {
+            // Fires once a resize actually settles (see platform.h's
+            // run() comment) -- this is where the atlas actually changes
+            // and the card gets rebuilt at native resolution, not on
+            // every onResize tick above. Skips all of that if it's
+            // already done it for this exact size (see
+            // lastSettledWidth_px's comment): a platform shell guarantees
+            // onResizeEnd fires once per completed resize, but not that
+            // it can never also fire again afterward for a size that
+            // hasn't actually changed.
+            if (newWidth_px == lastSettledWidth_px && newHeight_px == lastSettledHeight_px)
+                return;
+            lastSettledWidth_px = newWidth_px;
+            lastSettledHeight_px = newHeight_px;
+
+            currentWidth_px = newWidth_px;
+            currentHeight_px = newHeight_px;
+            atlas = &pickAtlas(desiredCellWidth_px(std::min(newWidth_px, newHeight_px)));
+            titleAtlas = &pickAtlas(atlas->cellWidth * 2); // see its selection above
             cardCanvas =
-                Canvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas), *atlas);
+                Canvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas));
             redraw();
-            window.setTitle(titleFor(newWidth_px, dpi));
+            window.setTitle(titleFor(std::min(newWidth_px, newHeight_px), dpi, dpiKnown));
         });
 
     return 0;

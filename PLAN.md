@@ -143,18 +143,155 @@ grayscale-coverage glyph atlases -- one per standard Windows
 display-scale step (100%-350%) -- and emits them as
 `resources/hackAtlas.h/.cpp`, a compiled-in C++ array the core embeds.
 `Canvas::pickAtlas` selects whichever baked atlas is closest to the
-window's current size at runtime, so live resizing re-renders close to
-native resolution instead of blowing up one small bitmap. Glyphs are
-anti-aliased (`Canvas::blendRect` blends each pixel by its baked coverage
-byte). Only re-run `bakeFont.exe` if the font, the DPI ladder, or the
-glyph set changes -- its output is checked in and not expected to change
-otherwise.
+window's current size at runtime (see "Window resizing" below for
+exactly which dimension "current size" means once the window stopped
+being locked to a square), so live resizing re-renders close to native
+resolution instead of blowing up one small bitmap.
+
+Glyphs are anti-aliased (`Canvas::blendRect` blends each pixel by its
+baked coverage byte, a graduated 0-255 alpha, not a hard 0/255 cutoff --
+that's what makes a diagonal or curved stroke read as a smooth line
+instead of a staircase). GDI's own AA asked for directly at the small
+end of the ladder (8-13px cells) rendered visibly faint/washed-out (not
+enough pixels for the AA gradient to represent a stroke's shape), so
+`bakeFont` renders each glyph at 4x the target resolution (still with
+GDI's AA, which looks good at that larger, more-detailed size) and
+box-filter downsamples back to the target (see `downsampleCoverage`) --
+crisper edges from the area-average than naive small-size AA gives, but
+still a real graduated alpha, not thresholded away. (A fully
+thresholded/hard-edged version was tried at one point in response to a
+"still looks blurry" report that turned out to actually be the window/
+atlas resample mismatches fixed separately below -- hard-thresholding
+just traded that bug for visible staircasing on diagonals/curves at the
+large end of the ladder instead, confirmed by direct comparison, and was
+reverted.) Baked once, checked into `resources/hackAtlas.h/.cpp`, and
+compiled into both platforms identically -- Linux and Windows render
+from the exact same coverage bytes, not a per-platform rasterization.
+Only re-run `bakeFont.exe` if the font, the DPI ladder, the glyph set,
+or this rendering approach changes -- its output is checked in and not
+expected to change otherwise.
+
+Title rows render from a second, independently-picked atlas (closest to
+2x the Body atlas's cell width) rather than upscaling Body's own glyph
+bitmaps -- see `Cursor::draw`'s `titleAtlas` parameter and `Canvas`'s
+class comment. Both nearest-neighbor block-replication and bilinear
+resampling of Body's coverage grid were tried first; neither looked
+right, because neither can add resolution a smaller source atlas never
+had -- nearest-neighbor makes each already-soft edge pixel cover 4x the
+area (reading as grayer/blurrier), and bilinear actively dilutes thin
+strokes below full darkness when a stroke is only 1-2 source pixels
+wide, confirmed by sampling actual output pixel values in both cases.
+`Canvas` doesn't store an atlas at all as a result -- `drawChar`/
+`drawText` take one explicitly per call, so one `Canvas` (one rendered
+frame) can freely mix atlases per row. Layout (row heights, margins, the
+2x cell-size relationship) still comes entirely from the Body atlas
+(`CardItem::cellWidth_px` et al.) regardless of which exact atlas
+`pickAtlas` lands on for the title -- a deliberate trade of pixel-exact
+column alignment for real per-size anti-aliasing, since the two atlases'
+cell widths are picked independently and won't always be in an exact
+2:1 ratio.
+
+### Window resizing
+
+The window can be resized to any shape -- it isn't locked to a square
+the way it once was. An earlier version enforced squareness at the
+platform-shell level (win32Window.cpp's `WM_SIZING` clamp,
+xlibWindow.cpp's anchor-aware `ConfigureNotify` correction, plus a
+`PlatformWindow::resizeTo` main.cpp called on every resize tick to snap
+the window to whichever baked atlas it had just picked); all of that
+fought the OS's own live-resize tracking, on both platforms, and made
+interactive dragging feel glitchy.
+
+Instead, `main.cpp`'s `redraw` fits the square monitor into whatever
+shape the window actually is: `Canvas::blitScaled` (a bilinear resample,
+the one implementation of that math in the whole codebase now --
+win32Window.cpp/xlibWindow.cpp's `present()` used to each carry their own
+copy to bridge an analogous gap) scales the rendered square into the
+largest centered square that fits, black filling whatever margin that
+leaves on the wider axis (letterboxed/pillarboxed, like a video player,
+rather than distorted). `createPlatformWindow` no longer takes an
+aspect-ratio parameter, and `present()`'s contract changed to match: the
+caller is expected to hand over pixels already sized to the window's
+current dimensions, so a platform shell's own defensive stretch-to-live-
+size (still there in case a resize lands mid-frame) is normally a 1:1
+no-op rather than a second resample on top of `blitScaled`'s.
+
+Atlas selection (both Body and, from it, Title -- see "Font atlas" above)
+now picks from `min(window width, window height)`, the dimension that
+actually constrains how big the square can render, not width alone.
+
+`PlatformWindow::run` takes two resize callbacks, not one, for the same
+reason main.cpp's atlas pick shouldn't happen on every tick: `onResize`
+fires on every tick of a live resize and is expected to stay cheap
+(`redraw` just re-stretches the already-rendered card into the new
+size); `onResizeEnd` fires once, after the resize actually settles, and
+is where the atlas gets re-picked and the card rebuilt at native
+resolution. An earlier version did that work on every `onResize` tick,
+which made a single big drag visibly step through several discrete
+crisp re-renders instead of one smooth stretch ending in one clean
+refresh. Win32 detects "settled" natively (`WM_ENTERSIZEMOVE`/
+`WM_EXITSIZEMOVE`, with a non-interactive resize like a maximize firing
+`onResizeEnd` straight from `WM_SIZE` instead, since it never gets an
+ENTERSIZEMOVE/EXITSIZEMOVE pair); X11 has no equivalent protocol event,
+so xlibWindow.cpp debounces instead -- `run()`'s event loop moved from a
+plain blocking `XNextEvent` to `select()` on the display connection's fd
+with a short timeout, treating "no new `ConfigureNotify` within the
+timeout" as settled. `onResizeEnd` also skips its own work (atlas
+re-pick, card rebuild) if it fires again for a size it already settled
+on -- a platform shell guarantees it fires once per completed resize,
+not that a WM can never send a late settling `ConfigureNotify` or two
+afterward, which would otherwise cost a second, redundant, visibly
+distinct refresh.
+
+`main.cpp` splits "render the card's content" (`renderContent`) from
+"put the current content on screen at the current size" (`presentFrame`)
+for the same reason: a live-resize tick calls `presentFrame` alone, not
+`redraw` (`renderContent` + `presentFrame`) -- the card's own pixels
+haven't changed, only the window's shape, so re-running `Cursor::draw`
+on every tick was pure waste. `presentFrame` also takes a `smooth` flag
+straight from `Canvas::blitScaled`: bilinear (used once, in the settled
+redraw, where the gap between the card's native resolution and the
+window is already small) is a per-pixel floating-point loop, expensive
+enough on a large, constantly-resizing window that a Debug build
+couldn't keep up with a fast drag's tick rate -- ticks piled up faster
+than they could be drawn, so visible updates kept draining for a
+noticeable time after the mouse stopped moving. Every live-resize tick
+uses nearest-neighbor instead (an index-and-copy loop, no interpolation)
+-- cheap enough to actually keep up, at the cost of looking a bit
+blockier for the fraction of a second the drag itself lasts.
+
+That alone didn't fully fix the "can't keep up" symptom -- measuring
+with real timing (not guessing) found the actual dominant cost one layer
+further down: both platform shells' present()/blit() used to
+independently re-query the window's own "live" size (Xlib's
+`XGetWindowAttributes`, Win32's `GetClientRect`) and resample/stretch to
+fill *that*, on the theory that the caller might hand over some other
+size. Once `presentFrame` started always building its output canvas at
+exactly the window's current size, that query stopped being a defensive
+convenience and started being a race against a fast live resize instead
+-- by the time it ran, the window had often already moved on to a
+*newer* size than the one that produced these pixels, so the "does
+w/h match?" check failed almost every tick and silently fell back to a
+full resample over the whole window (measured at 60-90ms/tick on Xlib,
+worse than the nearest-neighbor fix was supposed to cost at all).
+Neither platform shell re-queries its own size anymore -- both trust
+w/h exactly as given (Xlib: a straight `memcpy` per row into the XShm
+image; Win32: `SetDIBitsToDevice` instead of `StretchDIBits`+HALFTONE,
+since there's no gap left to stretch across) -- which also let Xlib drop
+a second real cost hiding behind the first: `ensureImage` reallocates
+its XShm segment on nearly every tick of a live resize (the size changes
+almost every time), and the attach step used to re-verify XShm actually
+works via a fresh `XSync` round trip on every single one of those,
+though that support is a fact about the X *connection*, established
+once, not something that needs re-proving per image. Cached after the
+first real probe instead. Together this took Xlib from ~60-90ms/tick
+down to ~10-20ms.
 
 ## TODO
 
 ### Platform / architecture
 
-- [ ] Linux (Xlib) platform shell
+- [x] Linux (Xlib) platform shell
 - [ ] Web (Emscripten/Canvas) platform shell
 - [ ] Manual pass through the keyboard flows below (typing, navigation
       mode, TOC links, delete toggle, caps-lock handling) now that
@@ -168,10 +305,14 @@ otherwise.
       dead now that Qt is gone, harmless but unused
 - [ ] ARM64 has never actually been built on this branch (only x64 has
       been compiled/run)
-- [ ] `tools/offline/bakeFont`'s target-width formula uses a hardcoded
-      4.8in "usable width" (assuming a margin) rather than the real
-      `CardItem::sideMargin_px` -- a small precision gap between the
-      atlas's chosen resolution and the card's true rendered margin
+- [x] `tools/offline/bakeFont`'s target-width formula used a hardcoded
+      4.8in "usable width" instead of the real `CardItem::sideMargin_px`
+      relationship (card width == `(Body::kColsPerRow + 4) *
+      atlas.cellWidth` spanning `Card::kWidth_in`) -- baked every atlas
+      rung about 2.4% too wide, which meant even a "perfect" pickAtlas
+      match still needed a shrinking resample, a small but constant blur
+      no resampler could fully hide. Fixed and resources/hackAtlas.*
+      regenerated (linux-shell branch).
 - [ ] `README.md` still describes the old Qt-based build (generic
       `cmake -S . -B build`, `scripts/setup.ps1`) -- needs updating for
       the current preset-based workflow (`cmake --workflow --preset
