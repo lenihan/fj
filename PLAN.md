@@ -287,16 +287,156 @@ once, not something that needs re-proving per image. Cached after the
 first real probe instead. Together this took Xlib from ~60-90ms/tick
 down to ~10-20ms.
 
+### Web (Emscripten) shell
+
+`webWindow.cpp` implements the same `platform.h` contract as the other
+two shells, but a browser tab breaks two of their assumptions outright
+rather than just needing a different API for the same idea.
+
+**`run()` can't literally block.** `GetMessageW`/`XNextEvent` can block
+their thread forever because each owns a whole OS process; a browser tab
+can't block its one JS thread that way without freezing the page. Two
+ways to keep `run()`'s "never returns to the caller" contract true
+anyway: Asyncify (compiles the whole reachable call graph so it can
+save/unwind its native stack and yield back to the browser, keeping a
+literal blocking call) or `emscripten_set_main_loop(fn, fps,
+simulate_infinite_loop=true)` (the standard Emscripten/SDL2/Dear ImGui
+pattern -- registers a per-frame callback and unwinds via a special
+internal mechanism that does *not* run the caller's destructors).
+Chose the latter: no Asyncify build-size/perf cost, and Qt for
+WebAssembly's own default event dispatcher uses the same approach,
+reaching for Asyncify only for the harder case (a nested blocking event
+loop) fj doesn't have. The "doesn't run destructors" property is load-
+bearing, not just a quirk to route around: `main.cpp`'s
+`onKey`/`onResize`/`onResizeEnd` lambdas capture `Cursor`/`Canvas`/etc.
+by reference from `main()`'s own stack frame, and those references stay
+valid only because that frame is genuinely never popped. `mainLoopTick`
+itself is empty -- every real event (keystrokes, resize) is delivered by
+its own DOM callback the instant it happens, not polled here; the main
+loop's only job is keeping `run()` from returning.
+
+**Real text input needs a real text element, not a keydown listener.**
+`keydown` only reports a physical key, not a composed character -- dead
+keys, IME composition, and non-US layouts all need a genuinely editable
+DOM element's `input` event to come out correct, the same job `WM_CHAR`
+does on Win32 and `Xutf8LookupString` does on Xlib. `fjCreateDom` builds
+an off-screen, permanently-focused `<input>` for exactly this; its
+`input` event iterates real Unicode code points (`codePointAt`, not
+UTF-16 code units) and forwards each through `Module.ccall` to
+`fj_web_on_char`. `Enter`/`Backspace`/`CapsLock`/`F5` are intercepted at
+`keydown` instead (returning `true` triggers the runtime's
+`preventDefault()` for us) so they're never also seen as stray `input`
+events.
+
+**Caps Lock's OS-level lock state can't be suppressed on the web, at
+all.** win32Window.cpp's `SetWindowsHookEx` dance and xlibWindow.cpp's
+`XkbLockModifiers` both force the *system* Caps Lock off while focused,
+so a letter typed during a held-Caps command only ever arrives as its
+plain unshifted codepoint. No browser API can mutate OS keyboard-lock
+state. Real consequence, not just theoretical: holding Caps Lock to
+navigate (`i`/`j`/`k`/`l`) genuinely worked in the browser's own eyes,
+but the letters arrived pre-uppercased by the real OS lock the physical
+keypress engaged, which `Cursor`'s command dispatch didn't recognize --
+found by testing, not inspection. Fixed locally in `webWindow.cpp`
+(tracks the physical key's own held state from the `keydown`/`keyup`
+edges it already forwards, and lowercases `A`-`Z` while held before
+constructing the `Char` event) rather than in `Cursor`, since it's
+compensating for a web-only OS quirk, not a shared behavior.
+
+**Canvas `ImageData` is spec-mandated RGBA, not `Pixel`'s BGRX.**
+win32Window.cpp's DIB and xlibWindow.cpp's XImage both happen to already
+match `Pixel`'s documented in-memory layout (platform.h) on a little-
+endian host, so neither needs a conversion pass; this is the one
+platform where that coincidence doesn't hold, so `present()` does a real
+per-pixel repack into a reused scratch buffer before handing it to
+`fjPresentFrame`'s `putImageData`.
+
+**`displayDpi()` has no EDID to fall back on.** Unlike
+`GetDeviceCaps(..., HORZSIZE)` or XRandR's mm query, a browser exposes no
+physical-monitor-size API at all -- `devicePixelRatio` (CSS's `96 *
+ratio` convention) is the best available answer, but it conflates true
+pixel density with whatever OS/browser zoom the user has chosen, the
+same ambiguity `LOGPIXELSX` was rejected for elsewhere in this codebase.
+Unlike the other two platforms, there's no honest "unknown" state to
+return `nullopt` for -- a browser always answers *something* -- so this
+never returns `nullopt`; the existing `Calibrate` (F5) flow is the
+correction path here too, same as on a monitor with bad EDID data on the
+other two platforms.
+
+**Resize reuses Xlib's debounce shape, translated to JS timers.** No
+`WM_ENTERSIZEMOVE`/`WM_EXITSIZEMOVE` equivalent exists here either --
+`emscripten_set_resize_callback` fires `onResize` (cheap tick) on every
+event and (re)starts an `emscripten_set_timeout`-based 300ms settle timer
+whose firing calls `onResizeEnd`, same shape as xlibWindow.cpp's
+`select()`-based approach, just with the browser's own event-loop timer
+instead of polling a connection fd.
+
+**Debug wasm is far slower than Debug native for the same code**, more
+so than the gap between a Debug and Release *native* build on the other
+two platforms -- confirmed by testing, not assumed: a synthetic-input
+timing harness showed the actual `char -> redraw -> present` pipeline at
+~0ms in both configs (ruling out the redraw pipeline itself), yet real
+interactive typing against the Debug build was noticeably laggy and
+resolved entirely by switching to Release. `-O0` plus `-sASSERTIONS=1`
+(bounds/heap checks on effectively every memory access) is enough
+overhead in a wasm interpreter/JIT that it's felt on a normal per-
+keystroke workload in a way native `-O0` never is. Left `web-debug` at
+`-O0` rather than trading away step-debuggability by default (a
+`-O1`-for-debug option was raised and declined) -- `web-release` is the
+one to actually use/demo against day to day; `web-debug` is for when you
+specifically need to step through wasm in the browser's own debugger.
+
+**Custom `--shell-file` (`src/webShell.html`).** emcc's default shell is
+a demo page (a spare `#canvas`, resize/pointer-lock checkboxes, a
+Fullscreen button, a status/progress readout) meant for apps that hand
+Emscripten's own runtime a canvas to drive (`Module.canvas`, a GL
+context) -- `webWindow.cpp` never does that; it builds and owns its
+canvas entirely from C++/EM_JS. `webShell.html` is close to empty: just
+the `{{{ SCRIPT }}}` placeholder emcc actually requires.
+
+**Known gap: calibration doesn't survive a page reload.**
+`main.cpp`'s `saveCalibratedDpi`/`startupDpi` use plain `std::ofstream`/
+`ifstream` against a path from `getenv("HOME")` etc. -- Emscripten
+supplies a `HOME` and a working `<filesystem>`, so the write succeeds
+with no code change needed, but it lands in Emscripten's default MEMFS
+(in-memory, wiped on reload), not a real file the way it is on Win32/
+Linux. Degrades gracefully (no crash, calibration still works for the
+running session), just doesn't persist across a reload the way it does
+on the other two platforms. Not fixed -- would need IDBFS (or
+localStorage) mounted and explicitly synced if this ever needs to stick.
+
+**Toolchain**: emsdk installed to `%USERPROFILE%\emsdk` (not checked
+into the repo -- a dev-machine-local install, same category as an IDE or
+compiler install, matching how Visual Studio/CMake themselves aren't
+vendored either); `CMakePresets.json`'s `web` preset points
+`CMAKE_TOOLCHAIN_FILE` at
+`$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake`.
+`emsdk_env.ps1`/`emsdk activate --permanent` didn't reliably put
+`upstream/emscripten` (where `emcc` actually lives) on `PATH` in testing
+on this machine -- building from a fresh shell needs `emcc`/`ninja` on
+`PATH` some other way (e.g. prepend
+`%EMSDK%;%EMSDK%\upstream\emscripten;%EMSDK%\ninja\<ver>_64bit`
+manually) rather than assuming emsdk's own env scripts handled it.
+
 ## TODO
 
 ### Platform / architecture
 
 - [x] Linux (Xlib) platform shell
-- [ ] Web (Emscripten/Canvas) platform shell
-- [ ] Manual pass through the keyboard flows below (typing, navigation
-      mode, TOC links, delete toggle, caps-lock handling) now that
-      there's a real window to test against -- hasn't had a dedicated
-      end-to-end check since the resize/calibration/rendering work landed
+- [x] Web (Emscripten/Canvas) platform shell -- see "Web (Emscripten)
+      shell" above for the design (hidden-`<input>` text capture, the
+      `simulate_infinite_loop` run() model, the Caps Lock workaround,
+      etc.) and its one known gap (calibration doesn't survive a page
+      reload, MEMFS only)
+- [ ] Automated regression test/harness (scheduled after the Web shell
+      above): drive `Cursor`/`CardItem`/`CardStack` with scripted
+      `KeyEvent` sequences (headless, no platform window needed -- same
+      approach phase 3's verification used) and assert on the resulting
+      state/rendered output for the keyboard flows below (typing,
+      navigation mode, TOC links, delete toggle, caps-lock handling) plus
+      edge cases, so there's a fast, repeatable "does the app still work"
+      check instead of a manual pass. Supersedes the old "manual pass"
+      TODO that stood here.
 - [ ] Port the old "darken all but the current row while typing" effect
       -- `Canvas::blendRect` (real alpha blending) exists now, nothing
       uses it for this yet
@@ -313,10 +453,12 @@ down to ~10-20ms.
       match still needed a shrinking resample, a small but constant blur
       no resampler could fully hide. Fixed and resources/hackAtlas.*
       regenerated (linux-shell branch).
-- [ ] `README.md` still describes the old Qt-based build (generic
-      `cmake -S . -B build`, `scripts/setup.ps1`) -- needs updating for
-      the current preset-based workflow (`cmake --workflow --preset
-      windows-x64-debug`) and dropped Qt dependency
+- [x] `README.md` updated for the current preset-based workflow
+      (`cmake --workflow --preset windows-x64-debug`, plus Linux/Web)
+      and dropped Qt dependency
+- [ ] `scripts/setup.ps1` is now dead: it only ever fetched/built Qt,
+      which the build no longer depends on at all (see above) -- nothing
+      references it anymore, safe to delete
 - [ ] Known regression from the Qt port: retroactive title propagation to
       *already-created* continuation cards when the thread's title
       changes isn't implemented (`CardStack::add`'s `ThreadMode::Continue`

@@ -53,6 +53,18 @@
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
       }
+    },
+
+    {
+      "name": "web",
+      "displayName": "Web - Emscripten/WASM",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
+      }
     }
   ],
 
@@ -67,7 +79,10 @@
     { "name": "bakeFont-windows-arm64", "configurePreset": "windows-arm64", "configuration": "Debug", "targets": ["bakeFont"] },
 
     { "name": "linux-debug",   "configurePreset": "linux", "configuration": "Debug" },
-    { "name": "linux-release", "configurePreset": "linux", "configuration": "Release" }
+    { "name": "linux-release", "configurePreset": "linux", "configuration": "Release" },
+
+    { "name": "web-debug",   "configurePreset": "web", "configuration": "Debug" },
+    { "name": "web-release", "configurePreset": "web", "configuration": "Release" }
   ],
 
   "workflowPresets": [
@@ -133,6 +148,22 @@
       "steps": [
         { "type": "configure", "name": "linux" },
         { "type": "build",     "name": "linux-release" }
+      ]
+    },
+    {
+      "name": "web-debug",
+      "displayName": "Configure + build fj (Web, Debug)",
+      "steps": [
+        { "type": "configure", "name": "web" },
+        { "type": "build",     "name": "web-debug" }
+      ]
+    },
+    {
+      "name": "web-release",
+      "displayName": "Configure + build fj (Web, Release)",
+      "steps": [
+        { "type": "configure", "name": "web" },
+        { "type": "build",     "name": "web-release" }
       ]
     }
   ]
