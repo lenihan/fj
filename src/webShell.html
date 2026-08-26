@@ -1,0 +1,22 @@
+<!-- webShell.html -- emcc's --shell-file for the fj target (see CMakeLists.txt).
+     Deliberately near-empty: webWindow.cpp builds its own canvas and hidden
+     <input> from C++ at startup (see its fjCreateDom), so none of emcc's
+     default shell_minimal.html scaffolding (a demo #canvas, resize/pointer-
+     lock checkboxes, a Fullscreen button, a status/progress readout) is
+     wanted here -- that template is meant for apps that hand Emscripten's
+     runtime a canvas to drive (Module.canvas, GL context), which this app
+     never does. The body's script placeholder below is the one thing emcc
+     actually requires: it substitutes in fj.js's <script> tag. -->
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <title>fj</title>
+    <style>
+      html, body { margin: 0; background: #000; }
+    </style>
+  </head>
+  <body>
+    {{{ SCRIPT }}}
+  </body>
+</html>

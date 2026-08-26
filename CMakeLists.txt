@@ -54,6 +54,8 @@ set(CORE_SOURCES
 )
 if(WIN32)
     list(APPEND CORE_SOURCES src/win32Window.cpp)
+elseif(EMSCRIPTEN)
+    list(APPEND CORE_SOURCES src/webWindow.cpp)
 elseif(UNIX AND NOT APPLE)
     list(APPEND CORE_SOURCES src/xlibWindow.cpp)
     find_package(X11 REQUIRED)
@@ -106,4 +108,26 @@ if(WIN32)
     # Microsoft actually recommends, since the OS loader applies it before
     # any of the process's own code executes, with no timing ambiguity.
     set_target_properties(fj PROPERTIES VS_DPI_AWARE "PerMonitor")
+elseif(EMSCRIPTEN)
+    # webWindow.cpp never returns from PlatformWindow::run() in any real
+    # sense (see platform.h) -- ALLOW_MEMORY_GROWTH because a Zettelkasten
+    # note store has no natural fixed size to preallocate for. ASSERTIONS
+    # in Debug only: real runtime cost, so Release stays default (off).
+    # ccall isn't exported to the Module object by default (EXPORTED_RUNTIME_
+    # METHODS defaults to empty) -- webWindow.cpp's hidden-input 'input'
+    # listener needs it to call back into fj_web_on_char for every typed
+    # character. --shell-file swaps out emcc's default demo HTML (a spare
+    # canvas/resize/pointer-lock/Fullscreen scaffold meant for apps that
+    # hand Emscripten's runtime a canvas to drive, which webWindow.cpp never
+    # does -- see webShell.html) for fj's own minimal page.
+    set_target_properties(fj PROPERTIES
+        SUFFIX ".html"
+        LINK_DEPENDS ${CMAKE_SOURCE_DIR}/src/webShell.html
+    )
+    target_link_options(fj PRIVATE
+        -sALLOW_MEMORY_GROWTH=1
+        -sEXPORTED_RUNTIME_METHODS=ccall
+        --shell-file=${CMAKE_SOURCE_DIR}/src/webShell.html
+        $<$<CONFIG:Debug>:-sASSERTIONS=1>
+    )
 endif()
