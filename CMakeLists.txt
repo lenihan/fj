@@ -8,6 +8,12 @@ cmake_minimum_required(VERSION 3.20)
 
 project(fj LANGUAGES CXX)
 
+# CTest bundles with CMake -- a test *runner* (invokes an executable, checks
+# its exit code, aggregates results for `ctest`/CI), not a testing framework
+# (no assertion macros, no test discovery). include(CTest) wires that up:
+# defines BUILD_TESTING (default ON) and calls enable_testing().
+include(CTest)
+
 ###############################################################################
 # bakeFont: offline Hack -> bitmap glyph atlas generator
 # (see tools/offline/bakeFont). Standalone, Windows-only -- never shipped,
@@ -130,4 +136,40 @@ elseif(EMSCRIPTEN)
         --shell-file=${CMAKE_SOURCE_DIR}/src/webShell.html
         $<$<CONFIG:Debug>:-sASSERTIONS=1>
     )
+endif()
+
+###############################################################################
+# fjTests: automated regression tests (see PLAN.md's TODO) -- drives Cursor
+# directly with scripted KeyEvent sequences, no PlatformWindow/platform
+# shell needed at all (that's the whole point: headless, fast, no window to
+# open). Catch2 is this project's one deliberate exception to the
+# zero-third-party-dependency policy (see PLAN.md's "Dependency policy") --
+# it's dev-only tooling that never ships in fj.exe/fj.wasm, same category as
+# bakeFont being Windows-only/never-shipped above, not a runtime dependency
+# of the actual app.
+#
+# Skipped entirely under Emscripten: these tests run as a normal desktop
+# executable via ctest, not in a browser -- nothing here needs a browser
+# environment, so there's no reason to make the wasm build carry it too.
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
+    include(FetchContent)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.7.1
+    )
+    FetchContent_MakeAvailable(Catch2)
+
+    add_executable(fjTests tests/cursorTests.cpp)
+    target_link_libraries(fjTests PRIVATE core Catch2::Catch2WithMain)
+    set_target_properties(fjTests PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
+
+    # Catch2's own CMake module providing catch_discover_tests(): runs
+    # fjTests once at build time to ask it (via --list-test-names-only) what
+    # TEST_CASEs it contains, then registers each one as its own separate
+    # ctest entry -- `ctest` reports pass/fail per TEST_CASE, not just
+    # "fjTests exited nonzero" for the whole suite.
+    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+    include(Catch)
+    catch_discover_tests(fjTests)
 endif()
