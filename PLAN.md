@@ -453,10 +453,12 @@ manually) rather than assuming emsdk's own env scripts handled it.
       match still needed a shrinking resample, a small but constant blur
       no resampler could fully hide. Fixed and resources/hackAtlas.*
       regenerated (linux-shell branch).
-- [ ] `README.md` still describes the old Qt-based build (generic
-      `cmake -S . -B build`, `scripts/setup.ps1`) -- needs updating for
-      the current preset-based workflow (`cmake --workflow --preset
-      windows-x64-debug`) and dropped Qt dependency
+- [x] `README.md` updated for the current preset-based workflow
+      (`cmake --workflow --preset windows-x64-debug`, plus Linux/Web)
+      and dropped Qt dependency
+- [ ] `scripts/setup.ps1` is now dead: it only ever fetched/built Qt,
+      which the build no longer depends on at all (see above) -- nothing
+      references it anymore, safe to delete
 - [ ] Known regression from the Qt port: retroactive title propagation to
       *already-created* continuation cards when the thread's title
       changes isn't implemented (`CardStack::add`'s `ThreadMode::Continue`
