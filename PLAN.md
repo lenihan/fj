@@ -456,9 +456,12 @@ manually) rather than assuming emsdk's own env scripts handled it.
 - [x] `README.md` updated for the current preset-based workflow
       (`cmake --workflow --preset windows-x64-debug`, plus Linux/Web)
       and dropped Qt dependency
-- [ ] `scripts/setup.ps1` is now dead: it only ever fetched/built Qt,
-      which the build no longer depends on at all (see above) -- nothing
-      references it anymore, safe to delete
+- [x] `scripts/setup.ps1` was dead (only ever fetched/built Qt) --
+      rewritten to install the current prerequisites instead: git/CMake/
+      Visual Studio 2022 (Desktop C++ workload) via `winget`, plus emsdk
+      for the Web toolchain. Idempotent (checks what's already installed/
+      set up before doing anything), so it doubles as an environment
+      sanity check, not just a first-time setup script.
 - [ ] Known regression from the Qt port: retroactive title propagation to
       *already-created* continuation cards when the thread's title
       changes isn't implemented (`CardStack::add`'s `ThreadMode::Continue`
