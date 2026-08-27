@@ -222,6 +222,22 @@ int main()
     int lastSettledWidth_px = currentWidth_px;
     int lastSettledHeight_px = currentHeight_px;
 
+    // Whether a click has toggled the on-screen "caps" key engaged -- see
+    // the onClick handler below for why a click on caps toggles rather
+    // than following press/release the way a physical hold does. Found
+    // via testing, not assumed: an earlier version tracked "the key the
+    // most recent press landed on" so a matching release could be
+    // replayed, which broke the moment a *different* key was clicked
+    // while caps was still conceptually held -- that click's own press
+    // silently overwrote the tracking before caps's release ever arrived,
+    // leaving Cursor's m_capsDown stuck true. A real physical keyboard
+    // never has this problem (caps and the tapped key are different
+    // fingers on different keys), but one mouse/touch point can't hold
+    // one on-screen key down while also tapping another the way two
+    // fingers can -- toggling on the press edge sidesteps needing to
+    // model that at all.
+    bool capsLockEngagedByClick = false;
+
     // Square, cardCanvas.width() on a side: Monitor::kWidth_in ==
     // Card::kWidth_in, so at whatever resolution the atlas rendered the
     // card's width, that same pixel count is exactly Monitor::kHeight_in
@@ -263,25 +279,31 @@ int main()
         deviceCanvas.blit(rightPanelCanvas, {monitorCanvas.width() * 2, 0});
     };
 
-    // Fits deviceCanvas into the window's actual shape -- which doesn't
-    // have to match the device's 3:1 aspect itself (see
-    // createPlatformWindow's comment) -- letterboxed/pillarboxed rather
-    // than distorted: the largest centered 3:1 rect that fits, black
-    // filling whatever margin that leaves on the constraining axis. Built
-    // at exactly the window's current size and handed to present() as-is,
-    // so the platform shell's own stretch (still there as a defensive
-    // fallback -- see platform.h) is normally a no-op, not a second
-    // resample on top of this one. smooth is Canvas::blitScaled's -- see
-    // its comment for why a live-resize tick needs false here, not the
-    // general redraw default of true.
+    // Where deviceCanvas lands within the window -- the largest centered
+    // 3:1 rect that fits, letterboxed/pillarboxed rather than distorted
+    // (see createPlatformWindow's comment: the window itself doesn't have
+    // to match the device's 3:1 aspect). Shared by presentFrame (what to
+    // blitScaled deviceCanvas into) and the onClick handler below (what a
+    // raw window-pixel click needs to be mapped back out of).
+    auto deviceLetterboxRect = [&]() -> Rect
+    {
+        int unit = unitPx(currentWidth_px, currentHeight_px);
+        int deviceWidth = unit * 3;
+        return {(currentWidth_px - deviceWidth) / 2, (currentHeight_px - unit) / 2, deviceWidth, unit};
+    };
+
+    // Fits deviceCanvas into the window's actual shape. Built at exactly
+    // the window's current size and handed to present() as-is, so the
+    // platform shell's own stretch (still there as a defensive fallback --
+    // see platform.h) is normally a no-op, not a second resample on top of
+    // this one. smooth is Canvas::blitScaled's -- see its comment for why
+    // a live-resize tick needs false here, not the general redraw default
+    // of true.
     auto presentFrame = [&](bool smooth)
     {
         Canvas outputCanvas(currentWidth_px, currentHeight_px);
         outputCanvas.fillRect({0, 0, currentWidth_px, currentHeight_px}, 0x00000000);
-        int unit = unitPx(currentWidth_px, currentHeight_px);
-        int deviceWidth = unit * 3;
-        Rect deviceRect{(currentWidth_px - deviceWidth) / 2, (currentHeight_px - unit) / 2, deviceWidth, unit};
-        outputCanvas.blitScaled(deviceCanvas, deviceRect, smooth);
+        outputCanvas.blitScaled(deviceCanvas, deviceLetterboxRect(), smooth);
         window.present(outputCanvas.pixels(), outputCanvas.width(), outputCanvas.height());
     };
 
@@ -293,6 +315,66 @@ int main()
     {
         renderContent();
         presentFrame(true);
+    };
+
+    // Resolves a raw window-pixel click to whichever on-screen key it
+    // landed on (if any) and injects the same KeyEvent a physical keypress
+    // would -- see platform.h's onClick comment and keyboardPanel.h's
+    // KeyRect comment for why the event carries no position of its own.
+    // x_px/y_px undo deviceLetterboxRect's stretch to land back in
+    // deviceCanvas's own pixel space, then split into which of the three
+    // regions (left panel/monitor/right panel) that falls in -- only the
+    // panels are clickable in this phase, so a click on the monitor/card
+    // region or the letterbox margin is a silent no-op. Every key acts on
+    // its press edge only (the release is never forwarded to Cursor,
+    // matching how a real keyboard's Kind::Enter/Backspace/Char already
+    // work -- see win32Window.cpp's WM_KEYDOWN handling) except caps,
+    // which toggles engaged/disengaged instead -- see
+    // capsLockEngagedByClick's comment for why.
+    auto onClick = [&](int x_px, int y_px, bool pressed)
+    {
+        if (!pressed)
+            return;
+
+        Rect rect = deviceLetterboxRect();
+        if (x_px < rect.x || x_px >= rect.x + rect.w || y_px < rect.y || y_px >= rect.y + rect.h)
+            return;
+
+        int deviceX = (x_px - rect.x) * deviceCanvas.width() / rect.w;
+        int deviceY = (y_px - rect.y) * deviceCanvas.height() / rect.h;
+        int unit = deviceCanvas.height(); // one region's own pixel size (deviceCanvas is 3*unit x unit)
+
+        bool leftSide;
+        int panelX;
+        if (deviceX < unit)
+        {
+            leftSide = true;
+            panelX = deviceX;
+        }
+        else if (deviceX >= 2 * unit)
+        {
+            leftSide = false;
+            panelX = deviceX - 2 * unit;
+        }
+        else
+        {
+            return; // the monitor/card region -- not clickable yet
+        }
+
+        std::optional<KeyRect> key = hitTestPanel(leftSide, unit, {panelX, deviceY});
+        if (!key || !key->clickable)
+            return;
+
+        if (key->kind == KeyEvent::Kind::CapsLock)
+        {
+            capsLockEngagedByClick = !capsLockEngagedByClick;
+            cursor.handleKey({KeyEvent::Kind::CapsLock, 0, capsLockEngagedByClick});
+        }
+        else
+        {
+            cursor.handleKey({key->kind, key->codepoint, true});
+        }
+        redraw();
     };
 
     redraw();
@@ -364,7 +446,8 @@ int main()
             drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, pickPanelAtlas(rightPanelCanvas.width()));
             redraw();
             window.setTitle(titleFor(unit, dpi, dpiKnown));
-        });
+        },
+        onClick);
 
     return 0;
 }
