@@ -669,3 +669,39 @@ manually) rather than assuming emsdk's own env scripts handled it.
 Mode-transition dispatch (Command/Typing keyboard mode, Link/Cursor
 navigation mode) sketched here originally is now real, implemented code
 -- see `Cursor::handleKey` in `src/cursor.cpp`.
+
+### Emulator keyboard panels (planned)
+
+The emulator window today is just the 5"x5" screen -- the two 5"x5"
+ortholinear keyboard halves sketched above have never actually been
+rendered. Planned: widen the window to 15"x5" (left keyboard panel +
+screen + right keyboard panel, side by side), each panel drawing the 4
+row x 6 col grid above plus a 5th row holding one double-wide spacebar
+key aligned to the panel's screen-side edge (innermost column). Keys
+are sized to a standard keycap pitch (a physical-keyboard reference
+size, not derived from the card's glyph cell) -- these are meant to
+look like real keys, not text.
+
+Two things make this more than a rendering task:
+
+- **Per-key display is dynamic, not a fixed printed legend.** Each key
+  shows what it currently *does*, not just what letter it is -- e.g.
+  `u` reads "Prev card" in Command mode, matching the Keyboard Mapping
+  table above, and that legend has to change live as Command/Typing
+  mode and Link/Cursor navigation mode change. This needs a source of
+  truth for "what does key X do right now," derived from `Cursor`'s
+  current mode state -- doesn't exist yet (`Cursor` has no public
+  accessor for its own mode today).
+- **Keys are clickable, not just decorative.** A mouse click on an
+  on-screen key injects the same key event a physical keypress would.
+  This is deliberately in scope now rather than deferred: it's the
+  only way to exercise the ortholinear layout at all before real
+  hardware exists. Needs per-key hit-testing and a synthetic-`KeyEvent`
+  injection path into the same place physical keyboard input already
+  enters (`Cursor::handleKey` / `platform.h`'s contract).
+
+Both of these are core-architecture decisions (a new "current key
+legend" data source, and a new synthetic-input path into the existing
+key-event contract), not mechanical plumbing -- per this project's
+working-style note (see `CLAUDE.md`), worth a first draft from the
+user before implementation, not a generated design.
