@@ -85,37 +85,58 @@
     { "name": "web-release", "configurePreset": "web", "configuration": "Release" }
   ],
 
+  "testPresets": [
+    {
+      "name": "_base",
+      "hidden": true,
+      "output": { "outputOnFailure": true }
+    },
+
+    { "name": "windows-x64-debug",     "inherits": "_base", "configurePreset": "windows-x64",   "configuration": "Debug" },
+    { "name": "windows-x64-release",   "inherits": "_base", "configurePreset": "windows-x64",   "configuration": "Release" },
+
+    { "name": "windows-arm64-debug",   "inherits": "_base", "configurePreset": "windows-arm64", "configuration": "Debug" },
+    { "name": "windows-arm64-release", "inherits": "_base", "configurePreset": "windows-arm64", "configuration": "Release" },
+
+    { "name": "linux-debug",   "inherits": "_base", "configurePreset": "linux", "configuration": "Debug" },
+    { "name": "linux-release", "inherits": "_base", "configurePreset": "linux", "configuration": "Release" }
+  ],
+
   "workflowPresets": [
     {
       "name": "windows-x64-debug",
-      "displayName": "Configure + build fj (Windows x64, Debug)",
+      "displayName": "Configure + build + test fj (Windows x64, Debug)",
       "steps": [
         { "type": "configure", "name": "windows-x64" },
-        { "type": "build",     "name": "windows-x64-debug" }
+        { "type": "build",     "name": "windows-x64-debug" },
+        { "type": "test",      "name": "windows-x64-debug" }
       ]
     },
     {
       "name": "windows-x64-release",
-      "displayName": "Configure + build fj (Windows x64, Release)",
+      "displayName": "Configure + build + test fj (Windows x64, Release)",
       "steps": [
         { "type": "configure", "name": "windows-x64" },
-        { "type": "build",     "name": "windows-x64-release" }
+        { "type": "build",     "name": "windows-x64-release" },
+        { "type": "test",      "name": "windows-x64-release" }
       ]
     },
     {
       "name": "windows-arm64-debug",
-      "displayName": "Configure + build fj (Windows ARM64, Debug)",
+      "displayName": "Configure + build + test fj (Windows ARM64, Debug)",
       "steps": [
         { "type": "configure", "name": "windows-arm64" },
-        { "type": "build",     "name": "windows-arm64-debug" }
+        { "type": "build",     "name": "windows-arm64-debug" },
+        { "type": "test",      "name": "windows-arm64-debug" }
       ]
     },
     {
       "name": "windows-arm64-release",
-      "displayName": "Configure + build fj (Windows ARM64, Release)",
+      "displayName": "Configure + build + test fj (Windows ARM64, Release)",
       "steps": [
         { "type": "configure", "name": "windows-arm64" },
-        { "type": "build",     "name": "windows-arm64-release" }
+        { "type": "build",     "name": "windows-arm64-release" },
+        { "type": "test",      "name": "windows-arm64-release" }
       ]
     },
     {
@@ -136,18 +157,20 @@
     },
     {
       "name": "linux-debug",
-      "displayName": "Configure + build fj (Linux, Debug)",
+      "displayName": "Configure + build + test fj (Linux, Debug)",
       "steps": [
         { "type": "configure", "name": "linux" },
-        { "type": "build",     "name": "linux-debug" }
+        { "type": "build",     "name": "linux-debug" },
+        { "type": "test",      "name": "linux-debug" }
       ]
     },
     {
       "name": "linux-release",
-      "displayName": "Configure + build fj (Linux, Release)",
+      "displayName": "Configure + build + test fj (Linux, Release)",
       "steps": [
         { "type": "configure", "name": "linux" },
-        { "type": "build",     "name": "linux-release" }
+        { "type": "build",     "name": "linux-release" },
+        { "type": "test",      "name": "linux-release" }
       ]
     },
     {

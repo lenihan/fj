@@ -150,12 +150,15 @@ CMake the first time you configure; this is the one deliberate exception
 to fj's zero-third-party-dependency policy (see `PLAN.md`), since it's
 dev-only tooling that never ships in `fj.exe`/`fj.wasm`.
 
+The `windows-x64-debug`/`linux-debug`/etc. workflow presets already run
+`ctest` as their last step, so the ordinary build commands above (Windows/
+Linux sections) build and test in one command -- nothing extra to run.
+To run just the tests again without reconfiguring/rebuilding:
+
 ```pwsh
-cmake --workflow --preset windows-x64-debug
 ctest --test-dir build/windows-x64 -C Debug
 ```
 
 ```sh
-cmake --workflow --preset linux-debug
 ctest --test-dir build/linux -C Debug
 ```
