@@ -1,4 +1,20 @@
 # PLAN
+- 
+- [PLAN](#plan)
+  - [DESIGN](#design)
+  - [ARCHITECTURE](#architecture)
+    - [Dependency policy](#dependency-policy)
+    - [Core / platform-shell split](#core--platform-shell-split)
+    - [Coordinate system](#coordinate-system)
+    - [Physical accuracy](#physical-accuracy)
+    - [Font atlas](#font-atlas)
+    - [Window resizing](#window-resizing)
+    - [Web (Emscripten) shell](#web-emscripten-shell)
+  - [TODO](#todo)
+    - [Platform / architecture](#platform--architecture)
+    - [App features](#app-features)
+  - [Keyboard Mapping](#keyboard-mapping)
+  - [Ortholinear Keyboard](#ortholinear-keyboard)
 
 ## DESIGN
 
@@ -428,15 +444,21 @@ manually) rather than assuming emsdk's own env scripts handled it.
       `simulate_infinite_loop` run() model, the Caps Lock workaround,
       etc.) and its one known gap (calibration doesn't survive a page
       reload, MEMFS only)
-- [ ] Automated regression test/harness (scheduled after the Web shell
-      above): drive `Cursor`/`CardItem`/`CardStack` with scripted
-      `KeyEvent` sequences (headless, no platform window needed -- same
-      approach phase 3's verification used) and assert on the resulting
-      state/rendered output for the keyboard flows below (typing,
-      navigation mode, TOC links, delete toggle, caps-lock handling) plus
-      edge cases, so there's a fast, repeatable "does the app still work"
-      check instead of a manual pass. Supersedes the old "manual pass"
-      TODO that stood here.
+- [x] Automated regression test/harness: `tests/cursorTests.cpp`
+      (Catch2 -- see README.md's Tests section for the one deliberate
+      exception to the zero-dependency policy) drives `Cursor` directly
+      with scripted `KeyEvent` sequences, headless, no platform window
+      needed. 13 `TEST_CASE`s covering typing/backspace, Caps Lock hold,
+      every command-mode key, thread-boundary navigation (both `.`/`m`
+      and ordinary `i`/`k`), deleted-card skipping, a full link-walk from
+      the master TOC, and cross-year thread continuation. Found and fixed
+      two real bugs along the way, not just test-writing: `right()`'s
+      Link-mode branch never skipped a deleted link target (every other
+      navigation path already did), and nothing enforced "new content
+      only goes in the current year" until `setYear()` was changed to
+      refuse moving backward. `cmake --workflow --preset
+      windows-x64-debug` (and the Linux equivalent) now build *and* run
+      `ctest` in one command (`CMakePresets.json`'s `testPresets`).
 - [ ] Port the old "darken all but the current row while typing" effect
       -- `Canvas::blendRect` (real alpha blending) exists now, nothing
       uses it for this yet
@@ -462,11 +484,15 @@ manually) rather than assuming emsdk's own env scripts handled it.
       for the Web toolchain. Idempotent (checks what's already installed/
       set up before doing anything), so it doubles as an environment
       sanity check, not just a first-time setup script.
-- [ ] Known regression from the Qt port: retroactive title propagation to
-      *already-created* continuation cards when the thread's title
-      changes isn't implemented (`CardStack::add`'s `ThreadMode::Continue`
-      only copies the title at creation time) -- judged low-value at the
-      time, flagged here in case it matters later
+- [x] Known regression from the Qt port, fixed: retroactive title
+      propagation to already-created continuation cards. `Cursor::enter()`
+      now walks `threadNext()` and updates every continuation's title row
+      when leaving `threadStart()`'s title row (only `threadStart()`'s
+      title is ever editable -- every continuation's is a read-only copy
+      made once at creation time). The TOC's own reference needed no fix
+      at all: `TOCItem::text()` already reads the title fresh every draw
+      (see `tocItem.h`'s header comment) -- confirmed by test, not
+      assumed. See `tests/cursorTests.cpp`.
 
 ### App features
 
@@ -505,11 +531,26 @@ manually) rather than assuming emsdk's own env scripts handled it.
     - [X] Once TOC grows past a page, new TOC should be created
       - [X] New TOC points to prev TOC
       - [X] Prev TOC point to new TOC
-  - [ ] Continuing collection from different card stack
-    - [ ] Press enter on non-current year collection to continue collection
-    - [ ] Update last thread card to point to new collection card in current year
-    - [ ] Update current year TOC to point to start of collection
-    - [ ] New Card prev thread is for non-current year
+  - [X] Continuing collection from different card stack -- implemented
+        via `Cursor::setYear`/`CardStack::add` (see "Web (Emscripten)
+        shell" era's follow-on testing work); `tests/cursorTests.cpp` has
+        a dedicated `TEST_CASE` for this
+    - [X] Press enter on non-current year collection to continue
+          collection -- no special-casing needed: `nextRowCreateCard()`'s
+          existing `addContinuationCard()` path already creates in
+          whichever stack `Cursor::m_year` (the current year) points at,
+          regardless of which year the card being typed on belongs to
+    - [X] Update last thread card to point to new collection card in
+          current year -- `currentCard->setThreadNext(newCard)`, already
+          unconditional in `CardStack::add`'s `Continue` branch
+    - [X] Update current year TOC to point to start of collection --
+          `CardStack::add` now calls `tableOfContents()->addToTOC(newCard)`
+          when a continuation lands in a different year's stack than its
+          predecessor
+    - [X] New Card prev thread is for non-current year --
+          `newCard->setThreadPrev(currentCard)` already pointed at the
+          true previous card, not the new year's TOC; confirmed by test,
+          not changed
   - [ ] Continuing TOC from different card stack
     - [ ] Press C for new collection or T for new TOC
       - [ ] Create a new TOC in current stack to continue TOC thread

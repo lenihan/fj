@@ -19,6 +19,7 @@
 #include "cardItem.h"
 #include "cursor.h"
 #include "platform.h"
+#include "tocItem.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -401,4 +402,48 @@ TEST_CASE("a thread continued into a new year's stack links back to the original
     REQUIRE(currentYearToc != pastYearToc); // genuinely a different year's TOC
     CHECK(currentYearToc->hasLinks());
     CHECK(currentYearToc->currentLink().targetCard == currentYearCard);
+}
+
+TEST_CASE("editing a thread's title updates the TOC reference to it live, "
+          "and propagates to every continuation card in the thread")
+{
+    Cursor cursor;
+    CardItem* firstCard = cursor.currentCard(); // "Help" -- see Cursor's constructor
+    CardItem* secondCard = createContinuationCard(cursor);
+    REQUIRE(secondCard->text(0).substr(0, 4) == U"Help"); // copied once at creation time -- see CardStack::add's Continue branch
+
+    // Only threadStart()'s own title row is ever editable -- every
+    // continuation's title row is marked read-only right where it's
+    // copied (see CardStack::add) -- so editing has to happen on
+    // firstCard. Positioned directly via setRow/setCol rather than
+    // navigating there with keys: getting to the title row isn't what
+    // this test is about, and it's already covered by other tests.
+    REQUIRE(firstCard->isThreadStart());
+    cursor.setCurrentCard(firstCard);
+    cursor.setRow(0);
+    cursor.setCol(0);
+    cursor.enterTypingMode();
+    for (char32_t ch : {U'B', U'y', U'e'})
+        cursor.handleKey({KeyEvent::Kind::Char, ch, true});
+    // "Done with title" (see cursor.cpp's enter(), the m_row == 0 branch)
+    // -- retyping alone changes firstCard->text(0) already; Enter is what
+    // should trigger propagating that to the rest of the thread.
+    cursor.handleKey({KeyEvent::Kind::Enter, 0, true});
+
+    REQUIRE(firstCard->text(0).substr(0, 3) == U"Bye");
+
+    // The TOC's own displayed reference already reads firstCard->text(0)
+    // fresh every time (see TOCItem::text()/tocItem.h's header comment:
+    // "computed on demand... can't go stale") -- not a propagation this
+    // needs to *do* anything for, just confirming it's actually true.
+    TOCItem* toc = dynamic_cast<TOCItem*>(firstCard->tableOfContents());
+    REQUIRE(toc);
+    Row tocRow = toc->rowAtCard(firstCard);
+    CHECK(toc->text(tocRow).find(U"Bye") != std::u32string::npos);
+
+    // secondCard's own stored title, on the other hand, was only ever
+    // *copied* once -- this is the actual regression PLAN.md flagged
+    // ("retroactive title propagation to already-created continuation
+    // cards ... isn't implemented").
+    CHECK(secondCard->text(0).substr(0, 3) == U"Bye");
 }

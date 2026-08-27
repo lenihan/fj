@@ -335,7 +335,20 @@ void Cursor::enter()
 {
     if (m_row == 0)
     {
-        // Done with title
+        // Done with title. Every continuation's own title row is a
+        // read-only copy made once at creation time (see CardStack::add's
+        // ThreadMode::Continue branch) -- only threadStart()'s title row
+        // is ever actually editable, so this is the one place an edit can
+        // happen and the only place it needs to propagate from. The TOC's
+        // own reference to this title needs no propagation at all: it
+        // reads text(0) fresh every time it's drawn (see TOCItem::text()).
+        if (m_currentCard->isThreadStart())
+        {
+            std::u32string title = m_currentCard->text(0);
+            for (CardItem* card = m_currentCard->threadNext(); card; card = card->threadNext())
+                card->setText(0, title);
+        }
+
         m_row++;
         if (m_currentCard->isContent())
             enterTypingMode();
