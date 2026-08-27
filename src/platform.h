@@ -13,10 +13,18 @@
 // this boundary.
 //
 // Scoped to exactly what src/cursor.cpp and src/cardItem.cpp need today
-// (see PLAN.md) -- no focus/mouse events, no window-close
-// callback, no Escape key, because nothing in the current code uses them.
-// Resize *is* part of the contract (run()'s onResize) -- live window
-// resizing is a real feature (see main.cpp), not just window-chrome noise.
+// (see PLAN.md) -- no window-close callback, no Escape key, because
+// nothing in the current code uses them. Resize *is* part of the contract
+// (run()'s onResize) -- live window resizing is a real feature (see
+// main.cpp), not just window-chrome noise. run()'s onClick is the one
+// exception to "no mouse events": clicking an on-screen ortholinear
+// keyboard key (see PLAN.md's "Emulator keyboard panels") needs to inject
+// the same KeyEvent a physical keypress would, and onClick's raw pixel
+// position is how main.cpp -- which already owns the device-to-window
+// letterbox math (see its presentFrame) -- resolves that. Deliberately
+// just a position and a pressed/released edge, nothing else (no button
+// id, no drag/move tracking): main.cpp turns it straight into a KeyEvent
+// and never keeps the position around past that one call.
 
 #pragma once
 
@@ -123,8 +131,15 @@ class PlatformWindow
     // xlibWindow.cpp debounces instead (no new ConfigureNotify for a
     // short window). Both platforms guarantee onResizeEnd fires exactly
     // once per completed resize, interactive or not.
+    //
+    // onClick fires on the primary mouse button's down and up edges (x_px/
+    // y_px in client/window pixel coordinates, pressed true on down),
+    // exactly mirroring KeyEvent::Kind::CapsLock's press/release shape --
+    // see the file comment above for why this exists at all and why it's
+    // only ever a position + an edge, nothing more.
     void run(std::function<void(const KeyEvent&)> onKey, std::function<void(int width_px, int height_px)> onResize,
-             std::function<void(int width_px, int height_px)> onResizeEnd);
+             std::function<void(int width_px, int height_px)> onResizeEnd,
+             std::function<void(int x_px, int y_px, bool pressed)> onClick);
 
     // Presents a finished frame. pixels.size() must equal w * h, which
     // should already match the window's current client size (see

@@ -52,6 +52,7 @@ struct PlatformWindow::Impl
     std::function<void(const KeyEvent&)> onKey;
     std::function<void(int width_px, int height_px)> onResize;
     std::function<void(int width_px, int height_px)> onResizeEnd;
+    std::function<void(int x_px, int y_px, bool pressed)> onClick;
 
     // Debounces onResizeEnd the same way xlibWindow.cpp's select()-based
     // loop does (X11 and the browser's 'resize' event share the same
@@ -314,6 +315,23 @@ bool onKeyupEvent(int /*eventType*/, const EmscriptenKeyboardEvent* keyEvent, vo
     return false;
 }
 
+// targetX/targetY are CSS pixels relative to the canvas element's own
+// origin -- physicalSize (the same helper onResizeEvent uses) converts to
+// the device pixels main.cpp's hit-testing works in, matching the
+// canvas.width/height physical resolution fjResizeCanvas sets up. Button 0
+// is the primary/left button -- matches win32Window.cpp/xlibWindow.cpp
+// scoping to their platform's left button alone.
+bool onMouseButtonEvent(int eventType, const EmscriptenMouseEvent* mouseEvent, void* userData)
+{
+    auto* impl = static_cast<PlatformWindow::Impl*>(userData);
+    if (!impl->onClick || mouseEvent->button != 0)
+        return false;
+    double dpr = emscripten_get_device_pixel_ratio();
+    impl->onClick(physicalSize(mouseEvent->targetX, dpr), physicalSize(mouseEvent->targetY, dpr),
+                  eventType == EMSCRIPTEN_EVENT_MOUSEDOWN);
+    return false;
+}
+
 // Does nothing on purpose -- see this file's header comment. Every real
 // event is delivered by its own DOM callback the instant it happens;
 // emscripten_set_main_loop exists here only to keep run() from actually
@@ -337,15 +355,19 @@ PlatformWindow& PlatformWindow::operator=(PlatformWindow&&) noexcept = default;
 
 void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                           std::function<void(int width_px, int height_px)> onResize,
-                          std::function<void(int width_px, int height_px)> onResizeEnd)
+                          std::function<void(int width_px, int height_px)> onResizeEnd,
+                          std::function<void(int x_px, int y_px, bool pressed)> onClick)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
+    m_impl->onClick = std::move(onClick);
 
     emscripten_set_keydown_callback("#fjInput", m_impl.get(), false, onKeydownEvent);
     emscripten_set_keyup_callback("#fjInput", m_impl.get(), false, onKeyupEvent);
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, m_impl.get(), false, onResizeEvent);
+    emscripten_set_mousedown_callback("#fjCanvas", m_impl.get(), false, onMouseButtonEvent);
+    emscripten_set_mouseup_callback("#fjCanvas", m_impl.get(), false, onMouseButtonEvent);
 
     emscripten_set_main_loop(mainLoopTick, 0, true); // see this file's header comment
 }

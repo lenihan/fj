@@ -17,6 +17,7 @@
 #include "platform.h"
 
 #include <windows.h>
+#include <windowsx.h> // GET_X_LPARAM/GET_Y_LPARAM
 
 #include <cassert>
 #include <cmath>
@@ -31,6 +32,7 @@ struct PlatformWindow::Impl
     std::function<void(const KeyEvent&)> onKey;
     std::function<void(int width_px, int height_px)> onResize;
     std::function<void(int width_px, int height_px)> onResizeEnd;
+    std::function<void(int x_px, int y_px, bool pressed)> onClick;
 
     // Kept so WM_PAINT (e.g. after alt-tab, or another window dragged over
     // ours) has something to redraw with -- present() doesn't get called
@@ -270,6 +272,14 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 impl->onKey({KeyEvent::Kind::Char, c, true});
         }
         return 0;
+    case WM_LBUTTONDOWN:
+        if (impl && impl->onClick)
+            impl->onClick(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), true);
+        return 0;
+    case WM_LBUTTONUP:
+        if (impl && impl->onClick)
+            impl->onClick(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), false);
+        return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -297,11 +307,13 @@ PlatformWindow& PlatformWindow::operator=(PlatformWindow&&) noexcept = default;
 
 void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                           std::function<void(int width_px, int height_px)> onResize,
-                          std::function<void(int width_px, int height_px)> onResizeEnd)
+                          std::function<void(int width_px, int height_px)> onResizeEnd,
+                          std::function<void(int x_px, int y_px, bool pressed)> onClick)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
+    m_impl->onClick = std::move(onClick);
 
     // createPlatformWindow's own size-correction (see its comment) can
     // still fail to hit the request: CW_USEDEFAULT positioning makes a
