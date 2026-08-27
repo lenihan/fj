@@ -46,6 +46,54 @@ void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
 // double-wide spacebar's more generous width.
 constexpr std::size_t kLongestSingleWidthLabel = 5;
 
+// What clicking a key labeled `label` sends -- see KeyRect's comment.
+// "tab"/"shift" have no corresponding Cursor::handleKey case at all today
+// (PLAN.md's Keyboard Mapping table specs them, but nothing implements
+// them yet -- see PLAN.md's Ortholinear Keyboard section), so a click on
+// either is a deliberate no-op rather than guessing a mapping that isn't
+// real. Every other key already has a well-defined physical meaning:
+// "caps" is the one key whose press AND release both matter (mirroring
+// KeyEvent::Kind::CapsLock -- see platform.h), "enter"/"bs" fire once on
+// press only (matching every real keyboard's Kind::Enter/Backspace, which
+// only ever arrive as a single press-only event -- see win32Window.cpp's
+// WM_KEYDOWN handling), "spacebar" sends the literal space character, and
+// every remaining single-codepoint label is exactly the character it
+// shows.
+void fillKeyEvent(KeyRect& key)
+{
+    if (key.label == U"tab" || key.label == U"shift")
+    {
+        key.clickable = false;
+    }
+    else if (key.label == U"caps")
+    {
+        key.kind = KeyEvent::Kind::CapsLock;
+    }
+    else if (key.label == U"enter")
+    {
+        key.kind = KeyEvent::Kind::Enter;
+    }
+    else if (key.label == U"bs")
+    {
+        key.kind = KeyEvent::Kind::Backspace;
+    }
+    else if (key.label == U"spacebar")
+    {
+        key.kind = KeyEvent::Kind::Char;
+        key.codepoint = U' ';
+    }
+    else
+    {
+        key.kind = KeyEvent::Kind::Char;
+        key.codepoint = key.label.front(); // every other label is exactly one codepoint
+    }
+}
+
+bool contains(Rect r, Point p)
+{
+    return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
+}
+
 } // namespace
 
 std::vector<KeyRect> layoutKeys(bool leftSide, int panelSize_px)
@@ -69,7 +117,9 @@ std::vector<KeyRect> layoutKeys(bool leftSide, int panelSize_px)
         {
             Rect cell{originX + col * pitch_px, originY + row * pitch_px, pitch_px, pitch_px};
             Rect key{cell.x + gap_px / 2, cell.y + gap_px / 2, cell.w - gap_px, cell.h - gap_px};
-            keys.push_back({key, labels[row][col]});
+            KeyRect keyRect{key, labels[row][col]};
+            fillKeyEvent(keyRect);
+            keys.push_back(std::move(keyRect));
         }
     }
 
@@ -82,9 +132,21 @@ std::vector<KeyRect> layoutKeys(bool leftSide, int panelSize_px)
                        pitch_px};
     Rect spacebarKey{spacebarCell.x + gap_px / 2, spacebarCell.y + gap_px / 2, spacebarCell.w - gap_px,
                       spacebarCell.h - gap_px};
-    keys.push_back({spacebarKey, U"spacebar"});
+    KeyRect spacebar{spacebarKey, U"spacebar"};
+    fillKeyEvent(spacebar);
+    keys.push_back(std::move(spacebar));
 
     return keys;
+}
+
+std::optional<KeyRect> hitTestPanel(bool leftSide, int panelSize_px, Point pos)
+{
+    for (const KeyRect& key : layoutKeys(leftSide, panelSize_px))
+    {
+        if (contains(key.rect, pos))
+            return key;
+    }
+    return std::nullopt;
 }
 
 const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px)

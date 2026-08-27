@@ -10,6 +10,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <string_view>
+#include <vector>
 
 namespace
 {
@@ -87,4 +89,68 @@ TEST_CASE("layoutKeys' left and right panels are mirror images with different la
             anyLabelDiffers = true;
     }
     CHECK(anyLabelDiffers);
+}
+
+TEST_CASE("each key's label maps to the KeyEvent a physical keypress of it would send")
+{
+    auto find = [](const std::vector<KeyRect>& keys, std::u32string_view label) -> const KeyRect&
+    {
+        auto it = std::ranges::find(keys, label, &KeyRect::label);
+        REQUIRE(it != keys.end());
+        return *it;
+    };
+
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+
+    SECTION("caps sends CapsLock -- the one key whose release matters too")
+    {
+        const KeyRect& caps = find(keys, U"caps");
+        CHECK(caps.clickable);
+        CHECK(caps.kind == KeyEvent::Kind::CapsLock);
+    }
+
+    SECTION("tab and shift have no mapped action yet -- a click on either is a no-op")
+    {
+        CHECK_FALSE(find(keys, U"tab").clickable);
+        CHECK_FALSE(find(keys, U"shift").clickable);
+    }
+
+    SECTION("a single-codepoint label sends exactly that character")
+    {
+        const KeyRect& q = find(keys, U"q");
+        CHECK(q.clickable);
+        CHECK(q.kind == KeyEvent::Kind::Char);
+        CHECK(q.codepoint == U'q');
+    }
+
+    SECTION("spacebar sends a literal space character")
+    {
+        const KeyRect& spacebar = keys.back();
+        CHECK(spacebar.label == U"spacebar");
+        CHECK(spacebar.clickable);
+        CHECK(spacebar.kind == KeyEvent::Kind::Char);
+        CHECK(spacebar.codepoint == U' ');
+    }
+
+    SECTION("enter and bs (right panel) send Enter/Backspace")
+    {
+        auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+        CHECK(find(rightKeys, U"enter").kind == KeyEvent::Kind::Enter);
+        CHECK(find(rightKeys, U"bs").kind == KeyEvent::Kind::Backspace);
+    }
+}
+
+TEST_CASE("hitTestPanel finds the key under a point, and nothing between keys")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& someKey = keys[7]; // an arbitrary ordinary (non-spacebar) key
+    Point center{someKey.rect.x + someKey.rect.w / 2, someKey.rect.y + someKey.rect.h / 2};
+
+    auto hit = hitTestPanel(/*leftSide=*/true, kPanelSize_px, center);
+    REQUIRE(hit.has_value());
+    CHECK(hit->label == someKey.label);
+
+    // Outside the whole grid entirely -- panelSize_px is well beyond the
+    // margin layoutKeys centers the grid within.
+    CHECK_FALSE(hitTestPanel(/*leftSide=*/true, kPanelSize_px, {0, 0}).has_value());
 }
