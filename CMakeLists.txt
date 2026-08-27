@@ -49,6 +49,8 @@ set(CORE_SOURCES
     src/contentItem.h
     src/cursor.cpp
     src/cursor.h
+    src/keyboardPanel.cpp
+    src/keyboardPanel.h
     src/layout.h
     src/platform.h
     src/textUtil.h
@@ -160,7 +162,7 @@ if(BUILD_TESTING AND NOT EMSCRIPTEN)
     )
     FetchContent_MakeAvailable(Catch2)
 
-    add_executable(fjTests tests/cursorTests.cpp)
+    add_executable(fjTests tests/cursorTests.cpp tests/keyboardPanelTests.cpp)
     target_link_libraries(fjTests PRIVATE core Catch2::Catch2WithMain)
     set_target_properties(fjTests PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
 

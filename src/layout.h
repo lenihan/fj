@@ -56,3 +56,36 @@ namespace Master
 {
 inline constexpr Year kYear = 0;
 }
+
+// One ortholinear keyboard half -- see PLAN.md's "Ortholinear Keyboard"
+// section. Same 5x5 footprint as Monitor, flanking it left and right (see
+// Device below): 4 rows x kCols of single keys, plus a 5th row holding one
+// double-wide spacebar key aligned to the panel's screen-side edge (the
+// right edge of the left panel, the left edge of the right panel).
+//
+// kKeyPitch_in is a standard mechanical-keycap reference size (~19mm),
+// deliberately not derived from Card's glyph cell (see PLAN.md's "Emulator
+// keyboard panels" note) -- these keys are meant to look like real
+// keycaps, not text. kKeyGap_in is the visual gap between adjacent keys,
+// carved out of each key's own cell rather than added between cells (see
+// keyboardPanel.cpp's layoutKeys).
+namespace KeyboardPanel
+{
+inline constexpr double kWidth_in = 5.0;
+inline constexpr double kHeight_in = 5.0;
+inline constexpr int kCols = 6;
+inline constexpr int kKeyRows = 4; // not counting the spacebar row
+inline constexpr double kKeyPitch_in = 0.75;
+inline constexpr double kKeyGap_in = 0.08;
+}
+
+// The physical size of the whole emulated device: the monitor with a
+// keyboard panel flanking each side. Separate from Monitor (the screen
+// alone) the same way Monitor is kept separate from Card (see Monitor's
+// comment above) -- main.cpp's title bar and initial window size describe
+// this, the screen-only Monitor size no longer describes the window.
+namespace Device
+{
+inline constexpr double kWidth_in = KeyboardPanel::kWidth_in + Monitor::kWidth_in + KeyboardPanel::kWidth_in;
+inline constexpr double kHeight_in = Monitor::kHeight_in;
+}

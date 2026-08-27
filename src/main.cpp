@@ -18,6 +18,7 @@
 #include "cardItem.h"
 #include "cursor.h"
 #include "hackAtlas.h"
+#include "keyboardPanel.h"
 #include "layout.h"
 #include "platform.h"
 
@@ -47,25 +48,27 @@ int desiredCellWidth_px(int width_px)
     return width_px / (Body::kColsPerRow + 4);
 }
 
-// "fj (emulated) - 5.00"x5.00" 100% -- press F5 to fix calibration" --
-// describes the *monitor* (Monitor::kWidth_in/kHeight_in), not the card
-// on it, since the window represents the monitor now (see this file's top
-// comment). squareSize_px is the rendered square monitor's actual on-
-// screen size -- min(window width, window height), since the window
-// itself can be any shape now (see createPlatformWindow's comment) and
-// the square is letterboxed/pillarboxed to fit whichever dimension is
-// smaller (see main()'s redraw). percent is that against Monitor::kWidth_in
-// at the display's true DPI. ceil matches the old Qt app's rounding
-// (PLAN.md): never displays a percent lower than what's actually
-// achieved. The trailing hint exists purely so
-// KeyEvent::Kind::Calibrate is discoverable at all -- there's no other UI
-// surface pointing at it. F5, not a platform-specific affordance like
-// win32Window.cpp's "Fix Calibration..." system-menu item: this file has
-// no #ifdef/platform header of its own (see the top comment) and stays
-// that way, so the one thing it advertises has to actually work
-// identically on every shell -- Xlib has no portable equivalent of
-// GetSystemMenu to hang a second hint off of. "(emulated)" is there so
-// the title itself keeps making the point this file's top comment makes.
+// "fj (emulated) - 15"x5" 100% -- press F5 to fix calibration" --
+// describes the whole emulated device now (Device::kWidth_in/kHeight_in:
+// the monitor plus both keyboard panels), not the monitor alone, since the
+// window represents the whole device (see this file's top comment).
+// unit_px is one 5"x5" region's actual on-screen size -- min(window
+// width / 3, window height), since the window itself can be any shape now
+// (see createPlatformWindow's comment) and the 3:1 device is letterboxed/
+// pillarboxed to fit whichever axis is more constraining (see main()'s
+// redraw). percent is unit_px against Monitor::kWidth_in (still 5in --
+// every region, panel or screen, is the same 5"x5") at the display's true
+// DPI. ceil matches the old Qt app's rounding (PLAN.md): never displays a
+// percent lower than what's actually achieved. The trailing hint exists
+// purely so KeyEvent::Kind::Calibrate is discoverable at all -- there's
+// no other UI surface pointing at it. F5, not a platform-specific
+// affordance like win32Window.cpp's "Fix Calibration..." system-menu
+// item: this file has no #ifdef/platform header of its own (see the top
+// comment) and stays that way, so the one thing it advertises has to
+// actually work identically on every shell -- Xlib has no portable
+// equivalent of GetSystemMenu to hang a second hint off of. "(emulated)"
+// is there so the title itself keeps making the point this file's top
+// comment makes.
 //
 // dpiKnown false means dpi is startupDpi()'s bare fallback guess, not a
 // real reading or a user calibration (see platform.h's displayDpi
@@ -76,18 +79,18 @@ int desiredCellWidth_px(int width_px)
 // "100%" regardless of whether the guess bore any relation to the real
 // display. Showing "unconfirmed" instead is the honest version of the
 // same readout.
-std::string titleFor(int squareSize_px, int dpi, bool dpiKnown)
+std::string titleFor(int unit_px, int dpi, bool dpiKnown)
 {
     char buf[128];
     if (!dpiKnown)
     {
         std::snprintf(buf, sizeof(buf), "fj (emulated) - %.0f\"x%.0f\" size unconfirmed -- press F5 once sized correctly",
-                      Monitor::kWidth_in, Monitor::kHeight_in);
+                      Device::kWidth_in, Device::kHeight_in);
         return buf;
     }
-    double percent = squareSize_px / (dpi * Monitor::kWidth_in) * 100.0;
+    double percent = unit_px / (dpi * Monitor::kWidth_in) * 100.0;
     std::snprintf(buf, sizeof(buf), "fj (emulated) - %.0f\"x%.0f\" %d%% -- press F5 to fix calibration",
-                  Monitor::kWidth_in, Monitor::kHeight_in, static_cast<int>(std::ceil(percent)));
+                  Device::kWidth_in, Device::kHeight_in, static_cast<int>(std::ceil(percent)));
     return buf;
 }
 
@@ -172,13 +175,14 @@ int main()
     bool dpiKnown = startup.known; // updated in Kind::Calibrate below, once the user confirms it
 
     // Initial window size: the true, continuous physical target (dpi *
-    // Monitor::kWidth_in/kHeight_in). Doesn't need to land on an atlas-
-    // exact pixel count the way an earlier version insisted on -- every
-    // redraw (below) already fits its content to whatever size the
-    // window actually is, startup included, so there's nothing special
-    // to get right here beyond a reasonable starting size.
-    int currentWidth_px = static_cast<int>(std::lround(dpi * Monitor::kWidth_in));
-    int currentHeight_px = static_cast<int>(std::lround(dpi * Monitor::kHeight_in));
+    // Device::kWidth_in/kHeight_in -- the whole 15"x5" device, not just
+    // the monitor). Doesn't need to land on an atlas-exact pixel count the
+    // way an earlier version insisted on -- every redraw (below) already
+    // fits its content to whatever size the window actually is, startup
+    // included, so there's nothing special to get right here beyond a
+    // reasonable starting size.
+    int currentWidth_px = static_cast<int>(std::lround(dpi * Device::kWidth_in));
+    int currentHeight_px = static_cast<int>(std::lround(dpi * Device::kHeight_in));
 
     // No aspect-ratio parameter: the window can be resized to any shape
     // (see platform.h's createPlatformWindow comment) -- redraw below
@@ -191,11 +195,13 @@ int main()
     }
     PlatformWindow window = std::move(*windowResult);
 
-    // atlas/titleAtlas/cardCanvas are all sized for the square monitor's
-    // *content* resolution, picked from whichever window dimension is
-    // more constraining -- see redraw's letterboxing comment for why the
-    // window itself no longer has to be square for this to work.
-    const HackAtlas::Atlas* atlas = &pickAtlas(desiredCellWidth_px(std::min(currentWidth_px, currentHeight_px)));
+    // atlas/titleAtlas/cardCanvas are all sized for one 5"x5" region's
+    // *content* resolution -- unit_px below, whichever window axis is more
+    // constraining once divided into the device's 3:1 layout -- see
+    // presentFrame's letterboxing comment for why the window itself
+    // doesn't have to match that aspect ratio for this to work.
+    auto unitPx = [](int width_px, int height_px) { return std::min(width_px / 3, height_px); };
+    const HackAtlas::Atlas* atlas = &pickAtlas(desiredCellWidth_px(unitPx(currentWidth_px, currentHeight_px)));
 
     // Title rows render from their own, separately-picked atlas rather
     // than upscaling atlas's own bitmaps -- see cursor.h's draw comment
@@ -219,45 +225,63 @@ int main()
     // Square, cardCanvas.width() on a side: Monitor::kWidth_in ==
     // Card::kWidth_in, so at whatever resolution the atlas rendered the
     // card's width, that same pixel count is exactly Monitor::kHeight_in
-    // too (both 5in). A persistent Canvas, not a fresh local like
-    // cardCanvas -- renderContent (below) is the only thing that rebuilds
-    // it, so presentFrame can reuse whatever it last drew across any
-    // number of live-resize ticks without redoing that work.
+    // too (both 5in) -- and, since KeyboardPanel::kWidth_in/kHeight_in
+    // match Monitor's, it's also each keyboard panel's side length.
+    // Persistent Canvases, not fresh locals like cardCanvas -- only
+    // rebuilt below (monitorCanvas/deviceCanvas in renderContent; the
+    // panels only when their resolution actually changes, in
+    // onResizeEnd, since phase 1's key labels are static) -- so
+    // presentFrame can reuse whatever was last drawn across any number of
+    // live-resize ticks without redoing that work.
     Canvas monitorCanvas(cardCanvas.width(), cardCanvas.width());
+    Canvas leftPanelCanvas(cardCanvas.width(), cardCanvas.width());
+    Canvas rightPanelCanvas(cardCanvas.width(), cardCanvas.width());
+    drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, pickPanelAtlas(leftPanelCanvas.width()));
+    drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, pickPanelAtlas(rightPanelCanvas.width()));
 
-    // Draws the card and composites it onto monitorCanvas -- the
-    // "content changed" half of a frame, as opposed to presentFrame's
-    // "put it on screen" half below. Only needed when the card's own
-    // pixels actually changed (typing/navigation) or cardCanvas itself
-    // was just rebuilt at a new atlas (a resize settling); a live-resize
-    // tick's window-shape-only change never needs this, which is the
-    // whole reason it's split out rather than folded into presentFrame.
+    // The whole 15"x5" device, three regions wide: left panel, monitor,
+    // right panel, left to right.
+    Canvas deviceCanvas(monitorCanvas.width() * 3, monitorCanvas.height());
+
+    // Draws the card and composites it onto monitorCanvas, then composites
+    // all three regions onto deviceCanvas -- the "content changed" half of
+    // a frame, as opposed to presentFrame's "put it on screen" half below.
+    // Only needed when the card's own pixels actually changed
+    // (typing/navigation) or cardCanvas itself was just rebuilt at a new
+    // atlas (a resize settling); a live-resize tick's window-shape-only
+    // change never needs this, which is the whole reason it's split out
+    // rather than folded into presentFrame.
     auto renderContent = [&]()
     {
         cursor.draw(cardCanvas, *atlas, *titleAtlas);
         monitorCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         monitorCanvas.blit(cardCanvas, {0, (monitorCanvas.height() - cardCanvas.height()) / 2});
+
+        deviceCanvas = Canvas(monitorCanvas.width() * 3, monitorCanvas.height());
+        deviceCanvas.blit(leftPanelCanvas, {0, 0});
+        deviceCanvas.blit(monitorCanvas, {monitorCanvas.width(), 0});
+        deviceCanvas.blit(rightPanelCanvas, {monitorCanvas.width() * 2, 0});
     };
 
-    // Fits monitorCanvas into the window's actual shape -- which no
-    // longer has to be square itself (see createPlatformWindow's
-    // comment) -- letterboxed/pillarboxed rather than distorted: the
-    // largest centered square that fits, black filling whatever margin
-    // that leaves on the wider axis. Built at exactly the window's
-    // current size and handed to present() as-is, so the platform
-    // shell's own stretch (still there as a defensive fallback -- see
-    // platform.h) is normally a no-op, not a second resample on top of
-    // this one. smooth is Canvas::blitScaled's -- see its comment for
-    // why a live-resize tick needs false here, not the general redraw
-    // default of true.
+    // Fits deviceCanvas into the window's actual shape -- which doesn't
+    // have to match the device's 3:1 aspect itself (see
+    // createPlatformWindow's comment) -- letterboxed/pillarboxed rather
+    // than distorted: the largest centered 3:1 rect that fits, black
+    // filling whatever margin that leaves on the constraining axis. Built
+    // at exactly the window's current size and handed to present() as-is,
+    // so the platform shell's own stretch (still there as a defensive
+    // fallback -- see platform.h) is normally a no-op, not a second
+    // resample on top of this one. smooth is Canvas::blitScaled's -- see
+    // its comment for why a live-resize tick needs false here, not the
+    // general redraw default of true.
     auto presentFrame = [&](bool smooth)
     {
         Canvas outputCanvas(currentWidth_px, currentHeight_px);
         outputCanvas.fillRect({0, 0, currentWidth_px, currentHeight_px}, 0x00000000);
-        int squareSize = std::min(currentWidth_px, currentHeight_px);
-        Rect squareRect{(currentWidth_px - squareSize) / 2, (currentHeight_px - squareSize) / 2, squareSize,
-                         squareSize};
-        outputCanvas.blitScaled(monitorCanvas, squareRect, smooth);
+        int unit = unitPx(currentWidth_px, currentHeight_px);
+        int deviceWidth = unit * 3;
+        Rect deviceRect{(currentWidth_px - deviceWidth) / 2, (currentHeight_px - unit) / 2, deviceWidth, unit};
+        outputCanvas.blitScaled(deviceCanvas, deviceRect, smooth);
         window.present(outputCanvas.pixels(), outputCanvas.width(), outputCanvas.height());
     };
 
@@ -272,7 +296,7 @@ int main()
     };
 
     redraw();
-    window.setTitle(titleFor(std::min(currentWidth_px, currentHeight_px), dpi, dpiKnown));
+    window.setTitle(titleFor(unitPx(currentWidth_px, currentHeight_px), dpi, dpiKnown));
 
     window.run(
         [&](const KeyEvent& event)
@@ -280,16 +304,16 @@ int main()
             if (event.kind == KeyEvent::Kind::Calibrate)
             {
                 // The window's current constraining dimension IS
-                // Monitor::kWidth_in, by the user's own ruler -- back-
-                // derive and persist whatever dpi makes that true, rather
-                // than trusting the OS. Not routed through Cursor: this
-                // is a window-physical-size concern, not a card-editing
-                // one.
-                int squareSize = std::min(currentWidth_px, currentHeight_px);
-                dpi = static_cast<int>(std::lround(squareSize / Monitor::kWidth_in));
+                // Monitor::kWidth_in (one device region, by the user's own
+                // ruler) -- back-derive and persist whatever dpi makes
+                // that true, rather than trusting the OS. Not routed
+                // through Cursor: this is a window-physical-size concern,
+                // not a card-editing one.
+                int unit = unitPx(currentWidth_px, currentHeight_px);
+                dpi = static_cast<int>(std::lround(unit / Monitor::kWidth_in));
                 dpiKnown = true; // user-confirmed via ruler now, whatever it was before
                 saveCalibratedDpi(dpi);
-                window.setTitle(titleFor(squareSize, dpi, dpiKnown));
+                window.setTitle(titleFor(unit, dpi, dpiKnown));
                 return;
             }
             cursor.handleKey(event);
@@ -309,14 +333,14 @@ int main()
             currentWidth_px = newWidth_px;
             currentHeight_px = newHeight_px;
             presentFrame(false);
-            window.setTitle(titleFor(std::min(newWidth_px, newHeight_px), dpi, dpiKnown));
+            window.setTitle(titleFor(unitPx(newWidth_px, newHeight_px), dpi, dpiKnown));
         },
         [&](int newWidth_px, int newHeight_px)
         {
             // Fires once a resize actually settles (see platform.h's
             // run() comment) -- this is where the atlas actually changes
-            // and the card gets rebuilt at native resolution, not on
-            // every onResize tick above. Skips all of that if it's
+            // and the card/panels get rebuilt at native resolution, not
+            // on every onResize tick above. Skips all of that if it's
             // already done it for this exact size (see
             // lastSettledWidth_px's comment): a platform shell guarantees
             // onResizeEnd fires once per completed resize, but not that
@@ -329,12 +353,17 @@ int main()
 
             currentWidth_px = newWidth_px;
             currentHeight_px = newHeight_px;
-            atlas = &pickAtlas(desiredCellWidth_px(std::min(newWidth_px, newHeight_px)));
+            int unit = unitPx(newWidth_px, newHeight_px);
+            atlas = &pickAtlas(desiredCellWidth_px(unit));
             titleAtlas = &pickAtlas(atlas->cellWidth * 2); // see its selection above
             cardCanvas =
                 Canvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas));
+            leftPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
+            rightPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
+            drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, pickPanelAtlas(leftPanelCanvas.width()));
+            drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, pickPanelAtlas(rightPanelCanvas.width()));
             redraw();
-            window.setTitle(titleFor(std::min(newWidth_px, newHeight_px), dpi, dpiKnown));
+            window.setTitle(titleFor(unit, dpi, dpiKnown));
         });
 
     return 0;
