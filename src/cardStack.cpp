@@ -71,6 +71,21 @@ CardItem* CardStack::add(CardItem::Type type, ThreadMode threadMode, CardItem* c
         newCard->setRowReadOnly(0, true);
 
         currentCard->setThreadNext(newCard);
+
+        // A continuation that lands in a different year's stack than its
+        // immediate predecessor (a thread started in a past year,
+        // continued after the current year rolls over) is otherwise
+        // invisible from this stack: threadPrev/threadNext above already
+        // correctly link it back to the real previous card, so ordinary
+        // thread-following still reaches it fine, but nothing lists it in
+        // *this* stack's own TOC, so browsing this year's TOC alone would
+        // never surface it. This only adds a second, independent way to
+        // find it from here -- it doesn't change what the thread actually
+        // continues from (CardItem::tableOfContents() still resolves to
+        // the original year's TOC, since that's derived from
+        // threadStart(), not from this).
+        if (currentCard->year() != m_year)
+            tableOfContents()->addToTOC(newCard);
     }
     return newCard;
 }

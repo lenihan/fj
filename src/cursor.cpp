@@ -101,7 +101,30 @@ CardNumber Cursor::lastCardNumber() const
 }
 
 Year Cursor::year() const { return m_year; }
-void Cursor::setYear(Year year) { m_year = year; }
+void Cursor::setYear(Year year)
+{
+    // Years only ever advance. addCard() always creates new content in
+    // m_yearToCardStack.at(m_year) regardless of which card is currently
+    // being viewed (see its own comment) -- m_year is the *only* thing
+    // that decides where new content goes, so refusing to move it
+    // backward here is what actually enforces "new content can only go
+    // in the current year; you can't add cards to a previous year," not
+    // just a convention nothing currently violates. A no-op, not an
+    // assert: unlike this file's other "can't do that" cases (see
+    // shakeCardNo()), this has to hold in a Release build too, not just
+    // as a debug-only invariant.
+    if (year < m_year)
+        return;
+
+    m_year = year;
+    // Nothing has ever created a second year's stack until now (the real
+    // app only ever runs with m_year == Master::kYear today -- there's no
+    // year-rollover feature yet) -- lazily creating one here rather than
+    // requiring some separate "start a new year" call makes switching to
+    // a year just work, the same way a std::map's operator[] does.
+    if (!m_yearToCardStack.contains(year))
+        m_yearToCardStack.emplace(year, std::make_unique<CardStack>(year));
+}
 
 Row Cursor::row() const { return m_row; }
 void Cursor::setRow(Row row) { m_row = row; }
@@ -245,6 +268,24 @@ void Cursor::right()
             CardItem::CardLink link = m_currentCard->currentLink();
             CardItem* targetCard = link.targetCard;
             assert(targetCard);
+
+            // A link can point at a card that's since been deleted -- walk
+            // forward through its own thread for a live card to land on
+            // instead, the same way prevThreadCard()/nextThreadCard()
+            // already do. If nothing live is left in that thread at all,
+            // there's nothing to link to -- a no-op, not a fallback to
+            // showing deleted content (the TOC's row-based right() below
+            // does fall back that way; found via testing that doing the
+            // same here still let a fully-deleted single-card thread stay
+            // reachable, which defeats the point of skipping deleted cards
+            // at all).
+            CardItem* liveTarget = targetCard;
+            while (liveTarget && liveTarget->deleted())
+                liveTarget = liveTarget->threadNext();
+            if (!liveTarget)
+                return;
+            targetCard = liveTarget;
+
             if (targetCard == m_currentCard->threadPrev())
             {
                 if (!m_linkHistory.empty() && m_linkHistory.back() == targetCard)
