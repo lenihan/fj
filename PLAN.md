@@ -467,6 +467,9 @@ manually) rather than assuming emsdk's own env scripts handled it.
       dead now that Qt is gone, harmless but unused
 - [ ] ARM64 has never actually been built on this branch (only x64 has
       been compiled/run)
+- [ ] Ortholinear keyboard emulator panels -- see "Ortholinear Keyboard"
+      section's "Emulator keyboard panels (planned)" write-up for the
+      spec (15"x5" window, per-key dynamic legends, clickable keys)
 - [x] `tools/offline/bakeFont`'s target-width formula used a hardcoded
       4.8in "usable width" instead of the real `CardItem::sideMargin_px`
       relationship (card width == `(Body::kColsPerRow + 4) *
