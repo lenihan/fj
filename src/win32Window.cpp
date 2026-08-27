@@ -303,6 +303,31 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
 
+    // createPlatformWindow's own size-correction (see its comment) can
+    // still fail to hit the request: CW_USEDEFAULT positioning makes a
+    // window's initial size subject to the OS refusing to place it larger
+    // than the monitor's work area, which SetWindowPos can't override
+    // either (confirmed by testing -- a 15"x5" device at a high enough
+    // DPI to exceed screen width gets silently narrowed, independently of
+    // height, breaking the requested aspect ratio). main.cpp's very first
+    // redraw(), called before this function, has no way to know that
+    // happened -- it composites/presents using whatever size it asked
+    // for, which the platform shell then silently clips against the real,
+    // smaller client area (see platform.h's present() comment: no live
+    // re-query, trusts w/h exactly as given). Firing onResizeEnd once
+    // here, with the window's real final client size, lets main.cpp's
+    // already-correct resize-settle handling catch and fix that
+    // immediately rather than only on the next real user resize. A no-op
+    // when the request WAS honored exactly: main.cpp's onResizeEnd
+    // already skips rebuilding for a size matching what it last settled
+    // on (see its lastSettledWidth_px/Height_px comment).
+    if (m_impl->onResizeEnd)
+    {
+        RECT client{};
+        GetClientRect(m_impl->hwnd, &client);
+        m_impl->onResizeEnd(client.right - client.left, client.bottom - client.top);
+    }
+
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) > 0)
     {

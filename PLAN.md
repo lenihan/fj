@@ -470,6 +470,35 @@ manually) rather than assuming emsdk's own env scripts handled it.
 - [ ] Ortholinear keyboard emulator panels -- see "Ortholinear Keyboard"
       section's "Emulator keyboard panels (planned)" write-up for the
       spec (15"x5" window, per-key dynamic legends, clickable keys)
+  - [x] Phase 1: visual layout. `src/keyboardPanel.h`/`.cpp` (new,
+        core) draws both panels' static key grids (`layoutKeys`, headlessly
+        tested in `tests/keyboardPanelTests.cpp`); `main.cpp` composites
+        left panel + monitor + right panel into a `deviceCanvas`,
+        letterboxed to the window at a 3:1 aspect instead of the old 1:1
+        square. `layout.h` gained `KeyboardPanel`/`Device` namespaces.
+        Along the way, found and fixed a real startup bug (not
+        keyboard-panel-specific, just newly exposed by a device 3x wider
+        than before): `createPlatformWindow`'s CW_USEDEFAULT positioning
+        lets Windows silently narrow an over-wide initial window to fit
+        the screen without telling main.cpp, so the very first frame
+        rendered assuming the original, too-wide size and got clipped.
+        Fixed in `win32Window.cpp`'s `run()`, which now fires one
+        real-size `onResizeEnd` before entering the message loop, reusing
+        main.cpp's existing (already-correct) resize-settle handling
+        rather than adding new logic. xlib/web shells weren't touched --
+        not yet built/tested on this branch to confirm whether they need
+        the same fix.
+  - [ ] Phase 2: clickable keys -- click/tap injects the same KeyEvent a
+        physical keypress would. Needs a new mouse-event surface on
+        `platform.h` (`PlatformWindow` has none today); per PLAN.md's
+        note above, that's a core-architecture decision worth a first
+        draft from the user before implementation.
+  - [ ] Phase 3: dynamic legends -- each key shows what it currently does
+        (Keyboard Mapping table above), changing live with `Cursor`'s
+        mode. Needs a "what does key X do right now" data source
+        (doesn't exist yet) and a new `Cursor` accessor for
+        `NavigationMode` (currently fully private); also a
+        core-architecture decision worth a first draft from the user.
 - [x] `tools/offline/bakeFont`'s target-width formula used a hardcoded
       4.8in "usable width" instead of the real `CardItem::sideMargin_px`
       relationship (card width == `(Body::kColsPerRow + 4) *
