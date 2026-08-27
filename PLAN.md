@@ -488,11 +488,30 @@ manually) rather than assuming emsdk's own env scripts handled it.
         rather than adding new logic. xlib/web shells weren't touched --
         not yet built/tested on this branch to confirm whether they need
         the same fix.
-  - [ ] Phase 2: clickable keys -- click/tap injects the same KeyEvent a
-        physical keypress would. Needs a new mouse-event surface on
-        `platform.h` (`PlatformWindow` has none today); per PLAN.md's
-        note above, that's a core-architecture decision worth a first
-        draft from the user before implementation.
+  - [x] Phase 2: clickable keys. `platform.h`'s `PlatformWindow::run()`
+        gained `onClick(x_px, y_px, pressed)` (position + a press/release
+        edge, nothing else -- your call, since a real hold/release gesture
+        doesn't map onto a single mouse/touch point the way it does two
+        fingers on a real keyboard); each shell (win32/xlib/web)
+        translates its native mouse-button message into it.
+        `keyboardPanel.h`'s `KeyRect` grew `clickable`/`kind`/`codepoint`
+        (derived from the same label table phase 1 authored --
+        "tab"/"shift" aren't clickable at all, since `Cursor::handleKey`
+        doesn't implement either yet) plus `hitTestPanel`, both headlessly
+        tested. `main.cpp`'s new `onClick` handler resolves a raw
+        window-pixel click back through the letterbox math into a key and
+        calls `cursor.handleKey` exactly the way `tests/cursorTests.cpp`
+        already does by hand. Every key fires on its press edge only,
+        except caps, which *toggles* engaged/disengaged per click rather
+        than following press/release -- found via live testing, not
+        designed up front: tracking "which key the press landed on" (for
+        a matching release) broke the moment a different key was clicked
+        while caps was conceptually still held, since that click's own
+        press silently clobbered the tracking before caps's release ever
+        arrived. Toggling needs no `platform.h` changes and matches the
+        real constraint (one pointer can't hold one key while tapping
+        another). Verified end-to-end via synthetic `WM_LBUTTONDOWN`/`UP`
+        messages posted straight to a running `fj.exe`.
   - [ ] Phase 3: dynamic legends -- each key shows what it currently does
         (Keyboard Mapping table above), changing live with `Cursor`'s
         mode. Needs a "what does key X do right now" data source
