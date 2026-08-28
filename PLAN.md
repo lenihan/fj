@@ -512,6 +512,40 @@ manually) rather than assuming emsdk's own env scripts handled it.
         real constraint (one pointer can't hold one key while tapping
         another). Verified end-to-end via synthetic `WM_LBUTTONDOWN`/`UP`
         messages posted straight to a running `fj.exe`.
+  - [x] Phase 2b: press feedback, and a symmetric latch/chord gesture for
+        both caps and shift. A pressed key now inverts (face/label colors
+        swapped) from press until release; panels redraw every frame
+        instead of only on resize so the highlight stays live.
+        `KeyRect::clickable` became a 4-way `Action` enum
+        (`Fire`/`CapsToggle`/`ShiftToggle`/`None`), and a new pure
+        `resolveKeyGesture` function (headlessly tested -- caps's two
+        gestures and *both* shift keys' two gestures individually, per
+        the user's explicit ask, not assumed identical) replaced the
+        phase 2 toggle with the real spec: a plain tap on caps/shift
+        toggles a persistent latch (mirroring a real Caps Lock's own
+        latch); a press-drag-release chord (the mouse/touch equivalent of
+        physically holding one key while tapping another) applies
+        momentarily to one key, then reverts to whatever the latch was
+        before -- caps drives a real `Cursor` mode exactly as phase 2
+        did, shift is a pure client-side case transform on outgoing
+        `Char` codepoints (`Cursor` never gets a shift concept). Each
+        shell also gained mouse capture (`SetCapture`/`XGrabPointer`/a
+        document-level web `mouseup` listener) so a drag ending outside
+        the window still resolves correctly instead of silently losing
+        its release edge.
+        Found and fixed a real, pre-existing bug in `Cursor::handleKey`
+        along the way (not new, and not mouse-specific -- reproducible on
+        a real keyboard by holding physical Caps Lock a moment with
+        nothing typed, then letting go): the CapsLock-release branch
+        keyed off `m_lastKeyKind == CapsLock` to mean "stay in command
+        mode," which is right for a *first* tap but wrong for a second
+        one meant to release the latch, since nothing typed while held
+        means `m_lastKeyKind` never changes either time. Fixed with a new
+        `m_capsTapLatched` flag distinguishing "latched via a plain tap"
+        from "mid-hold," verified with new `tests/cursorTests.cpp` cases
+        (a second plain tap now correctly un-latches; a chord while
+        already latched correctly stays latched) -- 33/33 tests passing
+        on Windows and Linux, web builds clean.
   - [ ] Phase 3: dynamic legends -- each key shows what it currently does
         (Keyboard Mapping table above), changing live with `Cursor`'s
         mode. Needs a "what does key X do right now" data source
