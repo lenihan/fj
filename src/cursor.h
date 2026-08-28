@@ -137,4 +137,12 @@ class Cursor
     bool m_capsDown{false};
     bool m_wasTypingMode{false};
     KeyEvent::Kind m_lastKeyKind{KeyEvent::Kind::Enter}; // arbitrary non-CapsLock init
+
+    // Whether command mode is currently held on by a plain Caps Lock tap
+    // (press+release with nothing typed in between) rather than by an
+    // in-progress hold -- see handleKey's CapsLock-release branch. A
+    // second plain tap releases this latch back to typing mode; distinct
+    // from m_capsDown, which is already false again by the time a tap's
+    // release is even being handled.
+    bool m_capsTapLatched{false};
 };

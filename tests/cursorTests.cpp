@@ -74,6 +74,49 @@ TEST_CASE("holding Caps Lock forces command mode; releasing it restores typing m
     CHECK(cursor.isTypingMode());
 }
 
+TEST_CASE("a plain Caps Lock tap (nothing typed while held) latches command mode; a second tap releases it")
+{
+    // Distinct from the test above: nothing is typed between the press and
+    // release here, matching a real quick tap (or, on a real keyboard,
+    // holding Caps Lock a moment with nothing typed before letting go) --
+    // found missing while testing the ortholinear keyboard panel's mouse
+    // tap-to-toggle gesture (see PLAN.md): without tracking this
+    // separately from an in-progress hold, a first tap correctly entered
+    // command mode, but a second tap re-entered it again instead of
+    // releasing back to typing mode.
+    Cursor cursor;
+    REQUIRE(cursor.isTypingMode());
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+    CHECK(cursor.isCommandMode()); // first tap: latches on, stays
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+    CHECK(cursor.isTypingMode()); // second tap: releases the latch
+}
+
+TEST_CASE("a hold-tap-release chord while already latched stays latched")
+{
+    // If command mode is already held on by a plain-tap latch, a
+    // subsequent hold-tap-release chord (see sendCommand below) should
+    // leave it latched afterward rather than reverting to whatever mode
+    // preceded that particular hold -- the same "state returns to
+    // whatever it was before this gesture" invariant, just with "before"
+    // being the latch rather than typing mode.
+    Cursor cursor;
+    REQUIRE(cursor.isTypingMode());
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true}); // tap on -- latches
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+    REQUIRE(cursor.isCommandMode());
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true}); // hold...
+    cursor.handleKey({KeyEvent::Kind::Char, U'j', true});  // ...tap a command key...
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false}); // ...release
+    CHECK(cursor.isCommandMode());                          // still latched, not back to typing
+}
+
 namespace
 {
 // Sends one command-mode key the same way a real hold-Caps-then-tap does

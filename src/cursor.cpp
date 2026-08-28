@@ -617,11 +617,49 @@ void Cursor::handleKey(const KeyEvent& event)
     {
         m_capsDown = false;
         if (m_lastKeyKind == KeyEvent::Kind::CapsLock)
+        {
+            // A plain tap: pressed and released with nothing typed while
+            // held (m_lastKeyKind is still CapsLock from the press itself,
+            // not from some intervening key). The first one latches
+            // command mode on and stays -- mirroring a real Caps Lock's
+            // own latch, and matching the original design here (a single
+            // tap alone was always meant to enter command mode). A
+            // *second* plain tap in a row releases that latch back to
+            // typing mode -- found missing during the ortholinear keyboard
+            // panel's testing (see PLAN.md): without m_capsTapLatched,
+            // this branch unconditionally re-entered command mode every
+            // time, so a tap-to-toggle gesture (mouse or a real keyboard's
+            // own "hold caps a moment with nothing typed, let go") could
+            // latch on but never tap back off.
+            if (m_capsTapLatched)
+            {
+                m_capsTapLatched = false;
+                enterTypingMode();
+            }
+            else
+            {
+                m_capsTapLatched = true;
+                enterCommandMode();
+            }
+        }
+        else if (m_capsTapLatched)
+        {
+            // Something was typed while held (a hold-tap-release chord),
+            // but command mode is already latched from an earlier plain
+            // tap -- stay latched regardless of m_wasTypingMode, the same
+            // "state returns to prev" invariant the chord case below
+            // follows, just with "prev" being the latch rather than
+            // whatever mode preceded this particular press.
             enterCommandMode();
+        }
         else if (m_wasTypingMode)
+        {
             enterTypingMode();
+        }
         else
+        {
             enterCommandMode();
+        }
         return; // release doesn't update m_lastKeyKind, matching the old
                 // code's keyReleaseEvent never touching m_lastKeyPress
     }
