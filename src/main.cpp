@@ -222,38 +222,49 @@ int main()
     int lastSettledWidth_px = currentWidth_px;
     int lastSettledHeight_px = currentHeight_px;
 
-    // Whether a click has toggled the on-screen "caps" key engaged -- see
-    // the onClick handler below for why a click on caps toggles rather
-    // than following press/release the way a physical hold does. Found
-    // via testing, not assumed: an earlier version tracked "the key the
-    // most recent press landed on" so a matching release could be
-    // replayed, which broke the moment a *different* key was clicked
-    // while caps was still conceptually held -- that click's own press
-    // silently overwrote the tracking before caps's release ever arrived,
-    // leaving Cursor's m_capsDown stuck true. A real physical keyboard
-    // never has this problem (caps and the tapped key are different
-    // fingers on different keys), but one mouse/touch point can't hold
-    // one on-screen key down while also tapping another the way two
-    // fingers can -- toggling on the press edge sidesteps needing to
-    // model that at all.
-    bool capsLockEngagedByClick = false;
+    // caps/shift each support two gestures -- a plain tap toggles a
+    // persistent latch (mirroring a real Caps Lock's own latch); a
+    // press-drag-release chord (press on caps/shift, drag to another key,
+    // release there) applies momentarily to just that one key, since a
+    // single mouse/touch point can't hold one key down while also tapping
+    // another the way two fingers on a real keyboard can. See
+    // keyboardPanel.h's resolveKeyGesture, which implements both gestures
+    // for both keys as one pure function -- the onClick handler below is
+    // just hit-testing plus replaying whatever it returns.
+    bool capsLatched = false;
+    bool shiftLatched = false;
+
+    // The key (if any) a press landed on, remembered until the matching
+    // release arrives -- resolveKeyGesture needs both ends of the gesture
+    // to tell a plain tap from a drag-chord. Also what drives the pressed-
+    // key highlight in renderContent below.
+    struct PressedKey
+    {
+        KeyRect key;
+        bool leftSide;
+    };
+    std::optional<PressedKey> pressedKey;
 
     // Square, cardCanvas.width() on a side: Monitor::kWidth_in ==
     // Card::kWidth_in, so at whatever resolution the atlas rendered the
     // card's width, that same pixel count is exactly Monitor::kHeight_in
     // too (both 5in) -- and, since KeyboardPanel::kWidth_in/kHeight_in
     // match Monitor's, it's also each keyboard panel's side length.
-    // Persistent Canvases, not fresh locals like cardCanvas -- only
-    // rebuilt below (monitorCanvas/deviceCanvas in renderContent; the
-    // panels only when their resolution actually changes, in
-    // onResizeEnd, since phase 1's key labels are static) -- so
-    // presentFrame can reuse whatever was last drawn across any number of
-    // live-resize ticks without redoing that work.
+    // Persistent Canvases, not fresh locals like cardCanvas -- rebuilt in
+    // renderContent below every call (not just on resize), so the pressed/
+    // latched highlight stays live -- so presentFrame can still reuse
+    // whatever was last drawn across any number of live-resize ticks
+    // without redoing that work.
     Canvas monitorCanvas(cardCanvas.width(), cardCanvas.width());
     Canvas leftPanelCanvas(cardCanvas.width(), cardCanvas.width());
     Canvas rightPanelCanvas(cardCanvas.width(), cardCanvas.width());
-    drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, pickPanelAtlas(leftPanelCanvas.width()));
-    drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, pickPanelAtlas(rightPanelCanvas.width()));
+
+    // Re-picked only on a resize settle (below) -- unlike the panels'
+    // pixels themselves, which redraw every frame, the baked atlas they
+    // draw text from only needs to change when the panel's own resolution
+    // does.
+    const HackAtlas::Atlas* leftPanelAtlas = &pickPanelAtlas(leftPanelCanvas.width());
+    const HackAtlas::Atlas* rightPanelAtlas = &pickPanelAtlas(rightPanelCanvas.width());
 
     // The whole 15"x5" device, three regions wide: left panel, monitor,
     // right panel, left to right.
@@ -272,6 +283,15 @@ int main()
         cursor.draw(cardCanvas, *atlas, *titleAtlas);
         monitorCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         monitorCanvas.blit(cardCanvas, {0, (monitorCanvas.height() - cardCanvas.height()) / 2});
+
+        const Rect* leftPressedRect = (pressedKey && pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
+        const Rect* rightPressedRect = (pressedKey && !pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
+        leftPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
+        rightPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
+        drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, *leftPanelAtlas, leftPressedRect, capsLatched,
+                           shiftLatched);
+        drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, rightPressedRect, capsLatched,
+                           shiftLatched);
 
         deviceCanvas = Canvas(monitorCanvas.width() * 3, monitorCanvas.height());
         deviceCanvas.blit(leftPanelCanvas, {0, 0});
@@ -317,28 +337,17 @@ int main()
         presentFrame(true);
     };
 
-    // Resolves a raw window-pixel click to whichever on-screen key it
-    // landed on (if any) and injects the same KeyEvent a physical keypress
-    // would -- see platform.h's onClick comment and keyboardPanel.h's
-    // KeyRect comment for why the event carries no position of its own.
-    // x_px/y_px undo deviceLetterboxRect's stretch to land back in
-    // deviceCanvas's own pixel space, then split into which of the three
-    // regions (left panel/monitor/right panel) that falls in -- only the
-    // panels are clickable in this phase, so a click on the monitor/card
-    // region or the letterbox margin is a silent no-op. Every key acts on
-    // its press edge only (the release is never forwarded to Cursor,
-    // matching how a real keyboard's Kind::Enter/Backspace/Char already
-    // work -- see win32Window.cpp's WM_KEYDOWN handling) except caps,
-    // which toggles engaged/disengaged instead -- see
-    // capsLockEngagedByClick's comment for why.
-    auto onClick = [&](int x_px, int y_px, bool pressed)
+    // Maps a raw window pixel to whichever on-screen key it lands on (if
+    // any), undoing deviceLetterboxRect's stretch to land back in
+    // deviceCanvas's own pixel space, then splitting into which of the
+    // three regions (left panel/monitor/right panel) that falls in --
+    // only the panels are clickable in this phase, so a pixel over the
+    // monitor/card region or the letterbox margin resolves to nothing.
+    auto hitTestClick = [&](int x_px, int y_px) -> std::optional<PressedKey>
     {
-        if (!pressed)
-            return;
-
         Rect rect = deviceLetterboxRect();
         if (x_px < rect.x || x_px >= rect.x + rect.w || y_px < rect.y || y_px >= rect.y + rect.h)
-            return;
+            return std::nullopt;
 
         int deviceX = (x_px - rect.x) * deviceCanvas.width() / rect.w;
         int deviceY = (y_px - rect.y) * deviceCanvas.height() / rect.h;
@@ -358,22 +367,51 @@ int main()
         }
         else
         {
-            return; // the monitor/card region -- not clickable yet
+            return std::nullopt; // the monitor/card region -- not clickable yet
         }
 
         std::optional<KeyRect> key = hitTestPanel(leftSide, unit, {panelX, deviceY});
-        if (!key || !key->clickable)
-            return;
+        if (!key)
+            return std::nullopt;
+        return PressedKey{*key, leftSide};
+    };
 
-        if (key->kind == KeyEvent::Kind::CapsLock)
+    // Press hit-tests and remembers the key (no Cursor call yet -- see
+    // keyboardPanel.h's resolveKeyGesture for why: a plain tap and a
+    // press-drag-release chord need both ends of the gesture to tell
+    // apart). Release hit-tests again, resolves the gesture, and replays
+    // whatever KeyEvents it produced through Cursor exactly as
+    // tests/cursorTests.cpp already does by hand. Always redraws so the
+    // pressed/latched highlight (drawKeyboardPanel, via renderContent)
+    // stays live even when a gesture cancels.
+    auto onClick = [&](int x_px, int y_px, bool pressed)
+    {
+        if (pressed)
         {
-            capsLockEngagedByClick = !capsLockEngagedByClick;
-            cursor.handleKey({KeyEvent::Kind::CapsLock, 0, capsLockEngagedByClick});
+            pressedKey = hitTestClick(x_px, y_px);
+            redraw();
+            return;
         }
-        else
+
+        if (pressedKey)
         {
-            cursor.handleKey({key->kind, key->codepoint, true});
+            std::optional<PressedKey> released = hitTestClick(x_px, y_px);
+            std::optional<KeyRect> releasedKey;
+            bool releasedLeftSide = false;
+            if (released)
+            {
+                releasedKey = released->key;
+                releasedLeftSide = released->leftSide;
+            }
+
+            GestureOutcome outcome = resolveKeyGesture(pressedKey->key, pressedKey->leftSide, releasedKey,
+                                                         releasedLeftSide, capsLatched, shiftLatched);
+            for (const KeyEvent& event : outcome.events)
+                cursor.handleKey(event);
+            capsLatched = outcome.capsLatched;
+            shiftLatched = outcome.shiftLatched;
         }
+        pressedKey.reset();
         redraw();
     };
 
@@ -440,11 +478,9 @@ int main()
             titleAtlas = &pickAtlas(atlas->cellWidth * 2); // see its selection above
             cardCanvas =
                 Canvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas));
-            leftPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
-            rightPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
-            drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, pickPanelAtlas(leftPanelCanvas.width()));
-            drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, pickPanelAtlas(rightPanelCanvas.width()));
-            redraw();
+            leftPanelAtlas = &pickPanelAtlas(cardCanvas.width());
+            rightPanelAtlas = &pickPanelAtlas(cardCanvas.width());
+            redraw(); // renderContent rebuilds/redraws the panels at the new resolution
             window.setTitle(titleFor(unit, dpi, dpiKnown));
         },
         onClick);
