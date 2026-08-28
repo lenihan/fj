@@ -318,9 +318,13 @@ bool onKeyupEvent(int /*eventType*/, const EmscriptenKeyboardEvent* keyEvent, vo
 // targetX/targetY are CSS pixels relative to the canvas element's own
 // origin -- physicalSize (the same helper onResizeEvent uses) converts to
 // the device pixels main.cpp's hit-testing works in, matching the
-// canvas.width/height physical resolution fjResizeCanvas sets up. Button 0
-// is the primary/left button -- matches win32Window.cpp/xlibWindow.cpp
-// scoping to their platform's left button alone.
+// canvas.width/height physical resolution fjResizeCanvas sets up (this
+// still holds when the mouseup listener is registered on the document
+// instead of the canvas -- see run()'s comment -- because fjCreateDom
+// pins the canvas at the page origin with no offset, so document- and
+// canvas-relative coordinates coincide). Button 0 is the primary/left
+// button -- matches win32Window.cpp/xlibWindow.cpp scoping to their
+// platform's left button alone.
 bool onMouseButtonEvent(int eventType, const EmscriptenMouseEvent* mouseEvent, void* userData)
 {
     auto* impl = static_cast<PlatformWindow::Impl*>(userData);
@@ -366,8 +370,16 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
     emscripten_set_keydown_callback("#fjInput", m_impl.get(), false, onKeydownEvent);
     emscripten_set_keyup_callback("#fjInput", m_impl.get(), false, onKeyupEvent);
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, m_impl.get(), false, onResizeEvent);
+    // mousedown stays canvas-scoped (a press has to start on the canvas),
+    // but mouseup is registered on the document, not the canvas: a
+    // drag-chord gesture (see keyboardPanel.h's resolveKeyGesture) can
+    // end with the pointer outside the canvas (or the window) before the
+    // button comes up, and a canvas-scoped listener would simply never
+    // fire in that case -- unlike win32Window.cpp/xlibWindow.cpp, a
+    // browser has no explicit "capture" API for plain mouse events to
+    // reach for instead.
     emscripten_set_mousedown_callback("#fjCanvas", m_impl.get(), false, onMouseButtonEvent);
-    emscripten_set_mouseup_callback("#fjCanvas", m_impl.get(), false, onMouseButtonEvent);
+    emscripten_set_mouseup_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, m_impl.get(), false, onMouseButtonEvent);
 
     emscripten_set_main_loop(mainLoopTick, 0, true); // see this file's header comment
 }

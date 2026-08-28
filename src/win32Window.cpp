@@ -273,10 +273,17 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         return 0;
     case WM_LBUTTONDOWN:
+        // Captures the mouse so a drag-chord gesture (see keyboardPanel.h's
+        // resolveKeyGesture) still gets its WM_LBUTTONUP even if the
+        // cursor leaves the client area (or the window entirely) before
+        // the button is released -- without this, that release would go
+        // to whatever window is under the cursor instead, or nowhere.
+        SetCapture(hwnd);
         if (impl && impl->onClick)
             impl->onClick(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), true);
         return 0;
     case WM_LBUTTONUP:
+        ReleaseCapture();
         if (impl && impl->onClick)
             impl->onClick(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), false);
         return 0;

@@ -510,8 +510,22 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
             case ButtonRelease:
                 // Button1 only (the primary/left button) -- matches
                 // win32Window.cpp scoping to WM_LBUTTONDOWN/UP alone.
-                if (m_impl->onClick && event.xbutton.button == Button1)
-                    m_impl->onClick(event.xbutton.x, event.xbutton.y, event.type == ButtonPress);
+                // Grabbing the pointer on press (ungrabbing on release)
+                // mirrors win32Window.cpp's SetCapture/ReleaseCapture: a
+                // drag-chord gesture (see keyboardPanel.h's
+                // resolveKeyGesture) still reports its ButtonRelease to
+                // this window, with coordinates relative to it, even if
+                // the pointer left the window before the button came up.
+                if (event.xbutton.button == Button1)
+                {
+                    if (event.type == ButtonPress)
+                        XGrabPointer(m_impl->display, m_impl->window, True, ButtonPressMask | ButtonReleaseMask,
+                                     GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+                    else
+                        XUngrabPointer(m_impl->display, CurrentTime);
+                    if (m_impl->onClick)
+                        m_impl->onClick(event.xbutton.x, event.xbutton.y, event.type == ButtonPress);
+                }
                 break;
             default:
                 break;
