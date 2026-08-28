@@ -46,27 +46,31 @@ void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
 // double-wide spacebar's more generous width.
 constexpr std::size_t kLongestSingleWidthLabel = 5;
 
-// What clicking a key labeled `label` sends -- see KeyRect's comment.
-// "tab"/"shift" have no corresponding Cursor::handleKey case at all today
-// (PLAN.md's Keyboard Mapping table specs them, but nothing implements
-// them yet -- see PLAN.md's Ortholinear Keyboard section), so a click on
-// either is a deliberate no-op rather than guessing a mapping that isn't
-// real. Every other key already has a well-defined physical meaning:
-// "caps" is the one key whose press AND release both matter (mirroring
-// KeyEvent::Kind::CapsLock -- see platform.h), "enter"/"bs" fire once on
-// press only (matching every real keyboard's Kind::Enter/Backspace, which
+// What a key labeled `label` does -- see KeyRect::Action's comment.
+// "tab" has no corresponding Cursor::handleKey case at all today (PLAN.md's
+// Keyboard Mapping table specs it, but nothing implements it yet -- see
+// PLAN.md's Ortholinear Keyboard section), so it's a deliberate no-op
+// rather than guessing a mapping that isn't real. Every other key already
+// has a well-defined physical meaning: "caps"/"shift" get the two-gesture
+// toggle-or-chord treatment (resolveKeyGesture), "enter"/"bs" fire once on
+// a plain tap (matching every real keyboard's Kind::Enter/Backspace, which
 // only ever arrive as a single press-only event -- see win32Window.cpp's
 // WM_KEYDOWN handling), "spacebar" sends the literal space character, and
 // every remaining single-codepoint label is exactly the character it
 // shows.
 void fillKeyEvent(KeyRect& key)
 {
-    if (key.label == U"tab" || key.label == U"shift")
+    if (key.label == U"tab")
     {
-        key.clickable = false;
+        key.action = KeyRect::Action::None;
+    }
+    else if (key.label == U"shift")
+    {
+        key.action = KeyRect::Action::ShiftToggle;
     }
     else if (key.label == U"caps")
     {
+        key.action = KeyRect::Action::CapsToggle;
         key.kind = KeyEvent::Kind::CapsLock;
     }
     else if (key.label == U"enter")
@@ -92,6 +96,16 @@ void fillKeyEvent(KeyRect& key)
 bool contains(Rect r, Point p)
 {
     return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
+}
+
+bool sameRect(Rect a, Rect b)
+{
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+}
+
+char32_t uppercased(char32_t c)
+{
+    return (c >= U'a' && c <= U'z') ? c - (U'a' - U'A') : c;
 }
 
 } // namespace
@@ -149,6 +163,90 @@ std::optional<KeyRect> hitTestPanel(bool leftSide, int panelSize_px, Point pos)
     return std::nullopt;
 }
 
+GestureOutcome resolveKeyGesture(const KeyRect& pressedKey, bool pressedLeftSide,
+                                  const std::optional<KeyRect>& releasedKey, bool releasedLeftSide,
+                                  bool capsLatchedBefore, bool shiftLatchedBefore)
+{
+    GestureOutcome outcome{{}, capsLatchedBefore, shiftLatchedBefore};
+
+    bool samePress = releasedKey.has_value() && releasedLeftSide == pressedLeftSide &&
+                      sameRect(releasedKey->rect, pressedKey.rect);
+
+    switch (pressedKey.action)
+    {
+    case KeyRect::Action::Fire:
+        if (samePress)
+        {
+            char32_t codepoint =
+                (pressedKey.kind == KeyEvent::Kind::Char && shiftLatchedBefore) ? uppercased(pressedKey.codepoint)
+                                                                                 : pressedKey.codepoint;
+            outcome.events.push_back({pressedKey.kind, codepoint, true});
+        }
+        // Dragged off before releasing: cancel, no events.
+        break;
+
+    case KeyRect::Action::CapsToggle:
+        if (samePress)
+        {
+            outcome.capsLatched = !capsLatchedBefore;
+            outcome.events.push_back({KeyEvent::Kind::CapsLock, 0, outcome.capsLatched});
+        }
+        else if (releasedKey && releasedKey->action == KeyRect::Action::Fire)
+        {
+            char32_t codepoint = (releasedKey->kind == KeyEvent::Kind::Char && shiftLatchedBefore)
+                                      ? uppercased(releasedKey->codepoint)
+                                      : releasedKey->codepoint;
+            if (capsLatchedBefore)
+            {
+                // Already in command mode via the persistent latch --
+                // fire the chorded key directly. Sending a redundant
+                // CapsLock press/release pair here would desync Cursor's
+                // own m_capsDown from our tracked latch (its release
+                // branch unconditionally clears m_capsDown -- see
+                // cursor.cpp), even though the latch itself should stay
+                // on.
+                outcome.events.push_back({releasedKey->kind, codepoint, true});
+            }
+            else
+            {
+                // "Hold caps, tap a command key, release caps" in one
+                // drag -- verified sequence (phase 2's caps -> c -> caps
+                // -> q testing), just triggered by one gesture instead of
+                // two separate taps. capsLatched stays false: this
+                // gesture never touches the persistent latch, only
+                // Cursor's momentary mode.
+                outcome.events.push_back({KeyEvent::Kind::CapsLock, 0, true});
+                outcome.events.push_back({releasedKey->kind, codepoint, true});
+                outcome.events.push_back({KeyEvent::Kind::CapsLock, 0, false});
+            }
+        }
+        // Released off any key, or on None/ShiftToggle: cancel.
+        break;
+
+    case KeyRect::Action::ShiftToggle:
+        if (samePress)
+        {
+            outcome.shiftLatched = !shiftLatchedBefore;
+        }
+        else if (releasedKey && releasedKey->action == KeyRect::Action::Fire &&
+                 releasedKey->kind == KeyEvent::Kind::Char)
+        {
+            // Always uppercase, regardless of shiftLatchedBefore -- shift
+            // has no Cursor-side state to preserve the way caps does, so
+            // there's nothing to make conditional: the outcome of
+            // chording onto a letter is simply "capital," full stop.
+            outcome.events.push_back({KeyEvent::Kind::Char, uppercased(releasedKey->codepoint), true});
+        }
+        // Non-Char Fire keys, or released off any key: cancel.
+        break;
+
+    case KeyRect::Action::None:
+        break;
+    }
+
+    return outcome;
+}
+
 const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px)
 {
     int pitch_px = static_cast<int>(KeyboardPanel::kKeyPitch_in / KeyboardPanel::kWidth_in * panelSize_px);
@@ -158,18 +256,25 @@ const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px)
     return pickAtlas(desiredCellWidth_px);
 }
 
-void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas)
+void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas, const Rect* pressedKeyRect,
+                        bool capsLatched, bool shiftLatched)
 {
     canvas.fillRect({0, 0, canvas.width(), canvas.height()}, kPanelColor);
 
     for (const KeyRect& key : layoutKeys(leftSide, canvas.width()))
     {
-        canvas.fillRect(key.rect, kKeyColor);
+        bool inverted = (pressedKeyRect && sameRect(key.rect, *pressedKeyRect)) ||
+                        (key.action == KeyRect::Action::CapsToggle && capsLatched) ||
+                        (key.action == KeyRect::Action::ShiftToggle && shiftLatched);
+        Pixel faceColor = inverted ? kKeyLabelColor : kKeyColor;
+        Pixel textColor = inverted ? kKeyColor : kKeyLabelColor;
+
+        canvas.fillRect(key.rect, faceColor);
         drawBoxOutline(canvas, key.rect, kKeyBorderColor, 1);
 
         int textWidth = static_cast<int>(key.label.size()) * atlas.cellWidth;
         Point textPos{key.rect.x + std::max(0, (key.rect.w - textWidth) / 2),
                       key.rect.y + std::max(0, (key.rect.h - atlas.cellHeight) / 2)};
-        canvas.drawText(key.label, textPos, kKeyLabelColor, atlas);
+        canvas.drawText(key.label, textPos, textColor, atlas);
     }
 }

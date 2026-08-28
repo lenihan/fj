@@ -91,52 +91,59 @@ TEST_CASE("layoutKeys' left and right panels are mirror images with different la
     CHECK(anyLabelDiffers);
 }
 
-TEST_CASE("each key's label maps to the KeyEvent a physical keypress of it would send")
+namespace
 {
-    auto find = [](const std::vector<KeyRect>& keys, std::u32string_view label) -> const KeyRect&
-    {
-        auto it = std::ranges::find(keys, label, &KeyRect::label);
-        REQUIRE(it != keys.end());
-        return *it;
-    };
+const KeyRect& findKey(const std::vector<KeyRect>& keys, std::u32string_view label)
+{
+    auto it = std::ranges::find(keys, label, &KeyRect::label);
+    REQUIRE(it != keys.end());
+    return *it;
+}
+} // namespace
 
+TEST_CASE("each key's label maps to the action a physical keypress of it would trigger")
+{
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
 
-    SECTION("caps sends CapsLock -- the one key whose release matters too")
+    SECTION("caps toggles/chords -- see resolveKeyGesture")
     {
-        const KeyRect& caps = find(keys, U"caps");
-        CHECK(caps.clickable);
+        const KeyRect& caps = findKey(keys, U"caps");
+        CHECK(caps.action == KeyRect::Action::CapsToggle);
         CHECK(caps.kind == KeyEvent::Kind::CapsLock);
     }
 
-    SECTION("tab and shift have no mapped action yet -- a click on either is a no-op")
+    SECTION("shift toggles/chords too, but sends no KeyEvent of its own")
     {
-        CHECK_FALSE(find(keys, U"tab").clickable);
-        CHECK_FALSE(find(keys, U"shift").clickable);
+        CHECK(findKey(keys, U"shift").action == KeyRect::Action::ShiftToggle);
     }
 
-    SECTION("a single-codepoint label sends exactly that character")
+    SECTION("tab has no mapped action yet -- a tap is a no-op")
     {
-        const KeyRect& q = find(keys, U"q");
-        CHECK(q.clickable);
+        CHECK(findKey(keys, U"tab").action == KeyRect::Action::None);
+    }
+
+    SECTION("a single-codepoint label fires exactly that character")
+    {
+        const KeyRect& q = findKey(keys, U"q");
+        CHECK(q.action == KeyRect::Action::Fire);
         CHECK(q.kind == KeyEvent::Kind::Char);
         CHECK(q.codepoint == U'q');
     }
 
-    SECTION("spacebar sends a literal space character")
+    SECTION("spacebar fires a literal space character")
     {
         const KeyRect& spacebar = keys.back();
         CHECK(spacebar.label == U"spacebar");
-        CHECK(spacebar.clickable);
+        CHECK(spacebar.action == KeyRect::Action::Fire);
         CHECK(spacebar.kind == KeyEvent::Kind::Char);
         CHECK(spacebar.codepoint == U' ');
     }
 
-    SECTION("enter and bs (right panel) send Enter/Backspace")
+    SECTION("enter and bs (right panel) fire Enter/Backspace")
     {
         auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
-        CHECK(find(rightKeys, U"enter").kind == KeyEvent::Kind::Enter);
-        CHECK(find(rightKeys, U"bs").kind == KeyEvent::Kind::Backspace);
+        CHECK(findKey(rightKeys, U"enter").kind == KeyEvent::Kind::Enter);
+        CHECK(findKey(rightKeys, U"bs").kind == KeyEvent::Kind::Backspace);
     }
 }
 
@@ -153,4 +160,165 @@ TEST_CASE("hitTestPanel finds the key under a point, and nothing between keys")
     // Outside the whole grid entirely -- panelSize_px is well beyond the
     // margin layoutKeys centers the grid within.
     CHECK_FALSE(hitTestPanel(/*leftSide=*/true, kPanelSize_px, {0, 0}).has_value());
+}
+
+// resolveKeyGesture: caps's two gestures (tap-toggle, press-drag-release
+// chord) and both shift keys' two gestures -- see PLAN.md's "Emulator
+// keyboard panels" write-up for why the user asked these be validated
+// individually rather than assumed identical/symmetric.
+TEST_CASE("resolveKeyGesture: caps tap toggles the persistent latch")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& caps = findKey(keys, U"caps");
+
+    auto turnOn = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/false, false);
+    REQUIRE(turnOn.events.size() == 1);
+    CHECK(turnOn.events[0].kind == KeyEvent::Kind::CapsLock);
+    CHECK(turnOn.events[0].pressed);
+    CHECK(turnOn.capsLatched);
+
+    auto turnOff = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/true, false);
+    REQUIRE(turnOff.events.size() == 1);
+    CHECK(turnOff.events[0].kind == KeyEvent::Kind::CapsLock);
+    CHECK_FALSE(turnOff.events[0].pressed);
+    CHECK_FALSE(turnOff.capsLatched);
+}
+
+TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially off")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& caps = findKey(keys, U"caps");
+    const KeyRect& q = findKey(keys, U"q");
+
+    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/false, false);
+
+    REQUIRE(outcome.events.size() == 3);
+    CHECK(outcome.events[0].kind == KeyEvent::Kind::CapsLock);
+    CHECK(outcome.events[0].pressed);
+    CHECK(outcome.events[1].kind == KeyEvent::Kind::Char);
+    CHECK(outcome.events[1].codepoint == U'q');
+    CHECK(outcome.events[2].kind == KeyEvent::Kind::CapsLock);
+    CHECK_FALSE(outcome.events[2].pressed);
+    CHECK_FALSE(outcome.capsLatched); // the gesture never touches the persistent latch
+}
+
+TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially on")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& caps = findKey(keys, U"caps");
+    const KeyRect& q = findKey(keys, U"q");
+
+    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/true, false);
+
+    REQUIRE(outcome.events.size() == 1); // already in command mode -- no redundant CapsLock pair
+    CHECK(outcome.events[0].kind == KeyEvent::Kind::Char);
+    CHECK(outcome.events[0].codepoint == U'q');
+    CHECK(outcome.capsLatched); // unchanged
+}
+
+TEST_CASE("resolveKeyGesture: caps released off any key cancels")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& caps = findKey(keys, U"caps");
+
+    auto outcome = resolveKeyGesture(caps, true, std::nullopt, true, /*capsLatchedBefore=*/false, false);
+    CHECK(outcome.events.empty());
+    CHECK_FALSE(outcome.capsLatched);
+}
+
+TEST_CASE("resolveKeyGesture: left shift tap toggles its latch")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& leftShift = findKey(keys, U"shift");
+
+    auto turnOn = resolveKeyGesture(leftShift, true, leftShift, true, false, /*shiftLatchedBefore=*/false);
+    CHECK(turnOn.events.empty()); // shift has no KeyEvent of its own
+    CHECK(turnOn.shiftLatched);
+
+    auto turnOff = resolveKeyGesture(leftShift, true, leftShift, true, false, /*shiftLatchedBefore=*/true);
+    CHECK(turnOff.events.empty());
+    CHECK_FALSE(turnOff.shiftLatched);
+}
+
+TEST_CASE("resolveKeyGesture: right shift tap toggles its latch too")
+{
+    // Same behavior as left shift, verified against the right panel's own
+    // instance specifically -- not just assumed identical.
+    auto keys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& rightShift = findKey(keys, U"shift");
+
+    auto turnOn = resolveKeyGesture(rightShift, false, rightShift, false, false, /*shiftLatchedBefore=*/false);
+    CHECK(turnOn.events.empty());
+    CHECK(turnOn.shiftLatched);
+
+    auto turnOff = resolveKeyGesture(rightShift, false, rightShift, false, false, /*shiftLatchedBefore=*/true);
+    CHECK(turnOff.events.empty());
+    CHECK_FALSE(turnOff.shiftLatched);
+}
+
+TEST_CASE("resolveKeyGesture: left shift chord (drag to a letter) capitalizes it")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& leftShift = findKey(keys, U"shift");
+    const KeyRect& q = findKey(keys, U"q");
+
+    auto outcome = resolveKeyGesture(leftShift, true, q, true, false, /*shiftLatchedBefore=*/false);
+
+    REQUIRE(outcome.events.size() == 1);
+    CHECK(outcome.events[0].kind == KeyEvent::Kind::Char);
+    CHECK(outcome.events[0].codepoint == U'Q');
+    CHECK_FALSE(outcome.shiftLatched); // unchanged
+}
+
+TEST_CASE("resolveKeyGesture: right shift chord (drag to a letter) capitalizes it too")
+{
+    // Dragging from the right panel's own shift key to a letter on the
+    // right panel -- confirms it isn't only the left instance wired up.
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& rightShift = findKey(rightKeys, U"shift");
+    const KeyRect& u = findKey(rightKeys, U"u");
+
+    auto outcome = resolveKeyGesture(rightShift, false, u, false, false, /*shiftLatchedBefore=*/false);
+
+    REQUIRE(outcome.events.size() == 1);
+    CHECK(outcome.events[0].kind == KeyEvent::Kind::Char);
+    CHECK(outcome.events[0].codepoint == U'U');
+    CHECK_FALSE(outcome.shiftLatched);
+}
+
+TEST_CASE("resolveKeyGesture: shift chord still capitalizes even while already latched")
+{
+    // The bug caught while designing these tests: shift has no Cursor-side
+    // state to preserve the way caps does, so the chord's outcome should
+    // never be conditional on shiftLatchedBefore -- always capital.
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& leftShift = findKey(keys, U"shift");
+    const KeyRect& q = findKey(keys, U"q");
+
+    auto outcome = resolveKeyGesture(leftShift, true, q, true, false, /*shiftLatchedBefore=*/true);
+
+    REQUIRE(outcome.events.size() == 1);
+    CHECK(outcome.events[0].codepoint == U'Q');
+    CHECK(outcome.shiftLatched); // unchanged
+}
+
+TEST_CASE("resolveKeyGesture: shift released off any key cancels")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& leftShift = findKey(keys, U"shift");
+
+    auto outcome = resolveKeyGesture(leftShift, true, std::nullopt, true, false, /*shiftLatchedBefore=*/false);
+    CHECK(outcome.events.empty());
+    CHECK_FALSE(outcome.shiftLatched);
+}
+
+TEST_CASE("resolveKeyGesture: a plain letter tap stays capitalized while shift is latched")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& q = findKey(keys, U"q");
+
+    auto outcome = resolveKeyGesture(q, true, q, true, false, /*shiftLatchedBefore=*/true);
+
+    REQUIRE(outcome.events.size() == 1);
+    CHECK(outcome.events[0].codepoint == U'Q');
 }
