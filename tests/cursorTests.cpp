@@ -197,8 +197,9 @@ TEST_CASE("'d' toggles the deleted flag on the current card")
 
 TEST_CASE("'n' toggles between Link and Cursor navigation mode")
 {
-    // Cursor has no public accessor for its navigation mode -- this
-    // checks the *effect* instead. In Link mode, down() ('k') calls
+    // isLinkMode() exists (added for the keyboard panel's phase 3 legend
+    // lookup), but this test predates it and checks the *effect* instead,
+    // which is still worth keeping: in Link mode, down() ('k') calls
     // CardItem::nextLink(), which only moves a link *index* on the card
     // -- it never touches Cursor's own row/col (see cursor.cpp's down()).
     // In Cursor mode, down() calls nextRow(), which does. So row()
@@ -233,6 +234,58 @@ TEST_CASE("'n' toggles between Link and Cursor navigation mode")
     CHECK(cursor.row() == before + 1);
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+}
+
+TEST_CASE("navigation mode is exclusive: only i/k/j/l/n/e stay live, everything else is blocked")
+{
+    // The user was explicit this is a bug fix, not a new restriction:
+    // entering navigation mode (via 'n') should make the general command
+    // set unreachable until 'n' (or 'e') is pressed again, even though
+    // u/o/d/c/t/m/. all execute identically regardless of navigation
+    // sub-state internally (only i/k/j/l actually branch on it) -- see
+    // PLAN.md's phase 3 write-up.
+    //
+    // A bare CapsLock press (never released here) forces command mode
+    // deterministically via handleKey's press branch, sidestepping the
+    // release branch's tap-vs-hold-vs-chord logic entirely -- simplest
+    // way to pin command mode for a test that isn't about that logic.
+    Cursor cursor;
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    REQUIRE(cursor.isCommandMode());
+
+    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // Cursor -> Link navigation mode
+    REQUIRE(cursor.isLinkMode());
+
+    CardNumber before = cursor.currentCard()->cardNumber();
+    cursor.handleKey({KeyEvent::Kind::Char, U'u', true}); // prevCard() -- blocked in Link mode
+    CHECK(cursor.currentCard()->cardNumber() == before);
+    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // addNewCard() -- blocked in Link mode
+    CHECK(cursor.currentCard()->cardNumber() == before);
+
+    // i/k/j/l still do their link-mode thing (see the test above for why
+    // row() staying put is what proves Link mode's down() ran at all).
+    Row row = cursor.row();
+    cursor.handleKey({KeyEvent::Kind::Char, U'k', true});
+    CHECK(cursor.row() == row);
+
+    // 'n' still exits navigation mode back to general command mode...
+    cursor.handleKey({KeyEvent::Kind::Char, U'n', true});
+    REQUIRE_FALSE(cursor.isLinkMode());
+    REQUIRE(cursor.isCommandMode());
+    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // ...and the general command set is live again
+    CHECK(cursor.currentCard()->cardNumber() != before);
+    REQUIRE(cursor.isTypingMode()); // addNewCard() ends in typing mode on its new card
+
+    // ...and 'e' exits command mode entirely, straight from navigation
+    // mode, without needing 'n' first. Re-force command mode (addNewCard
+    // above left us in typing mode via its own explicit enterTypingMode())
+    // before going back into Link mode.
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    REQUIRE(cursor.isCommandMode());
+    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // back into Link mode
+    REQUIRE(cursor.isLinkMode());
+    cursor.handleKey({KeyEvent::Kind::Char, U'e', true});
+    CHECK(cursor.isTypingMode());
 }
 
 TEST_CASE("'u' and 'o' navigate to the adjacent card by card number")

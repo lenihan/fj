@@ -137,6 +137,7 @@ void Cursor::setCurrentCard(CardItem* card) { m_currentCard = card; }
 
 bool Cursor::isTypingMode() const { return m_keyboardMode == KeyboardMode::Typing; }
 bool Cursor::isCommandMode() const { return m_keyboardMode == KeyboardMode::Command; }
+bool Cursor::isLinkMode() const { return m_navigationMode == NavigationMode::Link; }
 
 void Cursor::enterTypingMode()
 {
@@ -687,22 +688,44 @@ void Cursor::handleKey(const KeyEvent& event)
     // event.kind == Char: home-row command dispatch, or literal typing.
     if (isCommandMode() || m_capsDown)
     {
-        switch (event.codepoint)
+        // Navigation mode (m_navigationMode == Link, entered via 'n') is
+        // an exclusive mode: only the keys that actually mean something
+        // different there (i/k/j/l) plus the two mode-transition keys
+        // (n itself, and e to bail out to typing entirely) stay live.
+        // Every other command key used to fire identically regardless of
+        // navigation sub-state, which the user flagged directly as a
+        // bug, not a feature -- entering navigation mode should make the
+        // general command set (u/o/d/c/t/m/.) unreachable except by
+        // first leaving navigation mode (n) and using the hold-caps
+        // chord from there. shakeCardNo() gives the same "can't do that"
+        // feedback prevCard()/nextCard() etc. already use elsewhere.
+        bool blockedInLinkMode = isLinkMode() &&
+            (event.codepoint == U'u' || event.codepoint == U'o' || event.codepoint == U'd' ||
+             event.codepoint == U'c' || event.codepoint == U't' || event.codepoint == U'm' ||
+             event.codepoint == U'.');
+        if (blockedInLinkMode)
         {
-            case U'i': up(); break;
-            case U'k': down(); break;
-            case U'j': left(); break;
-            case U'l': right(); break;
-            case U'e': enterTypingMode(); break;
-            case U'u': prevCard(); break;
-            case U'o': nextCard(); break;
-            case U'd': toggleDeleteCard(); break;
-            case U'c': addNewCard(CardItem::Type::Content); break;
-            case U't': addNewCard(CardItem::Type::TOC); break;
-            case U'n': toggleNavigationMode(); break;
-            case U'm': prevThreadCard(); break;
-            case U'.': nextThreadCard(); break;
-            default: break; // unmapped command-mode key: noop
+            shakeCardNo();
+        }
+        else
+        {
+            switch (event.codepoint)
+            {
+                case U'i': up(); break;
+                case U'k': down(); break;
+                case U'j': left(); break;
+                case U'l': right(); break;
+                case U'e': enterTypingMode(); break;
+                case U'u': prevCard(); break;
+                case U'o': nextCard(); break;
+                case U'd': toggleDeleteCard(); break;
+                case U'c': addNewCard(CardItem::Type::Content); break;
+                case U't': addNewCard(CardItem::Type::TOC); break;
+                case U'n': toggleNavigationMode(); break;
+                case U'm': prevThreadCard(); break;
+                case U'.': nextThreadCard(); break;
+                default: break; // unmapped command-mode key: noop
+            }
         }
     }
     else

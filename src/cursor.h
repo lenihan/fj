@@ -60,6 +60,13 @@ class Cursor
     void enterCommandMode();
 
     void toggleNavigationMode();
+    // Whether command mode's navigation sub-state is currently Link
+    // (reached via 'n' -- see toggleNavigationMode) rather than Cursor.
+    // Needed by the keyboard panel's legend lookup (see keyboardPanel.h's
+    // commandLegendFor) to know which command sub-state applies; also
+    // what handleKey's own dispatch gates non-navigation command keys on
+    // (see its comment) now that navigation mode is an exclusive mode.
+    bool isLinkMode() const;
 
     void up();
     void down();
