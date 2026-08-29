@@ -286,12 +286,23 @@ int main()
 
         const Rect* leftPressedRect = (pressedKey && pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
         const Rect* rightPressedRect = (pressedKey && !pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
+
+        // Live preview, not just post-gesture state: a key currently
+        // mid-press (pressed but not yet released) previews its effect
+        // immediately, the same way its own face already inverts before
+        // release -- see keyboardPanel.h's drawKeyboardPanel comment.
+        bool shiftEngaged = shiftLatched || (pressedKey && pressedKey->key.action == KeyRect::Action::ShiftToggle);
+        bool commandModeForLegend =
+            cursor.isCommandMode() || (pressedKey && pressedKey->key.action == KeyRect::Action::CapsToggle);
+        bool isTypingModeForLegend = !commandModeForLegend;
+        bool isLinkModeForLegend = cursor.isLinkMode(); // only meaningful once actually in command mode
+
         leftPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         rightPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, *leftPanelAtlas, leftPressedRect, capsLatched,
-                           shiftLatched);
+                           shiftEngaged, isTypingModeForLegend, isLinkModeForLegend);
         drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, rightPressedRect, capsLatched,
-                           shiftLatched);
+                           shiftEngaged, isTypingModeForLegend, isLinkModeForLegend);
 
         deviceCanvas = Canvas(monitorCanvas.width() * 3, monitorCanvas.height());
         deviceCanvas.blit(leftPanelCanvas, {0, 0});
@@ -405,7 +416,8 @@ int main()
             }
 
             GestureOutcome outcome = resolveKeyGesture(pressedKey->key, pressedKey->leftSide, releasedKey,
-                                                         releasedLeftSide, capsLatched, shiftLatched);
+                                                         releasedLeftSide, capsLatched, shiftLatched,
+                                                         cursor.isTypingMode());
             for (const KeyEvent& event : outcome.events)
                 cursor.handleKey(event);
             capsLatched = outcome.capsLatched;
