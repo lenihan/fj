@@ -171,13 +171,13 @@ TEST_CASE("resolveKeyGesture: caps tap toggles the persistent latch")
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& caps = findKey(keys, U"caps");
 
-    auto turnOn = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/false, false);
+    auto turnOn = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/false, false, true);
     REQUIRE(turnOn.events.size() == 1);
     CHECK(turnOn.events[0].kind == KeyEvent::Kind::CapsLock);
     CHECK(turnOn.events[0].pressed);
     CHECK(turnOn.capsLatched);
 
-    auto turnOff = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/true, false);
+    auto turnOff = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/true, false, true);
     REQUIRE(turnOff.events.size() == 1);
     CHECK(turnOff.events[0].kind == KeyEvent::Kind::CapsLock);
     CHECK_FALSE(turnOff.events[0].pressed);
@@ -190,7 +190,7 @@ TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially off
     const KeyRect& caps = findKey(keys, U"caps");
     const KeyRect& q = findKey(keys, U"q");
 
-    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/false, false);
+    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/false, false, true);
 
     REQUIRE(outcome.events.size() == 3);
     CHECK(outcome.events[0].kind == KeyEvent::Kind::CapsLock);
@@ -208,7 +208,7 @@ TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially on"
     const KeyRect& caps = findKey(keys, U"caps");
     const KeyRect& q = findKey(keys, U"q");
 
-    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/true, false);
+    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/true, false, true);
 
     REQUIRE(outcome.events.size() == 1); // already in command mode -- no redundant CapsLock pair
     CHECK(outcome.events[0].kind == KeyEvent::Kind::Char);
@@ -221,7 +221,7 @@ TEST_CASE("resolveKeyGesture: caps released off any key cancels")
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& caps = findKey(keys, U"caps");
 
-    auto outcome = resolveKeyGesture(caps, true, std::nullopt, true, /*capsLatchedBefore=*/false, false);
+    auto outcome = resolveKeyGesture(caps, true, std::nullopt, true, /*capsLatchedBefore=*/false, false, true);
     CHECK(outcome.events.empty());
     CHECK_FALSE(outcome.capsLatched);
 }
@@ -231,11 +231,11 @@ TEST_CASE("resolveKeyGesture: left shift tap toggles its latch")
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& leftShift = findKey(keys, U"shift");
 
-    auto turnOn = resolveKeyGesture(leftShift, true, leftShift, true, false, /*shiftLatchedBefore=*/false);
+    auto turnOn = resolveKeyGesture(leftShift, true, leftShift, true, false, /*shiftLatchedBefore=*/false, true);
     CHECK(turnOn.events.empty()); // shift has no KeyEvent of its own
     CHECK(turnOn.shiftLatched);
 
-    auto turnOff = resolveKeyGesture(leftShift, true, leftShift, true, false, /*shiftLatchedBefore=*/true);
+    auto turnOff = resolveKeyGesture(leftShift, true, leftShift, true, false, /*shiftLatchedBefore=*/true, true);
     CHECK(turnOff.events.empty());
     CHECK_FALSE(turnOff.shiftLatched);
 }
@@ -247,11 +247,11 @@ TEST_CASE("resolveKeyGesture: right shift tap toggles its latch too")
     auto keys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& rightShift = findKey(keys, U"shift");
 
-    auto turnOn = resolveKeyGesture(rightShift, false, rightShift, false, false, /*shiftLatchedBefore=*/false);
+    auto turnOn = resolveKeyGesture(rightShift, false, rightShift, false, false, /*shiftLatchedBefore=*/false, true);
     CHECK(turnOn.events.empty());
     CHECK(turnOn.shiftLatched);
 
-    auto turnOff = resolveKeyGesture(rightShift, false, rightShift, false, false, /*shiftLatchedBefore=*/true);
+    auto turnOff = resolveKeyGesture(rightShift, false, rightShift, false, false, /*shiftLatchedBefore=*/true, true);
     CHECK(turnOff.events.empty());
     CHECK_FALSE(turnOff.shiftLatched);
 }
@@ -262,7 +262,7 @@ TEST_CASE("resolveKeyGesture: left shift chord (drag to a letter) capitalizes it
     const KeyRect& leftShift = findKey(keys, U"shift");
     const KeyRect& q = findKey(keys, U"q");
 
-    auto outcome = resolveKeyGesture(leftShift, true, q, true, false, /*shiftLatchedBefore=*/false);
+    auto outcome = resolveKeyGesture(leftShift, true, q, true, false, /*shiftLatchedBefore=*/false, true);
 
     REQUIRE(outcome.events.size() == 1);
     CHECK(outcome.events[0].kind == KeyEvent::Kind::Char);
@@ -278,7 +278,7 @@ TEST_CASE("resolveKeyGesture: right shift chord (drag to a letter) capitalizes i
     const KeyRect& rightShift = findKey(rightKeys, U"shift");
     const KeyRect& u = findKey(rightKeys, U"u");
 
-    auto outcome = resolveKeyGesture(rightShift, false, u, false, false, /*shiftLatchedBefore=*/false);
+    auto outcome = resolveKeyGesture(rightShift, false, u, false, false, /*shiftLatchedBefore=*/false, true);
 
     REQUIRE(outcome.events.size() == 1);
     CHECK(outcome.events[0].kind == KeyEvent::Kind::Char);
@@ -295,7 +295,7 @@ TEST_CASE("resolveKeyGesture: shift chord still capitalizes even while already l
     const KeyRect& leftShift = findKey(keys, U"shift");
     const KeyRect& q = findKey(keys, U"q");
 
-    auto outcome = resolveKeyGesture(leftShift, true, q, true, false, /*shiftLatchedBefore=*/true);
+    auto outcome = resolveKeyGesture(leftShift, true, q, true, false, /*shiftLatchedBefore=*/true, true);
 
     REQUIRE(outcome.events.size() == 1);
     CHECK(outcome.events[0].codepoint == U'Q');
@@ -307,7 +307,7 @@ TEST_CASE("resolveKeyGesture: shift released off any key cancels")
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& leftShift = findKey(keys, U"shift");
 
-    auto outcome = resolveKeyGesture(leftShift, true, std::nullopt, true, false, /*shiftLatchedBefore=*/false);
+    auto outcome = resolveKeyGesture(leftShift, true, std::nullopt, true, false, /*shiftLatchedBefore=*/false, true);
     CHECK(outcome.events.empty());
     CHECK_FALSE(outcome.shiftLatched);
 }
@@ -317,8 +317,102 @@ TEST_CASE("resolveKeyGesture: a plain letter tap stays capitalized while shift i
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& q = findKey(keys, U"q");
 
-    auto outcome = resolveKeyGesture(q, true, q, true, false, /*shiftLatchedBefore=*/true);
+    auto outcome = resolveKeyGesture(q, true, q, true, false, /*shiftLatchedBefore=*/true, true);
 
     REQUIRE(outcome.events.size() == 1);
     CHECK(outcome.events[0].codepoint == U'Q');
+}
+
+TEST_CASE("resolveKeyGesture: shift transform is skipped outside typing mode")
+{
+    // The bug found designing phase 3: shift-latching while in command
+    // mode must not hand Cursor's command switch an uppercase codepoint
+    // it can't match.
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& q = findKey(keys, U"q");
+
+    auto plainTap = resolveKeyGesture(q, true, q, true, false, /*shiftLatchedBefore=*/true, /*isTypingMode=*/false);
+    REQUIRE(plainTap.events.size() == 1);
+    CHECK(plainTap.events[0].codepoint == U'q'); // not 'Q'
+
+    auto keys2 = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& shift = findKey(keys2, U"shift");
+    auto chord = resolveKeyGesture(shift, true, q, true, false, false, /*isTypingMode=*/false);
+    REQUIRE(chord.events.size() == 1);
+    CHECK(chord.events[0].codepoint == U'q'); // not 'Q'
+}
+
+TEST_CASE("resolveKeyGesture: shift-symbol table matches a real keyboard")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& one = findKey(keys, U"1");
+    const KeyRect& semicolon = findKey(keys, U";");
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& slash = findKey(rightKeys, U"/");
+
+    auto bang = resolveKeyGesture(one, true, one, true, false, /*shiftLatchedBefore=*/true, /*isTypingMode=*/true);
+    REQUIRE(bang.events.size() == 1);
+    CHECK(bang.events[0].codepoint == U'!');
+
+    auto colon =
+        resolveKeyGesture(semicolon, true, semicolon, true, false, /*shiftLatchedBefore=*/true, /*isTypingMode=*/true);
+    REQUIRE(colon.events.size() == 1);
+    CHECK(colon.events[0].codepoint == U':');
+
+    auto question =
+        resolveKeyGesture(slash, false, slash, false, false, /*shiftLatchedBefore=*/true, /*isTypingMode=*/true);
+    REQUIRE(question.events.size() == 1);
+    CHECK(question.events[0].codepoint == U'?');
+}
+
+TEST_CASE("typingLabelFor previews shift's effect: capitals and symbols, matching a real keyboard")
+{
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& q = findKey(keys, U"q");
+    const KeyRect& one = findKey(keys, U"1");
+    const KeyRect& spacebar = keys.back();
+    const KeyRect& tab = findKey(keys, U"tab");
+    const KeyRect& shift = findKey(keys, U"shift");
+
+    CHECK(typingLabelFor(q, /*shiftEngaged=*/false) == U"q");
+    CHECK(typingLabelFor(q, /*shiftEngaged=*/true) == U"Q");
+    CHECK(typingLabelFor(one, /*shiftEngaged=*/false) == U"1");
+    CHECK(typingLabelFor(one, /*shiftEngaged=*/true) == U"!");
+
+    // Keys with no shifted form of their own are unaffected.
+    CHECK(typingLabelFor(spacebar, /*shiftEngaged=*/true) == U"spacebar");
+    CHECK(typingLabelFor(tab, /*shiftEngaged=*/true) == U"tab");
+    CHECK(typingLabelFor(shift, /*shiftEngaged=*/true) == U"shift");
+}
+
+TEST_CASE("commandLegendFor: general command mode describes every implemented key, blank otherwise")
+{
+    // i/k/j/l/u/o/n/m/./h/y/p live on the right panel, the rest of the
+    // command keys on the left -- see kLeftKeys/kRightKeys.
+    auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& i = findKey(rightKeys, U"i");
+    const KeyRect& c = findKey(leftKeys, U"c");
+    const KeyRect& tab = findKey(leftKeys, U"tab");
+    const KeyRect& w = findKey(leftKeys, U"w"); // an ordinary, wholly unmapped letter
+
+    CHECK(commandLegendFor(i, /*isLinkMode=*/false) == U"up");
+    CHECK(commandLegendFor(c, /*isLinkMode=*/false) == U"+card");
+    CHECK_FALSE(commandLegendFor(tab, /*isLinkMode=*/false).has_value());
+    CHECK_FALSE(commandLegendFor(w, /*isLinkMode=*/false).has_value());
+}
+
+TEST_CASE("commandLegendFor: navigation mode only describes its own live keys")
+{
+    auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& i = findKey(rightKeys, U"i");
+    const KeyRect& e = findKey(leftKeys, U"e");
+    const KeyRect& c = findKey(leftKeys, U"c"); // live in general command mode, blocked in navigation mode
+    const KeyRect& u = findKey(rightKeys, U"u"); // ditto
+
+    CHECK(commandLegendFor(i, /*isLinkMode=*/true) == U"prev");
+    CHECK(commandLegendFor(e, /*isLinkMode=*/true) == U"edit");
+    CHECK_FALSE(commandLegendFor(c, /*isLinkMode=*/true).has_value());
+    CHECK_FALSE(commandLegendFor(u, /*isLinkMode=*/true).has_value());
 }

@@ -90,7 +90,8 @@ struct GestureOutcome
 // releasedKey/releasedLeftSide is the key the matching release landed on,
 // if any (none, the same key as the press, or a different key).
 // capsLatchedBefore/shiftLatchedBefore is the latch state going into this
-// gesture.
+// gesture. isTypingMode is Cursor::isTypingMode() at the moment of the
+// release -- see below.
 //
 // Same key released as pressed -> a plain tap: Fire keys send their own
 // event; caps/shift toggle their latch. A *different* key released is a
@@ -102,24 +103,56 @@ struct GestureOutcome
 // changes the persistent latch -- see keyboardPanel.cpp for exactly why
 // caps's chord is handled differently depending on whether it was already
 // latched, and shift's isn't).
+//
+// isTypingMode gates shift's case/symbol transform (see kShiftedSymbols
+// below): applying it unconditionally would hand Cursor's command-mode
+// switch an uppercase letter or a symbol it has no case for, silently
+// breaking every command while shift happens to be latched -- a real bug
+// found designing phase 3's typing-mode legend preview, not a
+// hypothetical. Outside typing mode, a Fire key's codepoint always passes
+// through unchanged regardless of shift.
 GestureOutcome resolveKeyGesture(const KeyRect& pressedKey, bool pressedLeftSide,
                                   const std::optional<KeyRect>& releasedKey, bool releasedLeftSide,
-                                  bool capsLatchedBefore, bool shiftLatchedBefore);
+                                  bool capsLatchedBefore, bool shiftLatchedBefore, bool isTypingMode);
 
 // Picks whichever baked atlas best fits the longest single-width key
-// label (e.g. "shift", "enter") within one key's pitch at panelSize_px --
-// see keyboardPanel.cpp. Exposed so main.cpp doesn't need to know that
+// label/legend within one key's pitch at panelSize_px -- see
+// keyboardPanel.cpp. Exposed so main.cpp doesn't need to know that
 // heuristic itself.
 const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px);
 
+// What a key displays in typing mode: its physical label, unless it's a
+// Fire+Char key and shiftEngaged, in which case the shifted form --
+// letters uppercased, digits/punctuation mapped through the same
+// kShiftedSymbols table resolveKeyGesture uses, matching a real keyboard
+// (PLAN.md/the user: "capital letters and the numbers give the symbols
+// instead").
+std::u32string typingLabelFor(const KeyRect& key, bool shiftEngaged);
+
+// What a key displays in command mode: a short description if it's live
+// right now, nullopt if it isn't (drawKeyboardPanel renders those blank).
+// isLinkMode selects between the two command sub-states -- navigation
+// mode (Link) only considers i/k/j/l/e/n live, matching handleKey's own
+// exclusive-navigation-mode gate (see cursor.cpp); general command mode
+// (Cursor) considers every key handleKey's switch implements live.
+std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMode);
+
 // Fills canvas (expected to already be panelSize_px x panelSize_px) with
-// the panel's background and every key face + centered label. A key draws
-// color-inverted (face/label swapped) if its rect matches pressedKeyRect
+// the panel's background and every key face + label. A key draws color-
+// inverted (face/label swapped) if its rect matches pressedKeyRect
 // (currently mid-press, any key -- the caller only passes a non-null
 // pointer to the side actually holding the pressed key), or it's
 // CapsToggle/ShiftToggle and the matching latch is on -- the latter needs
 // no rect-matching since this function already knows each key's action,
 // so both shift keys light up together automatically.
+//
+// isTypingMode/isLinkMode/shiftEngaged pick which of typingLabelFor/
+// commandLegendFor supplies each key's text (see main.cpp's onClick/
+// renderContent for why these are computed live, mid-press, rather than
+// only once a gesture resolves): typingLabelFor while isTypingMode, else
+// commandLegendFor -- a key with no legend at all (nullopt, command mode
+// only) draws its face and border with no text, not even blank space
+// reserved for it.
 void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas,
-                        const Rect* pressedKeyRect = nullptr, bool capsLatched = false,
-                        bool shiftLatched = false);
+                        const Rect* pressedKeyRect = nullptr, bool capsLatched = false, bool shiftEngaged = false,
+                        bool isTypingMode = true, bool isLinkMode = false);
