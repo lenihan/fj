@@ -546,12 +546,51 @@ manually) rather than assuming emsdk's own env scripts handled it.
         (a second plain tap now correctly un-latches; a chord while
         already latched correctly stays latched) -- 33/33 tests passing
         on Windows and Linux, web builds clean.
-  - [ ] Phase 3: dynamic legends -- each key shows what it currently does
-        (Keyboard Mapping table above), changing live with `Cursor`'s
-        mode. Needs a "what does key X do right now" data source
-        (doesn't exist yet) and a new `Cursor` accessor for
-        `NavigationMode` (currently fully private); also a
-        core-architecture decision worth a first draft from the user.
+  - [x] Phase 3: dynamic legends. Each key shows what it currently does,
+        in one of three ways depending on `Cursor`'s live mode (including
+        mid-press, before release -- see phase 2b's own preview
+        precedent):
+        - **Typing mode**: `typingLabelFor` previews what shift would
+          actually produce -- capitals for letters, real shifted symbols
+          for digits/punctuation (`;1234567890-',./` -> `:!@#$%^&*()_"<>?`,
+          standard US-QWERTY), matching a real keyboard. This is also now
+          a real behavior fix, not just a legend: shift+`1` actually
+          types `!`.
+        - **Navigation mode** (`Cursor::isLinkMode()`, a new accessor):
+          `commandLegendFor` shows only `i`/`k`/`j`/`l` (as
+          prev/next/back/go) plus `e`/`n`, blank everywhere else.
+        - **General command mode**: `commandLegendFor` shows every key
+          `Cursor::handleKey`'s switch implements (`up`/`down`/`left`/
+          `right`/`edit`/`prev`/`next`/`del`/`+card`/`+toc`/`link`/
+          `prevT`/`nextT`), blank for anything unmapped (`tab`, ordinary
+          unbound letters).
+        Two real bugs found and fixed designing this, both in shared
+        `Cursor`/`resolveKeyGesture` logic, not just the display:
+        1. Shift-latching while in command mode used to hand
+           `Cursor::handleKey`'s switch an uppercase codepoint it
+           couldn't match (the switch only has lowercase cases), silently
+           breaking every command until shift released. `resolveKeyGesture`
+           now takes an explicit `isTypingMode` parameter and only
+           transforms the codepoint when it's actually going to be typed
+           as text.
+        2. **User-reported, not code-discovered**: navigation mode
+           (`m_navigationMode == Link`, entered via `n`) let every general
+           command key (`u`/`o`/`d`/`c`/`t`/`m`/`.`) keep firing even
+           though only `i`/`k`/`j`/`l` actually change behavior there --
+           called out directly as a bug, not a feature: entering
+           navigation mode should make it exclusive, with the hold-caps
+           chord as the way back to the general command set.
+           `Cursor::handleKey` now blocks those seven keys while in Link
+           mode (calling `shakeCardNo()` for feedback), only `i`/`k`/`j`/
+           `l`/`n`/`e` stay live.
+        39 tests passing on Windows and Linux (was 33 -- new
+        `resolveKeyGesture`/`typingLabelFor`/`commandLegendFor` coverage
+        plus a `cursorTests.cpp` case walking the whole exclusive-
+        navigation-mode gate), web builds clean. Verified live via the
+        same synthetic-click technique as phase 2b: shift and caps both
+        preview their panel-wide effect immediately on press, before
+        release; navigation mode's restricted legend set confirmed
+        on-screen.
 - [x] `tools/offline/bakeFont`'s target-width formula used a hardcoded
       4.8in "usable width" instead of the real `CardItem::sideMargin_px`
       relationship (card width == `(Body::kColsPerRow + 4) *

@@ -117,6 +117,29 @@ TEST_CASE("a hold-tap-release chord while already latched stays latched")
     CHECK(cursor.isCommandMode());                          // still latched, not back to typing
 }
 
+TEST_CASE("a fresh cmd tap after 'e' latches command mode, not a stale release")
+{
+    // 'e' reaches typing mode without going through the CapsLock-release
+    // branch that owns m_capsTapLatched -- found live, not by inspection:
+    // leaving that flag set after 'e' meant the *next* plain cmd tap
+    // still believed it was releasing an already-latched command mode
+    // (per the "second tap releases the latch" behavior above) and
+    // bounced straight back to typing instead of latching a fresh one.
+    Cursor cursor;
+    REQUIRE(cursor.isTypingMode());
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true}); // tap on -- latches
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+    REQUIRE(cursor.isCommandMode());
+
+    cursor.handleKey({KeyEvent::Kind::Char, U'e', true}); // -> typing mode, not via CapsLock at all
+    REQUIRE(cursor.isTypingMode());
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true}); // a fresh plain tap...
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+    CHECK(cursor.isCommandMode()); // ...should latch on, not bounce back to typing
+}
+
 namespace
 {
 // Sends one command-mode key the same way a real hold-Caps-then-tap does
@@ -195,7 +218,7 @@ TEST_CASE("'d' toggles the deleted flag on the current card")
     CHECK_FALSE(cursor.currentCard()->deleted());
 }
 
-TEST_CASE("'n' toggles between Link and Cursor navigation mode")
+TEST_CASE("'n' enters Link navigation mode; cmd is the only way back to Cursor mode")
 {
     // isLinkMode() exists (added for the keyboard panel's phase 3 legend
     // lookup), but this test predates it and checks the *effect* instead,
@@ -206,44 +229,49 @@ TEST_CASE("'n' toggles between Link and Cursor navigation mode")
     // staying put vs. actually advancing is what distinguishes the two
     // modes here.
     //
+    // 'n' used to also toggle straight back (Link -> Cursor) on a second
+    // press; per the exclusive-navigation-mode design that's now blocked
+    // (see the "navigation mode is exclusive" test) -- cmd (a CapsLock
+    // tap) is the only way back, stepping through general command mode
+    // on the way (see the "tapping cmd from navigation mode..." test).
+    //
     // A fresh Cursor actually starts in *Cursor* navigation mode, not
     // Link, despite Link being the member's default -- its constructor's
     // last step is enterTypingMode(), which always resets navigation mode
     // to Cursor ("so you can use navigation keys" -- see cursor.cpp), so
     // 'n' needs to run first to reach Link mode at all.
-    //
-    // The whole test runs under *one* held Caps Lock, not the usual
-    // sendCommand()-per-key pattern: releasing Caps Lock re-enters typing
-    // mode (since we were typing before the hold started), which resets
-    // navigation mode back to Cursor as a side effect of enterTypingMode()
-    // -- releasing between the two halves below would silently undo the
-    // second half's own 'n' toggle before down() ever saw it (found by
-    // running this, not by inspection -- the first version of this test
-    // did exactly that and failed confusingly).
     Cursor cursor;
     Row before = cursor.row();
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
-
     cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // toggleNavigationMode(): Cursor -> Link
     cursor.handleKey({KeyEvent::Kind::Char, U'k', true}); // down() in Link mode: moves a link index, not the row
     CHECK(cursor.row() == before);
 
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // toggleNavigationMode(): Link -> Cursor
+    // Nothing typed while held would normally read as a plain tap on
+    // release -- but 'n'/'k' were typed above, so this release instead
+    // re-enters typing mode via m_wasTypingMode (same as any other
+    // hold-something-release chord), which also resets navigation mode
+    // back to Cursor as enterTypingMode()'s own side effect.
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+
+    // Confirm Cursor mode's own down() actually moves the row, unlike
+    // Link mode's above -- tap cmd once to get back to general command.
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
     cursor.handleKey({KeyEvent::Kind::Char, U'k', true}); // down() in Cursor mode: actually moves
     CHECK(cursor.row() == before + 1);
-
-    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
 }
 
-TEST_CASE("navigation mode is exclusive: only i/k/j/l/n/e stay live, everything else is blocked")
+TEST_CASE("navigation mode is exclusive: only i/k/j/l stay live, everything else is blocked")
 {
     // The user was explicit this is a bug fix, not a new restriction:
-    // entering navigation mode (via 'n') should make the general command
-    // set unreachable until 'n' (or 'e') is pressed again, even though
-    // u/o/d/c/t/m/. all execute identically regardless of navigation
-    // sub-state internally (only i/k/j/l actually branch on it) -- see
-    // PLAN.md's phase 3 write-up.
+    // entering navigation mode (via 'n') should make everything except
+    // i/k/j/l unreachable -- including 'n' and 'e' themselves now, which
+    // used to be permanent exceptions that could jump back to general
+    // command mode or straight to typing on their own. cmd (a CapsLock
+    // tap) is the only way out, one step at a time -- see the "tapping
+    // cmd from navigation mode steps up one level" test below.
     //
     // A bare CapsLock press (never released here) forces command mode
     // deterministically via handleKey's press branch, sidestepping the
@@ -262,29 +290,46 @@ TEST_CASE("navigation mode is exclusive: only i/k/j/l/n/e stay live, everything 
     cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // addNewCard() -- blocked in Link mode
     CHECK(cursor.currentCard()->cardNumber() == before);
 
-    // i/k/j/l still do their link-mode thing (see the test above for why
-    // row() staying put is what proves Link mode's down() ran at all).
+    // 'n' and 'e' are now ordinary blocked keys here too, same as u/c
+    // above -- neither changes mode at all from inside Link mode.
+    cursor.handleKey({KeyEvent::Kind::Char, U'n', true});
+    CHECK(cursor.isLinkMode());
+    cursor.handleKey({KeyEvent::Kind::Char, U'e', true});
+    CHECK(cursor.isLinkMode());
+    CHECK(cursor.isCommandMode());
+
+    // i/k/j/l still do their link-mode thing -- row() staying put (rather
+    // than moving the way general command mode's down() would) is what
+    // proves Link mode's own down() ran, not general command's.
     Row row = cursor.row();
     cursor.handleKey({KeyEvent::Kind::Char, U'k', true});
     CHECK(cursor.row() == row);
+}
 
-    // 'n' still exits navigation mode back to general command mode...
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true});
-    REQUIRE_FALSE(cursor.isLinkMode());
+TEST_CASE("tapping cmd from navigation mode steps up one level at a time")
+{
+    // A plain CapsLock tap (press+release, nothing typed between) used to
+    // be a blind two-way toggle between typing and command mode,
+    // regardless of navigation sub-state -- so tapping cmd from
+    // navigation mode jumped straight to typing, skipping general command
+    // mode entirely. The user asked for cmd to be navigation mode's only
+    // way out, one level at a time: Link -> tap -> general command ->
+    // tap (or 'e') -> typing.
+    Cursor cursor;
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});  // hold...
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false}); // ...release: plain tap, latches command mode
     REQUIRE(cursor.isCommandMode());
-    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // ...and the general command set is live again
-    CHECK(cursor.currentCard()->cardNumber() != before);
-    REQUIRE(cursor.isTypingMode()); // addNewCard() ends in typing mode on its new card
 
-    // ...and 'e' exits command mode entirely, straight from navigation
-    // mode, without needing 'n' first. Re-force command mode (addNewCard
-    // above left us in typing mode via its own explicit enterTypingMode())
-    // before going back into Link mode.
-    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
-    REQUIRE(cursor.isCommandMode());
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // back into Link mode
+    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // -> Link navigation mode
     REQUIRE(cursor.isLinkMode());
-    cursor.handleKey({KeyEvent::Kind::Char, U'e', true});
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false}); // tap #1: steps up to general command only
+    CHECK(cursor.isCommandMode());
+    CHECK_FALSE(cursor.isLinkMode());
+
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false}); // tap #2: now reaches typing
     CHECK(cursor.isTypingMode());
 }
 

@@ -158,6 +158,16 @@ void Cursor::enterTypingMode()
     }
     m_keyboardMode = KeyboardMode::Typing;
     m_navigationMode = NavigationMode::Cursor; // so you can use navigation keys
+
+    // A stale latch, not just irrelevant, if left set: 'e' reaches typing
+    // mode without ever going through the CapsLock-release branch that
+    // owns this flag (see handleKey), so leaving it true here meant the
+    // *next* cmd tap still believed it was releasing an already-latched
+    // command mode and immediately bounced straight back to typing,
+    // instead of latching a fresh one -- found live, not by inspection:
+    // cmd -> e -> cmd flashed to command mode and back to typing in one
+    // tap.
+    m_capsTapLatched = false;
 }
 
 void Cursor::enterCommandMode() { m_keyboardMode = KeyboardMode::Command; }
@@ -632,10 +642,24 @@ void Cursor::handleKey(const KeyEvent& event)
             // time, so a tap-to-toggle gesture (mouse or a real keyboard's
             // own "hold caps a moment with nothing typed, let go") could
             // latch on but never tap back off.
+            //
+            // A tap always steps up exactly one level, never two: from
+            // Link (Navigation) mode, it steps up to general command mode
+            // only, leaving the latch on -- a *second* tap from there is
+            // what actually reaches typing. Link mode used to let 'n'/'e'
+            // jump out on their own (straight back to general command, or
+            // straight to typing); the user asked for cmd to be the only
+            // way out, one step at a time, so this tap is now the one
+            // place that transition happens.
             if (m_capsTapLatched)
             {
-                m_capsTapLatched = false;
-                enterTypingMode();
+                if (m_navigationMode == NavigationMode::Link)
+                    m_navigationMode = NavigationMode::Cursor;
+                else
+                {
+                    m_capsTapLatched = false;
+                    enterTypingMode();
+                }
             }
             else
             {
@@ -689,20 +713,19 @@ void Cursor::handleKey(const KeyEvent& event)
     if (isCommandMode() || m_capsDown)
     {
         // Navigation mode (m_navigationMode == Link, entered via 'n') is
-        // an exclusive mode: only the keys that actually mean something
-        // different there (i/k/j/l) plus the two mode-transition keys
-        // (n itself, and e to bail out to typing entirely) stay live.
-        // Every other command key used to fire identically regardless of
-        // navigation sub-state, which the user flagged directly as a
-        // bug, not a feature -- entering navigation mode should make the
-        // general command set (u/o/d/c/t/m/.) unreachable except by
-        // first leaving navigation mode (n) and using the hold-caps
-        // chord from there. shakeCardNo() gives the same "can't do that"
-        // feedback prevCard()/nextCard() etc. already use elsewhere.
+        // an exclusive mode: only i/k/j/l, which actually mean something
+        // different there, stay live -- an allow-list, not a deny-list,
+        // since 'n'/'e' are no longer permanent exceptions either. They
+        // used to bail straight back to general command / typing on
+        // their own; the user asked for the cmd key to be the only way
+        // out, one step at a time (see handleKey's CapsLock-release
+        // branch), so from here they're ordinary blocked keys like
+        // u/o/d/c/t/m/. always were. shakeCardNo() gives the same "can't
+        // do that" feedback prevCard()/nextCard() etc. already use
+        // elsewhere.
         bool blockedInLinkMode = isLinkMode() &&
-            (event.codepoint == U'u' || event.codepoint == U'o' || event.codepoint == U'd' ||
-             event.codepoint == U'c' || event.codepoint == U't' || event.codepoint == U'm' ||
-             event.codepoint == U'.');
+            event.codepoint != U'i' && event.codepoint != U'k' && event.codepoint != U'j' &&
+            event.codepoint != U'l';
         if (blockedInLinkMode)
         {
             shakeCardNo();
