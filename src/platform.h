@@ -137,9 +137,22 @@ class PlatformWindow
     // exactly mirroring KeyEvent::Kind::CapsLock's press/release shape --
     // see the file comment above for why this exists at all and why it's
     // only ever a position + an edge, nothing more.
+    //
+    // onMouseMove fires on every mouse-move tick, in the same coordinate
+    // space as onClick -- driving the keyboard panel's hover highlight
+    // (see keyboardPanel.h's drawKeyboardPanel), a pure "where's the
+    // pointer" signal independent of any button state. (-1, -1) means the
+    // pointer has left the window entirely, not a real position: each
+    // shell arms its own one-shot "notify me when the pointer leaves"
+    // mechanism (Win32's TrackMouseEvent, X11's LeaveNotify, the web's
+    // mouseleave) since plain move events stop arriving the instant the
+    // pointer crosses the window's edge, and (-1, -1) reuses main.cpp's
+    // own hit-testing (already nullopt for any out-of-bounds position,
+    // see hitTestClick) rather than needing a separate "cleared" signal.
     void run(std::function<void(const KeyEvent&)> onKey, std::function<void(int width_px, int height_px)> onResize,
              std::function<void(int width_px, int height_px)> onResizeEnd,
-             std::function<void(int x_px, int y_px, bool pressed)> onClick);
+             std::function<void(int x_px, int y_px, bool pressed)> onClick,
+             std::function<void(int x_px, int y_px)> onMouseMove);
 
     // Presents a finished frame. pixels.size() must equal w * h, which
     // should already match the window's current client size (see

@@ -105,11 +105,11 @@ TEST_CASE("each key's label maps to the action a physical keypress of it would t
 {
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
 
-    SECTION("caps toggles/chords -- see resolveKeyGesture")
+    SECTION("cmd toggles/chords -- see resolveKeyGesture")
     {
-        const KeyRect& caps = findKey(keys, U"caps");
-        CHECK(caps.action == KeyRect::Action::CapsToggle);
-        CHECK(caps.kind == KeyEvent::Kind::CapsLock);
+        const KeyRect& cmd = findKey(keys, U"cmd");
+        CHECK(cmd.action == KeyRect::Action::CapsToggle);
+        CHECK(cmd.kind == KeyEvent::Kind::CapsLock);
     }
 
     SECTION("shift toggles/chords too, but sends no KeyEvent of its own")
@@ -162,35 +162,49 @@ TEST_CASE("hitTestPanel finds the key under a point, and nothing between keys")
     CHECK_FALSE(hitTestPanel(/*leftSide=*/true, kPanelSize_px, {0, 0}).has_value());
 }
 
-// resolveKeyGesture: caps's two gestures (tap-toggle, press-drag-release
+// resolveKeyGesture: cmd's two gestures (tap-toggle, press-drag-release
 // chord) and both shift keys' two gestures -- see PLAN.md's "Emulator
 // keyboard panels" write-up for why the user asked these be validated
 // individually rather than assumed identical/symmetric.
-TEST_CASE("resolveKeyGesture: caps tap toggles the persistent latch")
+TEST_CASE("resolveKeyGesture: cmd tap toggles the persistent latch")
 {
+    // A real press+release pair every time, regardless of whether the tap
+    // is turning the latch on or off -- Cursor::handleKey's tap detection
+    // (m_capsTapLatched) only recognizes a plain tap by seeing a press
+    // immediately followed by a release with nothing typed between, the
+    // same shape tests/cursorTests.cpp already sends directly. A single
+    // collapsed event (this used to send only one, whose `pressed`
+    // mirrored the new latch state) meant Cursor never actually saw a
+    // press *and* a release, so a second plain click could never reach
+    // the branch that releases the latch -- found live, not by
+    // inspection (see keyboardPanel.cpp's own comment on this).
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    const KeyRect& caps = findKey(keys, U"caps");
+    const KeyRect& cmd = findKey(keys, U"cmd");
 
-    auto turnOn = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/false, false, true);
-    REQUIRE(turnOn.events.size() == 1);
+    auto turnOn = resolveKeyGesture(cmd, true, cmd, true, /*capsLatchedBefore=*/false, false, true);
+    REQUIRE(turnOn.events.size() == 2);
     CHECK(turnOn.events[0].kind == KeyEvent::Kind::CapsLock);
     CHECK(turnOn.events[0].pressed);
+    CHECK(turnOn.events[1].kind == KeyEvent::Kind::CapsLock);
+    CHECK_FALSE(turnOn.events[1].pressed);
     CHECK(turnOn.capsLatched);
 
-    auto turnOff = resolveKeyGesture(caps, true, caps, true, /*capsLatchedBefore=*/true, false, true);
-    REQUIRE(turnOff.events.size() == 1);
+    auto turnOff = resolveKeyGesture(cmd, true, cmd, true, /*capsLatchedBefore=*/true, false, true);
+    REQUIRE(turnOff.events.size() == 2);
     CHECK(turnOff.events[0].kind == KeyEvent::Kind::CapsLock);
-    CHECK_FALSE(turnOff.events[0].pressed);
+    CHECK(turnOff.events[0].pressed);
+    CHECK(turnOff.events[1].kind == KeyEvent::Kind::CapsLock);
+    CHECK_FALSE(turnOff.events[1].pressed);
     CHECK_FALSE(turnOff.capsLatched);
 }
 
-TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially off")
+TEST_CASE("resolveKeyGesture: cmd chord (drag to a letter), latch initially off")
 {
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    const KeyRect& caps = findKey(keys, U"caps");
+    const KeyRect& cmd = findKey(keys, U"cmd");
     const KeyRect& q = findKey(keys, U"q");
 
-    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/false, false, true);
+    auto outcome = resolveKeyGesture(cmd, true, q, true, /*capsLatchedBefore=*/false, false, true);
 
     REQUIRE(outcome.events.size() == 3);
     CHECK(outcome.events[0].kind == KeyEvent::Kind::CapsLock);
@@ -202,13 +216,13 @@ TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially off
     CHECK_FALSE(outcome.capsLatched); // the gesture never touches the persistent latch
 }
 
-TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially on")
+TEST_CASE("resolveKeyGesture: cmd chord (drag to a letter), latch initially on")
 {
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    const KeyRect& caps = findKey(keys, U"caps");
+    const KeyRect& cmd = findKey(keys, U"cmd");
     const KeyRect& q = findKey(keys, U"q");
 
-    auto outcome = resolveKeyGesture(caps, true, q, true, /*capsLatchedBefore=*/true, false, true);
+    auto outcome = resolveKeyGesture(cmd, true, q, true, /*capsLatchedBefore=*/true, false, true);
 
     REQUIRE(outcome.events.size() == 1); // already in command mode -- no redundant CapsLock pair
     CHECK(outcome.events[0].kind == KeyEvent::Kind::Char);
@@ -216,12 +230,12 @@ TEST_CASE("resolveKeyGesture: caps chord (drag to a letter), latch initially on"
     CHECK(outcome.capsLatched); // unchanged
 }
 
-TEST_CASE("resolveKeyGesture: caps released off any key cancels")
+TEST_CASE("resolveKeyGesture: cmd released off any key cancels")
 {
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    const KeyRect& caps = findKey(keys, U"caps");
+    const KeyRect& cmd = findKey(keys, U"cmd");
 
-    auto outcome = resolveKeyGesture(caps, true, std::nullopt, true, /*capsLatchedBefore=*/false, false, true);
+    auto outcome = resolveKeyGesture(cmd, true, std::nullopt, true, /*capsLatchedBefore=*/false, false, true);
     CHECK(outcome.events.empty());
     CHECK_FALSE(outcome.capsLatched);
 }
@@ -289,7 +303,7 @@ TEST_CASE("resolveKeyGesture: right shift chord (drag to a letter) capitalizes i
 TEST_CASE("resolveKeyGesture: shift chord still capitalizes even while already latched")
 {
     // The bug caught while designing these tests: shift has no Cursor-side
-    // state to preserve the way caps does, so the chord's outcome should
+    // state to preserve the way cmd does, so the chord's outcome should
     // never be conditional on shiftLatchedBefore -- always capital.
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& leftShift = findKey(keys, U"shift");
@@ -407,12 +421,119 @@ TEST_CASE("commandLegendFor: navigation mode only describes its own live keys")
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& i = findKey(rightKeys, U"i");
-    const KeyRect& e = findKey(leftKeys, U"e");
-    const KeyRect& c = findKey(leftKeys, U"c"); // live in general command mode, blocked in navigation mode
-    const KeyRect& u = findKey(rightKeys, U"u"); // ditto
+    const KeyRect& e = findKey(leftKeys, U"e");   // no longer live in navigation mode -- cmd is the only way out
+    const KeyRect& n = findKey(rightKeys, U"n");  // ditto
+    const KeyRect& c = findKey(leftKeys, U"c");   // live in general command mode, blocked in navigation mode
+    const KeyRect& u = findKey(rightKeys, U"u");  // ditto
 
     CHECK(commandLegendFor(i, /*isLinkMode=*/true) == U"prev");
-    CHECK(commandLegendFor(e, /*isLinkMode=*/true) == U"edit");
+    CHECK_FALSE(commandLegendFor(e, /*isLinkMode=*/true).has_value());
+    CHECK_FALSE(commandLegendFor(n, /*isLinkMode=*/true).has_value());
     CHECK_FALSE(commandLegendFor(c, /*isLinkMode=*/true).has_value());
     CHECK_FALSE(commandLegendFor(u, /*isLinkMode=*/true).has_value());
+}
+
+TEST_CASE("commandLegendFor: cmd always describes itself, in either command sub-state")
+{
+    auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& cmd = findKey(leftKeys, U"cmd");
+
+    CHECK(commandLegendFor(cmd, /*isLinkMode=*/false) == U"cmd");
+    CHECK(commandLegendFor(cmd, /*isLinkMode=*/true) == U"cmd");
+}
+
+TEST_CASE("modeColorFor: cmd always shows its own color, in any mode")
+{
+    // Unlike n/e, cmd never produces literal text, so it has no
+    // "ordinary key" state to fall back to in typing mode.
+    auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& cmd = findKey(leftKeys, U"cmd");
+
+    for (bool isTypingMode : {true, false})
+        for (bool isLinkMode : {true, false})
+            CHECK(modeColorFor(cmd, isTypingMode, isLinkMode) == ModeColor::Command);
+}
+
+TEST_CASE("modeColorFor: typing mode colors every key Edit, cmd excepted -- n/e included")
+{
+    // The user was explicit: typing mode should read as "everything is
+    // red except cmd" -- including shift/tab, which aren't Fire keys and
+    // used to stay white. n/e are ordinary letters here too (this is
+    // where they type a literal 'n'/'e') -- found live, not by
+    // inspection: n showing its command-mode blue while typing read as
+    // wrong the instant it was seen on screen, since it's just a letter
+    // like any other in this mode.
+    auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    const KeyRect& q = findKey(keys, U"q");
+    const KeyRect& e = findKey(keys, U"e");
+    const KeyRect& spacebar = keys.back();
+    const KeyRect& shift = findKey(keys, U"shift");
+    const KeyRect& tab = findKey(keys, U"tab");
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& n = findKey(rightKeys, U"n");
+    const KeyRect& enter = findKey(rightKeys, U"enter");
+    const KeyRect& bs = findKey(rightKeys, U"bs");
+
+    CHECK(modeColorFor(q, /*isTypingMode=*/true, false) == ModeColor::Edit);
+    CHECK(modeColorFor(e, /*isTypingMode=*/true, false) == ModeColor::Edit);
+    CHECK(modeColorFor(n, /*isTypingMode=*/true, false) == ModeColor::Edit);
+    CHECK(modeColorFor(spacebar, /*isTypingMode=*/true, false) == ModeColor::Edit);
+    CHECK(modeColorFor(enter, /*isTypingMode=*/true, false) == ModeColor::Edit);
+    CHECK(modeColorFor(bs, /*isTypingMode=*/true, false) == ModeColor::Edit);
+    CHECK(modeColorFor(shift, /*isTypingMode=*/true, false) == ModeColor::Edit);
+    CHECK(modeColorFor(tab, /*isTypingMode=*/true, false) == ModeColor::Edit);
+}
+
+TEST_CASE("modeColorFor: general command mode colors n/e their own permanent color")
+{
+    // In general command mode, n/e are mode-transition keys, not literal
+    // text -- this is where they show their permanent identity color
+    // instead.
+    auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& e = findKey(leftKeys, U"e");
+    const KeyRect& n = findKey(rightKeys, U"n");
+
+    CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Edit);
+    CHECK(modeColorFor(n, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Navigation);
+}
+
+TEST_CASE("modeColorFor: navigation mode blocks n/e -- neither keeps its color while dead")
+{
+    // Unlike cmd (always live, always its own color), n/e are ordinary
+    // blocked keys in Navigation mode -- see cursor.cpp's exclusive-
+    // navigation-mode gate -- so they show None like any other dead key,
+    // not their permanent identity color. Found live, not by inspection:
+    // a blank blue 'n' and a blank red 'e' both read as live when they
+    // weren't.
+    auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& e = findKey(leftKeys, U"e");
+    const KeyRect& n = findKey(rightKeys, U"n");
+
+    CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
+    CHECK(modeColorFor(n, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
+}
+
+TEST_CASE("modeColorFor: command mode colors exactly the keys commandLegendFor lives for")
+{
+    auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
+    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& i = findKey(rightKeys, U"i");
+    const KeyRect& u = findKey(rightKeys, U"u");
+    const KeyRect& c = findKey(leftKeys, U"c");
+    const KeyRect& tab = findKey(leftKeys, U"tab");
+
+    // General command mode: Command for every live key.
+    CHECK(modeColorFor(i, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Command);
+    CHECK(modeColorFor(u, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Command);
+    CHECK(modeColorFor(tab, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::None);
+
+    // Navigation mode: Navigation for the keys still live there, None for
+    // the ones blocked (see the exclusive-navigation-mode gate in
+    // cursor.cpp) -- 'e'/'n' included now (see the "navigation mode
+    // blocks n/e" test above), not permanent exceptions.
+    CHECK(modeColorFor(i, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::Navigation);
+    CHECK(modeColorFor(u, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
+    CHECK(modeColorFor(c, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
 }

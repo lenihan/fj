@@ -131,20 +131,60 @@ std::u32string typingLabelFor(const KeyRect& key, bool shiftEngaged);
 
 // What a key displays in command mode: a short description if it's live
 // right now, nullopt if it isn't (drawKeyboardPanel renders those blank).
-// isLinkMode selects between the two command sub-states -- navigation
-// mode (Link) only considers i/k/j/l/e/n live, matching handleKey's own
-// exclusive-navigation-mode gate (see cursor.cpp); general command mode
-// (Cursor) considers every key handleKey's switch implements live.
+// cmd always describes itself, in either sub-state (it's how you back out
+// one level -- see cursor.cpp's CapsLock-release branch). isLinkMode
+// selects between the two command sub-states -- Navigation mode (Link)
+// only considers i/k/j/l live (matching handleKey's own exclusive-
+// navigation-mode gate: n/e are ordinary blocked keys there now, not
+// exceptions -- see cursor.cpp); general command mode (Cursor) considers
+// every key handleKey's switch implements live.
 std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMode);
+
+// Background tint a key should show, both for the three mode keys
+// themselves (always, regardless of current mode) and for whichever
+// other keys are live in the *current* mode -- see modeColorFor.
+enum class ModeColor
+{
+    None,       // white/default -- no mode, or not live in the current one
+    Edit,       // e -- red
+    Command,    // cmd -- green (general command mode: i/k/j/l move the cursor)
+    Navigation, // n -- blue (Navigation sub-mode: i/k/j/l select/follow links)
+};
+
+// cmd always shows its own fixed Command color regardless of mode -- it
+// never produces literal text, so it has no "ordinary key" state to fall
+// back to. In typing mode, every *other* key shows Edit, full stop --
+// the user was explicit that typing mode should read as "everything is
+// red except cmd," not just the keys that do something while typing --
+// including n/e, which are ordinary letters here (this is where they
+// type a literal 'n'/'e'), not mode keys. In general command mode, n/e
+// switch to their own permanent color (Navigation/Edit) instead, since
+// they're not producing text there; in Navigation mode they're blocked
+// like any other non-i/k/j/l key (see cursor.cpp), so they fall through
+// to the same live/blank check as everything else instead of keeping
+// their color while dead. Every other key shows Command (general) or
+// Navigation (isLinkMode) exactly when commandLegendFor returns a legend
+// for it, None (the default background) otherwise. shift is deliberately
+// excluded throughout -- it keeps its existing press/latch-only visual,
+// not a mode color of its own.
+ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode);
 
 // Fills canvas (expected to already be panelSize_px x panelSize_px) with
 // the panel's background and every key face + label. A key draws color-
 // inverted (face/label swapped) if its rect matches pressedKeyRect
 // (currently mid-press, any key -- the caller only passes a non-null
 // pointer to the side actually holding the pressed key), or it's
-// CapsToggle/ShiftToggle and the matching latch is on -- the latter needs
-// no rect-matching since this function already knows each key's action,
-// so both shift keys light up together automatically.
+// ShiftToggle and shiftEngaged -- the latter needs no rect-matching since
+// this function already knows each key's action, so both shift keys
+// light up together automatically, for as long as the latch is on. cmd
+// deliberately isn't part of that second case even though it's the same
+// kind of toggle: it only inverts while pressedKeyRect matches it (a
+// momentary flash on press and again on release), never for a lasting
+// "the latch is on" indicator the way shift does -- cmd already has its
+// own permanent Command-colored face (modeColorFor) for that, so a
+// lasting invert on top would be redundant. The caller's own capsLatched
+// state still matters for other things (e.g. resolveKeyGesture's chord
+// logic); it just isn't a rendering input here anymore.
 //
 // isTypingMode/isLinkMode/shiftEngaged pick which of typingLabelFor/
 // commandLegendFor supplies each key's text (see main.cpp's onClick/
@@ -153,6 +193,16 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
 // commandLegendFor -- a key with no legend at all (nullopt, command mode
 // only) draws its face and border with no text, not even blank space
 // reserved for it.
+//
+// hoveredKeyRect draws a brightened border around whichever key it
+// matches, on top of everything else -- purely a "the pointer is here"
+// affordance, independent of press/latch/mode state and applied to every
+// key uniformly, dead ones included (the user was explicit: hovering a
+// key that doesn't do anything should still show the hover, since it's
+// about the pointer, not the key's function). Deliberately a border, not
+// a face/text swap like pressedKeyRect/latching use -- those already mean
+// "this key's state changed"; hover needing its own distinct visual
+// keeps it from being confused with either.
 void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas,
-                        const Rect* pressedKeyRect = nullptr, bool capsLatched = false, bool shiftEngaged = false,
-                        bool isTypingMode = true, bool isLinkMode = false);
+                        const Rect* pressedKeyRect = nullptr, const Rect* hoveredKeyRect = nullptr,
+                        bool shiftEngaged = false, bool isTypingMode = true, bool isLinkMode = false);

@@ -17,7 +17,7 @@ namespace
 const std::array<std::array<const char32_t*, KeyboardPanel::kCols>, KeyboardPanel::kKeyRows> kLeftKeys = {{
     {U";", U"1", U"2", U"3", U"4", U"5"},
     {U"tab", U"q", U"w", U"e", U"r", U"t"},
-    {U"caps", U"a", U"s", U"d", U"f", U"g"},
+    {U"cmd", U"a", U"s", U"d", U"f", U"g"},
     {U"shift", U"z", U"x", U"c", U"v", U"b"},
 }};
 
@@ -29,9 +29,35 @@ const std::array<std::array<const char32_t*, KeyboardPanel::kCols>, KeyboardPane
 }};
 
 constexpr Pixel kPanelColor = 0x00202020;
-constexpr Pixel kKeyColor = 0x00E8E4DA; // close to Card::kColor, so the whole device reads as one object
+constexpr Pixel kKeyColor = 0x00E8E4DA; // "white"/no mode -- close to Card::kColor, so the whole device reads as one object
 constexpr Pixel kKeyBorderColor = 0x00000000;
 constexpr Pixel kKeyLabelColor = 0x00202020;
+
+// A bright, saturated outline -- deliberately not any color a key's face
+// or another indicator already uses (kKeyColor's cream, the mode tints
+// below, or kKeyBorderColor's black), so hover always reads as its own
+// distinct thing no matter what else a key is currently showing.
+constexpr Pixel kHoverBorderColor = 0x00FFD700; // gold
+constexpr int kHoverBorderWidth_px = 2;
+
+// Soft, light tints (readable with the same dark kKeyLabelColor text
+// every other key already uses) rather than fully saturated colors --
+// keeps the mode-colored keys consistent with kKeyColor's own soft,
+// cream-adjacent palette instead of clashing with it.
+constexpr Pixel kEditColor = 0x00EBC4C4;       // red
+constexpr Pixel kCommandColor = 0x00C4E0C4;    // green
+constexpr Pixel kNavigationColor = 0x00C4D4EB; // blue
+
+Pixel modeColorPixel(ModeColor color)
+{
+    switch (color)
+    {
+    case ModeColor::Edit: return kEditColor;
+    case ModeColor::Command: return kCommandColor;
+    case ModeColor::Navigation: return kNavigationColor;
+    case ModeColor::None: default: return kKeyColor;
+    }
+}
 
 void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
 {
@@ -52,7 +78,7 @@ constexpr std::size_t kLongestSingleWidthLabel = 6;
 // Keyboard Mapping table specs it, but nothing implements it yet -- see
 // PLAN.md's Ortholinear Keyboard section), so it's a deliberate no-op
 // rather than guessing a mapping that isn't real. Every other key already
-// has a well-defined physical meaning: "caps"/"shift" get the two-gesture
+// has a well-defined physical meaning: "cmd"/"shift" get the two-gesture
 // toggle-or-chord treatment (resolveKeyGesture), "enter"/"bs" fire once on
 // a plain tap (matching every real keyboard's Kind::Enter/Backspace, which
 // only ever arrive as a single press-only event -- see win32Window.cpp's
@@ -69,7 +95,7 @@ void fillKeyEvent(KeyRect& key)
     {
         key.action = KeyRect::Action::ShiftToggle;
     }
-    else if (key.label == U"caps")
+    else if (key.label == U"cmd")
     {
         key.action = KeyRect::Action::CapsToggle;
         key.kind = KeyEvent::Kind::CapsLock;
@@ -216,8 +242,25 @@ GestureOutcome resolveKeyGesture(const KeyRect& pressedKey, bool pressedLeftSide
     case KeyRect::Action::CapsToggle:
         if (samePress)
         {
+            // A real press+release pair, mirroring what an actual
+            // hardware tap sends -- and what Cursor::handleKey's
+            // tap-vs-hold detection (m_capsTapLatched) assumes: it only
+            // recognizes "nothing typed between this press and its
+            // matching release" by seeing two separate CapsLock events.
+            // A mouse click's own down/up is already one gesture, but
+            // collapsing it into a single event whose `pressed` mirrored
+            // the new latch state (what this used to do) meant Cursor
+            // never actually saw a press *and* a release -- so its tap
+            // detection could never fire, and a second plain click could
+            // never reach the branch that releases the latch. Found
+            // live, not by inspection: two clean clicks on cmd with
+            // nothing else pressed between them never returned to typing
+            // mode. outcome.capsLatched still just tracks the new state,
+            // for the panel's own highlight -- unrelated to what events
+            // Cursor itself needs to see.
             outcome.capsLatched = !capsLatchedBefore;
-            outcome.events.push_back({KeyEvent::Kind::CapsLock, 0, outcome.capsLatched});
+            outcome.events.push_back({KeyEvent::Kind::CapsLock, 0, true});
+            outcome.events.push_back({KeyEvent::Kind::CapsLock, 0, false});
         }
         else if (releasedKey && releasedKey->action == KeyRect::Action::Fire)
         {
@@ -305,17 +348,23 @@ std::u32string typingLabelFor(const KeyRect& key, bool shiftEngaged)
 
 std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMode)
 {
+    // cmd always describes itself, in either command sub-state -- it's
+    // how you step back out one level (Navigation -> general command ->
+    // typing -- see cursor.cpp's CapsLock-release branch), so it's never
+    // blank the way a truly dead key is.
+    if (key.label == U"cmd") return std::u32string(U"cmd");
+
     // Navigation mode (Link): only the keys that mean something here at
     // all -- see cursor.cpp's matching exclusive-navigation-mode gate in
-    // Cursor::handleKey, which this must stay in sync with.
+    // Cursor::handleKey, which this must stay in sync with. n/e are
+    // ordinary blocked keys here now, not mode-exit shortcuts -- cmd is
+    // the only way out.
     if (isLinkMode)
     {
         if (key.label == U"i") return std::u32string(U"prev");
         if (key.label == U"k") return std::u32string(U"next");
         if (key.label == U"j") return std::u32string(U"back");
         if (key.label == U"l") return std::u32string(U"go");
-        if (key.label == U"e") return std::u32string(U"edit");
-        if (key.label == U"n") return std::u32string(U"cmd");
         return std::nullopt;
     }
 
@@ -331,27 +380,91 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
     if (key.label == U"d") return std::u32string(U"del");
     if (key.label == U"c") return std::u32string(U"+card");
     if (key.label == U"t") return std::u32string(U"+toc");
-    if (key.label == U"n") return std::u32string(U"link");
+    if (key.label == U"n") return std::u32string(U"nav");
     if (key.label == U"m") return std::u32string(U"prevT");
     if (key.label == U".") return std::u32string(U"nextT");
     return std::nullopt;
 }
 
+ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode)
+{
+    // cmd always shows its own color regardless of mode -- unlike n/e, it
+    // never produces literal text, so there's no "just an ordinary key"
+    // state for it to defer to.
+    if (key.label == U"cmd") return ModeColor::Command;
+
+    // Typing mode: every other key is red, full stop -- the user was
+    // explicit that typing mode should read as "everything is red except
+    // cmd," not just the keys that do something while typing (shift/tab
+    // included, even though neither is itself a Fire key). n/e are
+    // ordinary letters here (this is where they type a literal 'n'/'e'),
+    // not mode keys -- found live, not by inspection: n showing its
+    // command-mode blue while typing read as wrong the instant it was
+    // seen on screen, since here it's just a letter like any other.
+    if (isTypingMode)
+        return ModeColor::Edit;
+
+    // General command mode: n/e show their own permanent color here --
+    // they're not producing text in this mode, they're mode-transition
+    // keys. In Navigation mode they're blocked like any other key that
+    // isn't i/k/j/l (see cursor.cpp's exclusive-navigation-mode gate), so
+    // they fall through to the ordinary live/blank check below instead --
+    // found live, not by inspection: a blocked n/e still showing its own
+    // color read as live when it wasn't, the same mistake as any other
+    // blocked key showing its command-mode color.
+    if (!isLinkMode)
+    {
+        if (key.label == U"n") return ModeColor::Navigation;
+        if (key.label == U"e") return ModeColor::Edit;
+    }
+
+    // Whichever other keys commandLegendFor considers live right now --
+    // kept in sync with it by construction, since this calls the exact
+    // same function rather than re-deriving the same live/blank
+    // distinction a second way.
+    if (commandLegendFor(key, isLinkMode))
+        return isLinkMode ? ModeColor::Navigation : ModeColor::Command;
+    return ModeColor::None;
+}
+
 void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas, const Rect* pressedKeyRect,
-                        bool capsLatched, bool shiftEngaged, bool isTypingMode, bool isLinkMode)
+                        const Rect* hoveredKeyRect, bool shiftEngaged, bool isTypingMode, bool isLinkMode)
 {
     canvas.fillRect({0, 0, canvas.width(), canvas.height()}, kPanelColor);
 
     for (const KeyRect& key : layoutKeys(leftSide, canvas.width()))
     {
+        // cmd inverts only for as long as it's actually held down
+        // (pressedKeyRect, same as any other key) -- a momentary flash on
+        // press and again on release, not a persistent indicator of
+        // command mode being latched. Unlike shift, which does stay
+        // inverted for as long as its own latch is on: cmd already has
+        // its own permanent Command-colored face (modeColorFor) to show
+        // "this is what I do," so a lasting invert on top of that would
+        // just be redundant -- the user was explicit cmd shouldn't stay
+        // inverted the way shift does.
         bool inverted = (pressedKeyRect && sameRect(key.rect, *pressedKeyRect)) ||
-                        (key.action == KeyRect::Action::CapsToggle && capsLatched) ||
                         (key.action == KeyRect::Action::ShiftToggle && shiftEngaged);
-        Pixel faceColor = inverted ? kKeyLabelColor : kKeyColor;
-        Pixel textColor = inverted ? kKeyColor : kKeyLabelColor;
+
+        // The key's own "light" color -- its mode color if it has one
+        // right now (cmd/n/e always; any other key only while live in
+        // the current mode), kKeyColor ("white"/no mode) otherwise.
+        // Inverting swaps this with the universal dark kKeyLabelColor,
+        // exactly the same press-feedback/latch pattern as before, just
+        // parameterized per key instead of a single hardcoded pair.
+        Pixel lightColor = modeColorPixel(modeColorFor(key, isTypingMode, isLinkMode));
+        Pixel faceColor = inverted ? kKeyLabelColor : lightColor;
+        Pixel textColor = inverted ? lightColor : kKeyLabelColor;
 
         canvas.fillRect(key.rect, faceColor);
         drawBoxOutline(canvas, key.rect, kKeyBorderColor, 1);
+
+        // Drawn on top of the face/border above regardless of whether this
+        // key has any text below -- hover applies to every key uniformly,
+        // dead ones included (see this function's own header comment), so
+        // it has to happen before the early exit for a blank/dead key.
+        if (hoveredKeyRect && sameRect(key.rect, *hoveredKeyRect))
+            drawBoxOutline(canvas, key.rect, kHoverBorderColor, kHoverBorderWidth_px);
 
         std::optional<std::u32string> text =
             isTypingMode ? std::optional(typingLabelFor(key, shiftEngaged)) : commandLegendFor(key, isLinkMode);

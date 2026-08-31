@@ -59,6 +59,7 @@ struct PlatformWindow::Impl
     std::function<void(int width_px, int height_px)> onResize;
     std::function<void(int width_px, int height_px)> onResizeEnd;
     std::function<void(int x_px, int y_px, bool pressed)> onClick;
+    std::function<void(int x_px, int y_px)> onMouseMove;
 };
 
 namespace
@@ -417,12 +418,14 @@ PlatformWindow& PlatformWindow::operator=(PlatformWindow&&) noexcept = default;
 void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                           std::function<void(int width_px, int height_px)> onResize,
                           std::function<void(int width_px, int height_px)> onResizeEnd,
-                          std::function<void(int x_px, int y_px, bool pressed)> onClick)
+                          std::function<void(int x_px, int y_px, bool pressed)> onClick,
+                          std::function<void(int x_px, int y_px)> onMouseMove)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
     m_impl->onClick = std::move(onClick);
+    m_impl->onMouseMove = std::move(onMouseMove);
 
     // X11 has no protocol-level "the interactive resize just ended" event
     // the way Win32 has WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE (see platform.h's
@@ -527,6 +530,14 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                         m_impl->onClick(event.xbutton.x, event.xbutton.y, event.type == ButtonPress);
                 }
                 break;
+            case MotionNotify:
+                if (m_impl->onMouseMove)
+                    m_impl->onMouseMove(event.xmotion.x, event.xmotion.y);
+                break;
+            case LeaveNotify:
+                if (m_impl->onMouseMove)
+                    m_impl->onMouseMove(-1, -1); // see platform.h's run() comment
+                break;
             default:
                 break;
             }
@@ -600,7 +611,7 @@ std::expected<PlatformWindow, std::string> createPlatformWindow(int width_px, in
 
     XSelectInput(display, window,
                  ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask |
-                     StructureNotifyMask | FocusChangeMask);
+                     PointerMotionMask | LeaveWindowMask | StructureNotifyMask | FocusChangeMask);
 
     // No XSizeHints PAspect hint: the window can be any shape (see
     // createPlatformWindow's platform.h-side comment) -- an earlier

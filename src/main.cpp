@@ -245,6 +245,30 @@ int main()
     };
     std::optional<PressedKey> pressedKey;
 
+    // The key (if any) currently under the pointer -- drives the hover
+    // highlight in renderContent below, independent of press/latch state
+    // (see keyboardPanel.h's drawKeyboardPanel comment: hover applies to
+    // every key, including ones that don't do anything, since it's purely
+    // about where the pointer is). Reuses PressedKey's shape since it's
+    // exactly the same "which key, which side" pair hitTestClick already
+    // produces for a click.
+    std::optional<PressedKey> hoveredKey;
+
+    // Whether hoveredKey actually changed -- onMouseMove fires on every
+    // pointer-move tick, far more often than the panel's own key
+    // boundaries do, so redrawing unconditionally on every tick would be
+    // pure waste on an otherwise-static panel; only a real transition
+    // (onto a different key, or off the panel entirely) needs one.
+    auto sameHoveredSpot = [](const std::optional<PressedKey>& a, const std::optional<PressedKey>& b)
+    {
+        if (a.has_value() != b.has_value())
+            return false;
+        if (!a)
+            return true;
+        return a->leftSide == b->leftSide && a->key.rect.x == b->key.rect.x && a->key.rect.y == b->key.rect.y &&
+               a->key.rect.w == b->key.rect.w && a->key.rect.h == b->key.rect.h;
+    };
+
     // Square, cardCanvas.width() on a side: Monitor::kWidth_in ==
     // Card::kWidth_in, so at whatever resolution the atlas rendered the
     // card's width, that same pixel count is exactly Monitor::kHeight_in
@@ -286,6 +310,8 @@ int main()
 
         const Rect* leftPressedRect = (pressedKey && pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
         const Rect* rightPressedRect = (pressedKey && !pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
+        const Rect* leftHoveredRect = (hoveredKey && hoveredKey->leftSide) ? &hoveredKey->key.rect : nullptr;
+        const Rect* rightHoveredRect = (hoveredKey && !hoveredKey->leftSide) ? &hoveredKey->key.rect : nullptr;
 
         // Live preview, not just post-gesture state: a key currently
         // mid-press (pressed but not yet released) previews its effect
@@ -299,9 +325,9 @@ int main()
 
         leftPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         rightPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
-        drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, *leftPanelAtlas, leftPressedRect, capsLatched,
+        drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, *leftPanelAtlas, leftPressedRect, leftHoveredRect,
                            shiftEngaged, isTypingModeForLegend, isLinkModeForLegend);
-        drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, rightPressedRect, capsLatched,
+        drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, rightPressedRect, rightHoveredRect,
                            shiftEngaged, isTypingModeForLegend, isLinkModeForLegend);
 
         deviceCanvas = Canvas(monitorCanvas.width() * 3, monitorCanvas.height());
@@ -420,10 +446,38 @@ int main()
                                                          cursor.isTypingMode());
             for (const KeyEvent& event : outcome.events)
                 cursor.handleKey(event);
-            capsLatched = outcome.capsLatched;
+            // Cursor's own isCommandMode() -- queried fresh after
+            // replaying every event above -- rather than
+            // outcome.capsLatched: a plain tap's blind "flip the latch"
+            // guess (resolveKeyGesture has no Cursor reference, so it
+            // can't know any better) is only right while Command mode is
+            // a strict two-state toggle. Tapping cmd from Navigation mode
+            // steps up to general command instead of leaving Command mode
+            // entirely (see cursor.cpp), so this must stay true there too
+            // -- it no longer drives cmd's own rendering (see
+            // drawKeyboardPanel's comment: cmd never shows a persistent
+            // latched look, only a momentary press/release flash), but
+            // resolveKeyGesture's chord dispatch still needs an accurate
+            // "is command mode currently latched" to decide whether a
+            // hold-cmd-drag-release chord should fire the chorded key
+            // directly or synthesize a full press/release pair around it.
+            capsLatched = cursor.isCommandMode();
             shiftLatched = outcome.shiftLatched;
         }
         pressedKey.reset();
+        redraw();
+    };
+
+    // Updates hoveredKey and redraws, but only on an actual transition
+    // (see sameHoveredSpot's comment) -- onMouseMove fires far more often
+    // than the panel's key boundaries change, so redrawing unconditionally
+    // here would be pure waste on an otherwise-static panel.
+    auto onMouseMove = [&](int x_px, int y_px)
+    {
+        std::optional<PressedKey> hit = hitTestClick(x_px, y_px);
+        if (sameHoveredSpot(hit, hoveredKey))
+            return;
+        hoveredKey = hit;
         redraw();
     };
 
@@ -495,7 +549,7 @@ int main()
             redraw(); // renderContent rebuilds/redraws the panels at the new resolution
             window.setTitle(titleFor(unit, dpi, dpiKnown));
         },
-        onClick);
+        onClick, onMouseMove);
 
     return 0;
 }

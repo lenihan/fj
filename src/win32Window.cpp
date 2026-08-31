@@ -33,6 +33,8 @@ struct PlatformWindow::Impl
     std::function<void(int width_px, int height_px)> onResize;
     std::function<void(int width_px, int height_px)> onResizeEnd;
     std::function<void(int x_px, int y_px, bool pressed)> onClick;
+    std::function<void(int x_px, int y_px)> onMouseMove;
+    bool trackingLeave{false}; // TrackMouseEvent's own one-shot arming state -- see WM_MOUSEMOVE
 
     // Kept so WM_PAINT (e.g. after alt-tab, or another window dragged over
     // ours) has something to redraw with -- present() doesn't get called
@@ -287,6 +289,32 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (impl && impl->onClick)
             impl->onClick(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), false);
         return 0;
+    case WM_MOUSEMOVE:
+        if (impl)
+        {
+            // TrackMouseEvent disarms itself the instant it fires once
+            // (that's the whole point -- it's how WM_MOUSELEAVE exists at
+            // all, since plain WM_MOUSEMOVE stops arriving the moment the
+            // cursor leaves the client area), so it has to be re-armed on
+            // every single move, not just the first.
+            if (!impl->trackingLeave)
+            {
+                TRACKMOUSEEVENT tme{sizeof(tme), TME_LEAVE, hwnd, 0};
+                if (TrackMouseEvent(&tme))
+                    impl->trackingLeave = true;
+            }
+            if (impl->onMouseMove)
+                impl->onMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        }
+        return 0;
+    case WM_MOUSELEAVE:
+        if (impl)
+        {
+            impl->trackingLeave = false; // re-arm next time the pointer re-enters
+            if (impl->onMouseMove)
+                impl->onMouseMove(-1, -1); // see platform.h's run() comment
+        }
+        return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -315,12 +343,14 @@ PlatformWindow& PlatformWindow::operator=(PlatformWindow&&) noexcept = default;
 void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                           std::function<void(int width_px, int height_px)> onResize,
                           std::function<void(int width_px, int height_px)> onResizeEnd,
-                          std::function<void(int x_px, int y_px, bool pressed)> onClick)
+                          std::function<void(int x_px, int y_px, bool pressed)> onClick,
+                          std::function<void(int x_px, int y_px)> onMouseMove)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
     m_impl->onClick = std::move(onClick);
+    m_impl->onMouseMove = std::move(onMouseMove);
 
     // createPlatformWindow's own size-correction (see its comment) can
     // still fail to hit the request: CW_USEDEFAULT positioning makes a
