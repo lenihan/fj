@@ -591,6 +591,77 @@ manually) rather than assuming emsdk's own env scripts handled it.
         preview their panel-wide effect immediately on press, before
         release; navigation mode's restricted legend set confirmed
         on-screen.
+  - [x] Mode key background colors, then a full round of naming/behavior
+        polish on top once the user started actually using it live:
+        - **Colors**: the three mode keys (`cmd`, `n`, `e`) each show a
+          fixed identity color (green/blue/red) whenever they're actually
+          live; in typing mode every *other* key is red too (shift/tab
+          included, not just the ones that do something while typing),
+          full stop, cmd excepted. `n`/`e` only wear their identity color
+          in general command mode -- in typing mode they're ordinary
+          letters (this is where they type a literal `n`/`e`), and in
+          Navigation mode they're blocked like any other non-i/k/j/l key,
+          so they go blank (`ModeColor::None`) rather than keeping a color
+          for something they can't currently do. `ModeColor::Command`
+          (green)/`Navigation` (blue) new names avoid a real collision the
+          user caught: two different things were both about to be called
+          "navigation."
+        - **Renamed** "caps" -> **"cmd"** (not "command": at 7 characters
+          it would've become the panel's longest label, shrinking every
+          other key's text to fit) and "Link mode" -> **"Navigation
+          mode"**.
+        - **Navigation mode is now fully exclusive**: only i/k/j/l stay
+          live; `n`/`e` no longer have their own shortcuts back out (used
+          to jump straight to general command / typing respectively).
+          `cmd` is the only way out, and it steps up exactly one level at
+          a time -- Navigation -> tap -> general command -> tap (or `e`)
+          -> typing -- never a two-level jump. `cmd`'s own inverted/
+          latched look is reserved for general command mode specifically;
+          once you've stepped further into Navigation it shows its plain
+          identity color instead, matching `n`/`e`'s own idle treatment.
+        - **cmd never shows a persistent latched face at all anymore**,
+          even in general command mode -- it inverts only for as long as
+          it's actually held down (a momentary flash on press and again
+          on release), unlike shift, which still does stay inverted for
+          as long as its latch is on. cmd already has its own permanent
+          green face to say "this is what I do"; a lasting invert on top
+          was redundant once that existed.
+        Two real, pre-existing bugs found live (not by inspection) while
+        wiring this up, both now fixed:
+        1. A mouse tap on `cmd` sent `Cursor::handleKey` a single
+           collapsed event (`pressed` mirroring the *new* latch state)
+           instead of a real press+release pair -- so `Cursor`'s own tap-
+           vs-hold detection (which only recognizes a tap by seeing two
+           separate events with nothing typed between) could never
+           actually fire from a click. A second plain click on cmd could
+           never release the latch back to typing at all; nobody had hit
+           it because every prior live test happened to press something
+           else in between. `resolveKeyGesture`'s `CapsToggle` same-key
+           branch now always emits a real press+release pair.
+        2. `enterTypingMode()` never cleared `m_capsTapLatched` when
+           typing mode was reached via `'e'` instead of via cmd's own
+           release branch -- so `cmd -> e -> cmd` flashed into command
+           mode and immediately back out to typing in one tap, since the
+           stale flag made the second tap believe it was releasing an
+           already-latched mode rather than starting a fresh one.
+           `enterTypingMode()` now resets the flag itself.
+        Also added a **hover indicator**: every key (including ones that
+        do nothing) shows a gold border outline while the pointer is over
+        it, independent of press/latch/mode state. Needed a new
+        `platform.h` contract addition -- `PlatformWindow::run()` gained
+        an `onMouseMove(x, y)` callback, `(-1, -1)` meaning "pointer left
+        the window" -- implemented per shell: Win32's `WM_MOUSEMOVE` plus
+        `TrackMouseEvent`/`WM_MOUSELEAVE` (the former re-arms itself on
+        every move, since it's one-shot), X11's `PointerMotionMask`/
+        `LeaveWindowMask` plus `MotionNotify`/`LeaveNotify`, and the web
+        shell's `mousemove`/`mouseleave` listeners on the canvas.
+        `main.cpp` tracks a `hoveredKey` alongside the existing
+        `pressedKey`, redrawing only on an actual key transition (mouse-
+        move fires far more often than the panel's key boundaries
+        change).
+        47 tests passing on Windows and Linux (was 39), web builds clean.
+        Verified live via the same synthetic-click/-move technique as
+        earlier phases.
 - [x] `tools/offline/bakeFont`'s target-width formula used a hardcoded
       4.8in "usable width" instead of the real `CardItem::sideMargin_px`
       relationship (card width == `(Body::kColsPerRow + 4) *
