@@ -533,8 +533,9 @@ int main()
             for (const KeyEvent& event : outcome.events)
             {
                 // Most of these have to be read *before* dispatch: unlike
-                // e/d (whose target -- the current card -- never changes
-                // on a refusal, only on a success), a successful 'j' pops
+                // a/e (edit/del, whose target -- the current card -- never
+                // changes on a refusal, only on a success), a successful
+                // 'j' pops
                 // link history, a successful i/k just moves the link
                 // selection, and a successful m/./u/o/i/k/j/l just moves
                 // the cursor/current card -- none of that necessarily
@@ -557,7 +558,7 @@ int main()
                 cursor.handleKey(event);
 
                 // Each explanation shows for a few seconds on whichever
-                // key was just refused -- e/d via CardItem::canEdit()/
+                // key was just refused -- a/e via CardItem::canEdit()/
                 // canDelete(), queried fresh right after the dispatch
                 // above (still false here means this exact attempt was
                 // the one that got refused, not some earlier unrelated
@@ -572,10 +573,10 @@ int main()
                 // *newer* message out from under it later.
                 bool isChar = event.kind == KeyEvent::Kind::Char;
                 std::optional<KeyMessage> refusal;
-                if (isChar && event.codepoint == U'e' && !cursor.currentCard()->canEdit())
+                if (isChar && event.codepoint == U'a' && !cursor.currentCard()->canEdit())
+                    refusal = KeyMessage{U'a', false, U"Read-Only"};
+                else if (isChar && event.codepoint == U'e' && !cursor.currentCard()->canDelete())
                     refusal = KeyMessage{U'e', false, U"Read-Only"};
-                else if (isChar && event.codepoint == U'd' && !cursor.currentCard()->canDelete())
-                    refusal = KeyMessage{U'd', false, U"Read-Only"};
                 else if (wasLinkMode && isChar && event.codepoint == U'j' && backWasDisabled)
                     refusal = KeyMessage{U'j', true, U"No history"};
                 else if (wasLinkMode && isChar && event.codepoint == U'i' && prevLinkWasDisabled)

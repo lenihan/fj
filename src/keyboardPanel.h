@@ -135,9 +135,9 @@ std::u32string typingLabelFor(const KeyRect& key, bool shiftEngaged);
 // one level -- see cursor.cpp's CapsLock-release branch). isLinkMode
 // selects between the two command sub-states -- Navigation mode (Link)
 // only considers i/k/j/l live (matching handleKey's own exclusive-
-// navigation-mode gate: n/e are ordinary blocked keys there now, not
-// exceptions -- see cursor.cpp); general command mode (Cursor) considers
-// every key handleKey's switch implements live.
+// navigation-mode gate: s/a (nav/edit) are ordinary blocked keys there
+// now, not exceptions -- see cursor.cpp); general command mode (Cursor)
+// considers every key handleKey's switch implements live.
 std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMode);
 
 // Background tint a key should show, both for the three mode keys
@@ -146,14 +146,14 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
 enum class ModeColor
 {
     None,        // white/default -- no mode, or not live in the current one
-    Edit,        // e's own mode-key face (general command mode) -- red
+    Edit,        // a's own mode-key face (general command mode) -- red
     EditLetter,  // a-z in typing mode -- brightest red (see modeColorFor)
     EditNumber,  // 0-9 in typing mode -- a shade less red than letters
     EditOther,   // punctuation/spacebar in typing mode -- less red still
     EditControl, // tab/shift/enter/bs in typing mode -- the least red of
                  // the four (control keys, not "what you're typing")
     Command,     // cmd -- green (general command mode: i/k/j/l move the cursor)
-    Navigation,  // n -- blue (Navigation sub-mode: i/k/j/l select/follow links)
+    Navigation,  // s -- blue (Navigation sub-mode: i/k/j/l select/follow links)
     Disabled,    // a key whose action isn't currently possible (gray) --
                  // see modeColorFor and KeyDisabledState
 };
@@ -170,8 +170,8 @@ enum class ModeColor
 // a caller that doesn't care can pass `{}`.
 struct KeyDisabledState
 {
-    bool editDisabled = false;   // e -- current card's canEdit() is false
-    bool deleteDisabled = false; // d -- current card's canDelete() is false
+    bool editDisabled = false;   // a -- current card's canEdit() is false
+    bool deleteDisabled = false; // e -- current card's canDelete() is false
     bool backDisabled = false;   // j, Navigation mode -- no link history to pop
     bool prevDisabled = false;   // i, Navigation mode -- already at the first link
     bool nextDisabled = false;   // k, Navigation mode -- already at the last link
@@ -186,8 +186,8 @@ struct KeyDisabledState
 // back to. In typing mode, every *other* key shows one of four Edit
 // tiers, full stop -- the user was explicit that typing mode should read
 // as "everything is some shade of red except cmd," not just the keys
-// that do something while typing -- including n/e, which are ordinary
-// letters here (this is where they type a literal 'n'/'e'), not mode
+// that do something while typing -- including s/a, which are ordinary
+// letters here (this is where they type a literal 's'/'a'), not mode
 // keys. The tiers are keyed off what the key actually is (a Fire+Char
 // key's own codepoint, or lack of one): a-z gets EditLetter (brightest
 // -- letters are what you're mostly typing), 0-9 gets EditNumber (a
@@ -195,7 +195,7 @@ struct KeyDisabledState
 // letter nor digit) gets EditOther, and tab/shift/enter/bs -- not
 // Fire+Char at all, or Fire but not Char -- get EditControl (the least
 // red of the four: control keys, not text you're producing). In general
-// command mode, n/e switch to their own permanent color (Navigation/
+// command mode, s/a switch to their own permanent color (Navigation/
 // Edit) instead, since they're not producing text there; in Navigation
 // mode they're blocked like any other non-i/k/j/l key (see cursor.cpp),
 // so they fall through to the same live/blank check as everything else
@@ -209,7 +209,7 @@ struct KeyDisabledState
 // disabled overrides several keys' usual color with Disabled (gray) --
 // each still live enough to show a legend (commandLegendFor doesn't
 // change), just not currently actionable:
-// - e/d/m/. (edit/del/prevT/nextT), general command mode only.
+// - a/e/m/. (edit/del/prevT/nextT), general command mode only.
 // - i/k/j/l (the arrows themselves), general command mode, when
 //   editDisabled -- a deliberate choice, not an oversight: general
 //   command mode's arrows exist to position the cursor for *editing* a

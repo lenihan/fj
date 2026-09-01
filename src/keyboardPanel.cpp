@@ -57,6 +57,10 @@ constexpr Pixel kKeyLabelColor = 0x00202020;
 constexpr Pixel kHoverBorderColor = 0x00FFD700; // gold
 constexpr int kHoverBorderWidth_px = 2;
 
+// f/j's own home-row tactile-bump marker -- see its own comment in
+// drawKeyboardPanel.
+constexpr int kHomeMarkerThickness_px = 3;
+
 // Soft, light tints (readable with the same dark kKeyLabelColor text
 // every other key already uses) rather than fully saturated colors --
 // keeps the mode-colored keys consistent with kKeyColor's own soft,
@@ -377,8 +381,30 @@ const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px)
     // A bit of margin (kLongestSingleWidthLabel + 1) so "shift"/"enter"/a
     // command legend like "prevT" don't render edge-to-edge against the
     // key's own border.
-    int desiredCellWidth_px = pitch_px / static_cast<int>(kLongestSingleWidthLabel + 1);
-    return pickAtlas(desiredCellWidth_px);
+    int maxCellWidth_px = pitch_px / static_cast<int>(kLongestSingleWidthLabel + 1);
+
+    // Deliberately not canvas.h's pickAtlas() -- that picks whichever
+    // baked size is *closest* to the target either way, which is right
+    // for the card body/title (matching physical pixel density as
+    // closely as possible, where landing a hair over or under doesn't
+    // cost anything but a little blur), but wrong here: a key's text has
+    // a hard ceiling (its own pitch), so "closest" can round up and
+    // overflow past the key's border. This picks the largest baked
+    // atlas that still fits under maxCellWidth_px -- the user was
+    // explicit the panel should use the largest font that fits, not
+    // just whichever is nearest. kAtlases is sorted ascending by
+    // cellWidth (see hackAtlas.h), so the last one still <= the ceiling
+    // is the answer; if even the smallest doesn't fit (an extremely
+    // small panel), fall back to it anyway rather than rendering
+    // nothing.
+    const HackAtlas::Atlas* best = &HackAtlas::kAtlases[0];
+    for (std::size_t i = 0; i < HackAtlas::kAtlasCount; ++i)
+    {
+        if (HackAtlas::kAtlases[i].cellWidth > maxCellWidth_px)
+            break;
+        best = &HackAtlas::kAtlases[i];
+    }
+    return *best;
 }
 
 std::u32string typingLabelFor(const KeyRect& key, bool shiftEngaged)
@@ -402,9 +428,9 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
 
     // Navigation mode (Link): only the keys that mean something here at
     // all -- see cursor.cpp's matching exclusive-navigation-mode gate in
-    // Cursor::handleKey, which this must stay in sync with. n/e are
-    // ordinary blocked keys here now, not mode-exit shortcuts -- cmd is
-    // the only way out.
+    // Cursor::handleKey, which this must stay in sync with. s/a (nav/edit)
+    // are ordinary blocked keys here now, not mode-exit shortcuts -- cmd
+    // is the only way out.
     if (isLinkMode)
     {
         if (key.label == U"i") return std::u32string(U"prev");
@@ -423,13 +449,13 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
     if (key.label == U"k") return std::u32string(U"↓");
     if (key.label == U"j") return std::u32string(U"←");
     if (key.label == U"l") return std::u32string(U"→");
-    if (key.label == U"e") return std::u32string(U"edit");
+    if (key.label == U"a") return std::u32string(U"edit");
     if (key.label == U"u") return std::u32string(U"prev");
     if (key.label == U"o") return std::u32string(U"next");
-    if (key.label == U"d") return std::u32string(U"del");
-    if (key.label == U"c") return std::u32string(U"+card");
-    if (key.label == U"t") return std::u32string(U"+toc");
-    if (key.label == U"n") return std::u32string(U"nav");
+    if (key.label == U"e") return std::u32string(U"del");
+    if (key.label == U"q") return std::u32string(U"+card");
+    if (key.label == U"w") return std::u32string(U"+toc");
+    if (key.label == U"s") return std::u32string(U"nav");
     if (key.label == U"m") return std::u32string(U"prevT");
     if (key.label == U".") return std::u32string(U"nextT");
     return std::nullopt;
@@ -437,7 +463,7 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
 
 ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode, const KeyDisabledState& disabled)
 {
-    // cmd always shows its own color regardless of mode -- unlike n/e, it
+    // cmd always shows its own color regardless of mode -- unlike s/a, it
     // never produces literal text, so there's no "just an ordinary key"
     // state for it to defer to.
     if (key.label == U"cmd") return ModeColor::Command;
@@ -449,11 +475,12 @@ ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode, c
     // than digits, punctuation less still, and tab/shift/enter/bs least
     // of all -- keyed off what the key actually is (a Fire+Char key's
     // own codepoint, or lack of one), not its label, so it stays correct
-    // regardless of which physical spot a letter/digit lives at. n/e are
-    // ordinary letters here (this is where they type a literal 'n'/'e'),
-    // not mode keys -- found live, not by inspection: n showing its
-    // command-mode blue while typing read as wrong the instant it was
-    // seen on screen, since here it's just a letter like any other.
+    // regardless of which physical spot a letter/digit lives at. s/a are
+    // ordinary letters here (this is where they type a literal 's'/'a'),
+    // not mode keys -- found live, not by inspection: n (s's predecessor
+    // in an earlier version of this mapping) showing its command-mode
+    // blue while typing read as wrong the instant it was seen on screen,
+    // since here it's just a letter like any other.
     if (isTypingMode)
     {
         if (key.action == KeyRect::Action::Fire && key.kind == KeyEvent::Kind::Char)
@@ -465,11 +492,11 @@ ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode, c
         return ModeColor::EditControl; // tab (None), shift (ShiftToggle), enter/bs (Fire but not Char)
     }
 
-    // General command mode: n/e show their own permanent color here --
-    // they're not producing text in this mode, they're mode-transition
-    // keys. editDisabled/deleteDisabled/prevThreadDisabled/
+    // General command mode: s/a (nav/edit) show their own permanent color
+    // here -- they're not producing text in this mode, they're mode-
+    // transition keys. editDisabled/deleteDisabled/prevThreadDisabled/
     // nextThreadDisabled/prevCardDisabled/nextCardDisabled override
-    // e/d/m/./u/o's usual color with gray here, each driven by the
+    // a/e/m/./u/o's usual color with gray here, each driven by the
     // matching CardItem/Cursor predicate -- still shows a legend
     // (commandLegendFor doesn't change), just not the color that would
     // suggest pressing it does something.
@@ -484,15 +511,15 @@ ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode, c
     // isAtFirstLink()/isAtLastLink() (nothing further that way to select)
     // respectively, independently for i and k.
     //
-    // Both branches found live, not by inspection: a blocked n/e still
+    // Both branches found live, not by inspection: a blocked s/a still
     // showing its own color read as live when it wasn't, the same
     // mistake disabled-but-uncolored keys would make if this didn't
     // handle them explicitly.
     if (!isLinkMode)
     {
-        if (key.label == U"n") return ModeColor::Navigation;
-        if (key.label == U"e") return disabled.editDisabled ? ModeColor::Disabled : ModeColor::Edit;
-        if (key.label == U"d") return disabled.deleteDisabled ? ModeColor::Disabled : ModeColor::Command;
+        if (key.label == U"s") return ModeColor::Navigation;
+        if (key.label == U"a") return disabled.editDisabled ? ModeColor::Disabled : ModeColor::Edit;
+        if (key.label == U"e") return disabled.deleteDisabled ? ModeColor::Disabled : ModeColor::Command;
         if (key.label == U"m") return disabled.prevThreadDisabled ? ModeColor::Disabled : ModeColor::Command;
         if (key.label == U".") return disabled.nextThreadDisabled ? ModeColor::Disabled : ModeColor::Command;
         if (key.label == U"u") return disabled.prevCardDisabled ? ModeColor::Disabled : ModeColor::Command;
@@ -554,7 +581,7 @@ void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& at
                         (key.label == U"spacebar" && spacebarEngaged);
 
         // The key's own "light" color -- its mode color if it has one
-        // right now (cmd/n/e always; any other key only while live in
+        // right now (cmd/s/a always; any other key only while live in
         // the current mode), kKeyColor ("white"/no mode) otherwise.
         // Inverting swaps this with the universal dark kKeyLabelColor,
         // exactly the same press-feedback/latch pattern as before, just
@@ -572,6 +599,23 @@ void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& at
         // it has to happen before the early exit for a blank/dead key.
         if (hoveredKeyRect && sameRect(key.rect, *hoveredKeyRect))
             drawBoxOutline(canvas, key.rect, kHoverBorderColor, kHoverBorderWidth_px);
+
+        // Index-finger home markers -- f (left panel)/j (right panel),
+        // matching the raised tactile bump a real keyboard puts on those
+        // two keys so touch-typing fingers can find home row without
+        // looking. Drawn uniformly regardless of live/dead, same as
+        // hover above (it's about where your fingers go, not what the
+        // key currently does) -- and in textColor, not a fixed color, so
+        // it stays visible against any face this key might be showing
+        // right now, inverted included.
+        bool isHomeMarker = (leftSide && key.label == U"f") || (!leftSide && key.label == U"j");
+        if (isHomeMarker)
+        {
+            int markerWidth_px = key.rect.w * 2 / 5;
+            int markerX = key.rect.x + (key.rect.w - markerWidth_px) / 2;
+            int markerY = key.rect.y + key.rect.h * 4 / 5;
+            canvas.line({markerX, markerY}, {markerX + markerWidth_px, markerY}, textColor, kHomeMarkerThickness_px);
+        }
 
         std::optional<std::u32string> text =
             isTypingMode ? std::optional(typingLabelFor(key, shiftEngaged)) : commandLegendFor(key, isLinkMode);

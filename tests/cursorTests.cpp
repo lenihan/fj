@@ -56,7 +56,7 @@ void tapCmd(Cursor& cursor)
 // following the link to their own current-year TOC and adding a card
 // there. No cursor.setYear() call needed (an earlier version of this
 // helper made one explicitly, working around m_year not otherwise being
-// set correctly for real navigation -- see the "pressing 'c'/'t' ...
+// set correctly for real navigation -- see the "pressing 'q'/'w' ...
 // actually adds to the year stack" test below for the bug that masked):
 // setupInitialContent() already leaves m_year on the real current year,
 // matching exactly the stack this link leads to.
@@ -71,7 +71,7 @@ void gotoYearTocInCommandMode(Cursor& cursor)
 // used to hand every test for free, now built from a real, writable
 // card instead of Master's own (now read-only) content. A bare key
 // press, not sendCommand's hold-release chord: gotoYearTocInCommandMode
-// already leaves command mode latched (not momentarily held), and 'c'
+// already leaves command mode latched (not momentarily held), and 'q'
 // itself enters typing mode -- chording it would immediately revert
 // that on release (the same "stay latched" behavior the "hold-tap-
 // release chord while already latched" test exercises on purpose),
@@ -79,7 +79,7 @@ void gotoYearTocInCommandMode(Cursor& cursor)
 CardItem* freshScratchCard(Cursor& cursor)
 {
     gotoYearTocInCommandMode(cursor);
-    cursor.handleKey({KeyEvent::Kind::Char, U'c', true});
+    cursor.handleKey({KeyEvent::Kind::Char, U'q', true});
     return cursor.currentCard();
 }
 
@@ -196,11 +196,11 @@ TEST_CASE("a hold-tap-release chord while already latched stays latched")
     CHECK(cursor.isCommandMode());                          // still latched, not back to typing
 }
 
-TEST_CASE("a fresh cmd tap after 'e' latches command mode, not a stale release")
+TEST_CASE("a fresh cmd tap after 'a' latches command mode, not a stale release")
 {
-    // 'e' reaches typing mode without going through the CapsLock-release
+    // 'a' reaches typing mode without going through the CapsLock-release
     // branch that owns m_capsTapLatched -- found live, not by inspection:
-    // leaving that flag set after 'e' meant the *next* plain cmd tap
+    // leaving that flag set after 'a' meant the *next* plain cmd tap
     // still believed it was releasing an already-latched command mode
     // (per the "second tap releases the latch" behavior above) and
     // bounced straight back to typing instead of latching a fresh one.
@@ -212,7 +212,7 @@ TEST_CASE("a fresh cmd tap after 'e' latches command mode, not a stale release")
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
     REQUIRE(cursor.isCommandMode());
 
-    cursor.handleKey({KeyEvent::Kind::Char, U'e', true}); // -> typing mode, not via CapsLock at all
+    cursor.handleKey({KeyEvent::Kind::Char, U'a', true}); // -> typing mode, not via CapsLock at all
     REQUIRE(cursor.isTypingMode());
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true}); // a fresh plain tap...
@@ -220,16 +220,16 @@ TEST_CASE("a fresh cmd tap after 'e' latches command mode, not a stale release")
     CHECK(cursor.isCommandMode()); // ...should latch on, not bounce back to typing
 }
 
-TEST_CASE("'e' on a read-only TOC (Master's) is refused without corrupting row/mode")
+TEST_CASE("'a' on a read-only TOC (Master's) is refused without corrupting row/mode")
 {
     // enterTypingMode() used to set m_row = 0 (move to title) for *any*
     // thread-start TOC before checking readOnly() -- so on Master's own
-    // TOC (permanently read-only, see setupInitialContent()), 'e' left
+    // TOC (permanently read-only, see setupInitialContent()), 'a' left
     // the cursor silently parked on row 0 despite the mode switch itself
     // being refused. toggleNavigationMode() branches on m_row == 0 for
-    // TOC cards, so the *next* key pressed ('n') then silently forced
+    // TOC cards, so the *next* key pressed ('s') then silently forced
     // Cursor sub-mode instead of actually toggling -- found live, not by
-    // inspection: pressing 'e' then 'n' on Master's TOC looked like both
+    // inspection: pressing 'a' then 's' on Master's TOC looked like both
     // keys had stopped doing anything at all.
     Cursor cursor;
     REQUIRE(cursor.isCommandMode());
@@ -238,15 +238,15 @@ TEST_CASE("'e' on a read-only TOC (Master's) is refused without corrupting row/m
     tapCmd(cursor); // Link -> general command, one step (see cursor.cpp)
     REQUIRE_FALSE(cursor.isLinkMode());
 
-    cursor.handleKey({KeyEvent::Kind::Char, U'e', true}); // refused: Master's TOC is read-only
+    cursor.handleKey({KeyEvent::Kind::Char, U'a', true}); // refused: Master's TOC is read-only
     CHECK(cursor.isCommandMode());                        // still command mode, not typing
     CHECK(cursor.row() == 1);                              // row untouched, not silently moved to the title
 
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // now this should actually toggle
+    cursor.handleKey({KeyEvent::Kind::Char, U's', true}); // now this should actually toggle
     CHECK(cursor.isLinkMode());
 }
 
-TEST_CASE("'e' returns to typing mode from a held command")
+TEST_CASE("'a' returns to typing mode from a held command")
 {
     Cursor cursor;
     freshScratchCard(cursor);
@@ -256,11 +256,11 @@ TEST_CASE("'e' returns to typing mode from a held command")
     // comment: chording a key that itself enters typing mode would just
     // revert on release, since command mode is latched here, not merely
     // held.
-    cursor.handleKey({KeyEvent::Kind::Char, U'e', true}); // see cursor.cpp's handleKey dispatch: 'e' -> enterTypingMode()
+    cursor.handleKey({KeyEvent::Kind::Char, U'a', true}); // see cursor.cpp's handleKey dispatch: 'a' -> enterTypingMode()
     CHECK(cursor.isTypingMode());
 }
 
-TEST_CASE("'c' and 't' add a new card and move to its title row in typing mode")
+TEST_CASE("'q' and 'w' add a new card and move to its title row in typing mode")
 {
     Cursor cursor;
     gotoYearTocInCommandMode(cursor);
@@ -269,18 +269,18 @@ TEST_CASE("'c' and 't' add a new card and move to its title row in typing mode")
     // Bare presses throughout this test, not sendCommand's chord -- see
     // freshScratchCard's own comment on why chording a key that itself
     // enters typing mode would just revert on release here.
-    SECTION("'c' adds a Content card")
+    SECTION("'q' adds a Content card")
     {
-        cursor.handleKey({KeyEvent::Kind::Char, U'c', true});
+        cursor.handleKey({KeyEvent::Kind::Char, U'q', true});
         CHECK(cursor.lastCardNumber() == before + 1);
         CHECK(cursor.currentCard()->isContent());
         CHECK(cursor.row() == 0); // new cards start on their (blank) title row
         CHECK(cursor.isTypingMode());
     }
 
-    SECTION("'t' adds a TOC card")
+    SECTION("'w' adds a TOC card")
     {
-        cursor.handleKey({KeyEvent::Kind::Char, U't', true});
+        cursor.handleKey({KeyEvent::Kind::Char, U'w', true});
         CHECK(cursor.lastCardNumber() == before + 1);
         CHECK(cursor.currentCard()->isTOC());
         CHECK(cursor.row() == 0);
@@ -288,7 +288,7 @@ TEST_CASE("'c' and 't' add a new card and move to its title row in typing mode")
     }
 }
 
-TEST_CASE("'d' toggles the deleted flag on the current card")
+TEST_CASE("'e' toggles the deleted flag on the current card")
 {
     Cursor cursor;
     freshScratchCard(cursor);
@@ -296,10 +296,10 @@ TEST_CASE("'d' toggles the deleted flag on the current card")
     // -- REQUIRE(!x) works too, but this reads better for a plain bool.
     REQUIRE_FALSE(cursor.currentCard()->deleted());
 
-    sendCommand(cursor, U'd');
+    sendCommand(cursor, U'e');
     CHECK(cursor.currentCard()->deleted());
 
-    sendCommand(cursor, U'd');
+    sendCommand(cursor, U'e');
     CHECK_FALSE(cursor.currentCard()->deleted());
 }
 
@@ -325,7 +325,7 @@ TEST_CASE("canDelete()/canEdit() refuse a read-only card, not just the stack's o
     CHECK_FALSE(card->deleted());
 }
 
-TEST_CASE("'n' enters Link navigation mode; cmd is the only way back to Cursor mode")
+TEST_CASE("'s' enters Link navigation mode; cmd is the only way back to Cursor mode")
 {
     // isLinkMode() exists (added for the keyboard panel's phase 3 legend
     // lookup), but this test predates it and checks the *effect* instead,
@@ -336,7 +336,7 @@ TEST_CASE("'n' enters Link navigation mode; cmd is the only way back to Cursor m
     // staying put vs. actually advancing is what distinguishes the two
     // modes here.
     //
-    // 'n' used to also toggle straight back (Link -> Cursor) on a second
+    // 's' used to also toggle straight back (Link -> Cursor) on a second
     // press; per the exclusive-navigation-mode design that's now blocked
     // (see the "navigation mode is exclusive" test) -- cmd (a CapsLock
     // tap) is the only way back, stepping through general command mode
@@ -346,18 +346,18 @@ TEST_CASE("'n' enters Link navigation mode; cmd is the only way back to Cursor m
     // despite Link being the member's default -- entering typing mode
     // (which addNewCard(), inside freshScratchCard(), does) always resets
     // navigation mode to Cursor ("so you can use navigation keys" -- see
-    // cursor.cpp), so 'n' needs to run first to reach Link mode at all.
+    // cursor.cpp), so 's' needs to run first to reach Link mode at all.
     Cursor cursor;
     freshScratchCard(cursor);
     Row before = cursor.row();
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // toggleNavigationMode(): Cursor -> Link
+    cursor.handleKey({KeyEvent::Kind::Char, U's', true}); // toggleNavigationMode(): Cursor -> Link
     cursor.handleKey({KeyEvent::Kind::Char, U'k', true}); // down() in Link mode: moves a link index, not the row
     CHECK(cursor.row() == before);
 
     // Nothing typed while held would normally read as a plain tap on
-    // release -- but 'n'/'k' were typed above, so this release instead
+    // release -- but 's'/'k' were typed above, so this release instead
     // re-enters typing mode via m_wasTypingMode (same as any other
     // hold-something-release chord), which also resets navigation mode
     // back to Cursor as enterTypingMode()'s own side effect.
@@ -450,8 +450,8 @@ TEST_CASE("general command mode's arrows refuse to move on a read-only card")
 TEST_CASE("navigation mode is exclusive: only i/k/j/l stay live, everything else is blocked")
 {
     // The user was explicit this is a bug fix, not a new restriction:
-    // entering navigation mode (via 'n') should make everything except
-    // i/k/j/l unreachable -- including 'n' and 'e' themselves now, which
+    // entering navigation mode (via 's') should make everything except
+    // i/k/j/l unreachable -- including 's' and 'a' themselves now, which
     // used to be permanent exceptions that could jump back to general
     // command mode or straight to typing on their own. cmd (a CapsLock
     // tap) is the only way out, one step at a time -- see the "tapping
@@ -462,20 +462,20 @@ TEST_CASE("navigation mode is exclusive: only i/k/j/l stay live, everything else
     tapCmd(cursor); // Typing -> general Command (Cursor sub-mode)
     REQUIRE(cursor.isCommandMode());
 
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // Cursor -> Link navigation mode
+    cursor.handleKey({KeyEvent::Kind::Char, U's', true}); // Cursor -> Link navigation mode
     REQUIRE(cursor.isLinkMode());
 
     CardNumber before = cursor.currentCard()->cardNumber();
     cursor.handleKey({KeyEvent::Kind::Char, U'u', true}); // prevCard() -- blocked in Link mode
     CHECK(cursor.currentCard()->cardNumber() == before);
-    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // addNewCard() -- blocked in Link mode
+    cursor.handleKey({KeyEvent::Kind::Char, U'q', true}); // addNewCard() -- blocked in Link mode
     CHECK(cursor.currentCard()->cardNumber() == before);
 
-    // 'n' and 'e' are now ordinary blocked keys here too, same as u/c
+    // 's' and 'a' are now ordinary blocked keys here too, same as u/q
     // above -- neither changes mode at all from inside Link mode.
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true});
+    cursor.handleKey({KeyEvent::Kind::Char, U's', true});
     CHECK(cursor.isLinkMode());
-    cursor.handleKey({KeyEvent::Kind::Char, U'e', true});
+    cursor.handleKey({KeyEvent::Kind::Char, U'a', true});
     CHECK(cursor.isLinkMode());
     CHECK(cursor.isCommandMode());
 
@@ -495,14 +495,14 @@ TEST_CASE("tapping cmd from navigation mode steps up one level at a time")
     // navigation mode jumped straight to typing, skipping general command
     // mode entirely. The user asked for cmd to be navigation mode's only
     // way out, one level at a time: Link -> tap -> general command ->
-    // tap (or 'e') -> typing.
+    // tap (or 'a') -> typing.
     Cursor cursor;
     freshScratchCard(cursor);
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});  // hold...
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false}); // ...release: plain tap, latches command mode
     REQUIRE(cursor.isCommandMode());
 
-    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // -> Link navigation mode
+    cursor.handleKey({KeyEvent::Kind::Char, U's', true}); // -> Link navigation mode
     REQUIRE(cursor.isLinkMode());
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
@@ -524,9 +524,9 @@ TEST_CASE("'u' and 'o' navigate to the adjacent card by card number")
     // land on: the year's own TOC is read-only, so landing directly on
     // it would block the release's own enterTypingMode() fallback (see
     // handleKey's m_wasTypingMode branch).
-    cursor.handleKey({KeyEvent::Kind::Char, U'c', true});
+    cursor.handleKey({KeyEvent::Kind::Char, U'q', true});
     tapCmd(cursor); // Typing -> Command again
-    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // land on a freshly added card
+    cursor.handleKey({KeyEvent::Kind::Char, U'q', true}); // land on a freshly added card
     auto hereNumber = cursor.currentCard()->cardNumber();
     REQUIRE(hereNumber > 1); // there's an earlier *content* card to navigate to, not just the TOC
 
@@ -549,7 +549,7 @@ TEST_CASE("'u'/'o' stay in whichever command sub-state they were already in, eve
     // save/restore fix.
     Cursor cursor;
     gotoYearTocInCommandMode(cursor);
-    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // land on a fresh card, card number 1
+    cursor.handleKey({KeyEvent::Kind::Char, U'q', true}); // land on a fresh card, card number 1
     tapCmd(cursor);                                       // Typing -> Command again
     REQUIRE_FALSE(cursor.isLinkMode());
     REQUIRE(cursor.currentCard()->cardNumber() > 0);
@@ -569,7 +569,7 @@ TEST_CASE("isAtFirstCard()/isAtLastCard() reflect paging position for u/o's disa
     CHECK(cursor.isAtFirstCard()); // freshly landed on the year TOC, card 0 of its stack
     CHECK(cursor.isAtLastCard());  // also the *only* card in the stack so far
 
-    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // card 1
+    cursor.handleKey({KeyEvent::Kind::Char, U'q', true}); // card 1
     tapCmd(cursor);
     CHECK_FALSE(cursor.isAtFirstCard());
     CHECK(cursor.isAtLastCard());
@@ -632,7 +632,7 @@ TEST_CASE("thread navigation skips a deleted card in the middle")
     REQUIRE(cursor.currentCard() == thirdCard);
 
     // Delete the middle card directly rather than navigating there and
-    // back with 'd' -- that key's own behavior is already covered by a
+    // back with 'e' -- that key's own behavior is already covered by a
     // dedicated test above, so this one stays focused on what it's
     // actually testing: whether prevThreadCard()/nextThreadCard() skip
     // over a deleted card in between, not on how a card gets deleted.
@@ -655,11 +655,11 @@ TEST_CASE("every non-deleted card added to a TOC is reachable from it via links"
     gotoYearTocInCommandMode(cursor);
     CardItem* toc = cursor.currentCard();
 
-    sendCommand(cursor, U'c');
+    sendCommand(cursor, U'q');
     CardItem* cardA = cursor.currentCard();
-    sendCommand(cursor, U'c');
+    sendCommand(cursor, U'q');
     CardItem* cardB = cursor.currentCard();
-    sendCommand(cursor, U'c');
+    sendCommand(cursor, U'q');
     CardItem* cardC = cursor.currentCard();
 
     cardB->setDeleted(true); // see the note above on setting this directly
@@ -678,10 +678,10 @@ TEST_CASE("every non-deleted card added to a TOC is reachable from it via links"
     // 'u' no longer switches into Navigation mode just because it landed
     // on a TOC (see prevCard()/nextCard()'s own comment -- the user was
     // explicit paging by card number shouldn't silently change command
-    // sub-state), so this needs its own explicit 'n' to reach it before
+    // sub-state), so this needs its own explicit 's' to reach it before
     // the link-walking below, where the old side effect used to do it
     // for free.
-    sendCommand(cursor, U'n');
+    sendCommand(cursor, U's');
     REQUIRE(cursor.isLinkMode());
 
     // Walk every link on the TOC: rewind to the first one with prevLink()
@@ -724,7 +724,7 @@ TEST_CASE("every non-deleted card added to a TOC is reachable from it via links"
     CHECK(std::find(visited.begin(), visited.end(), cardB) == visited.end()); // deleted -- must not be reachable
 }
 
-TEST_CASE("pressing 'c'/'t' on the year TOC (reached by following Master's own link, "
+TEST_CASE("pressing 'q'/'w' on the year TOC (reached by following Master's own link, "
           "no setYear() involved) actually adds to that stack")
 {
     // The exact scenario setupInitialContent()'s m_year fix addresses,
@@ -733,15 +733,15 @@ TEST_CASE("pressing 'c'/'t' on the year TOC (reached by following Master's own l
     // see gotoYearTocInCommandMode's own comment), so before that fix,
     // m_year stayed on Master::kYear forever and every addCard() call
     // silently allocated into Master's permanently-read-only stack
-    // instead, making 'c'/'t' look like they'd stopped doing anything at
-    // all, anywhere.
+    // instead, making 'q'/'w' (+card/+toc) look like they'd stopped doing
+    // anything at all, anywhere.
     Cursor cursor;
     gotoYearTocInCommandMode(cursor);
     CardItem* yearToc = cursor.currentCard();
     REQUIRE(yearToc->isTOC());
     Year year = yearToc->year();
 
-    sendCommand(cursor, U'c');
+    sendCommand(cursor, U'q');
     CHECK(cursor.currentCard() != yearToc);       // actually moved to a new card...
     CHECK(cursor.currentCard()->year() == year);  // ...in the *same* (year, not Master) stack
     CHECK(cursor.isTypingMode());                 // addNewCard() ends in typing mode on its new card
@@ -752,7 +752,7 @@ TEST_CASE("setYear() refuses to move backward, so new content can never target a
     // Both relative to currentCalendarYear(), not hardcoded literals --
     // setupInitialContent() now leaves m_year at the real current year
     // (see its own comment: this used to be the bug reported live --
-    // m_year got stuck on Master::kYear forever, so 'c'/'t' silently did
+    // m_year got stuck on Master::kYear forever, so 'q'/'w' silently did
     // nothing anywhere), so a literal past year here would already be
     // refused by the very first setYear() call below, before the
     // "refuses to move backward" behavior this test actually means to
@@ -789,14 +789,14 @@ TEST_CASE("a thread continued into a new year's stack links back to the original
     // setYear() lazily creates that year's own CardStack (and TOC) the
     // first time it's used -- see cursor.cpp's comment on why. A fresh
     // Cursor starts on Master's own TOC in Link (Navigation) mode, which
-    // blocks 'c' (see cursor.cpp's exclusive-navigation-mode gate) --
+    // blocks 'q' (see cursor.cpp's exclusive-navigation-mode gate) --
     // tapCmd steps up to general command mode first, the same one tap it
     // always takes from a fresh Cursor now (see setupInitialContent()'s
     // own comment on why the very first tap needs to actually do
     // something).
     cursor.setYear(pastYear);
     tapCmd(cursor);
-    sendCommand(cursor, U'c'); // a new thread, in pastYear's stack
+    sendCommand(cursor, U'q'); // a new thread, in pastYear's stack
     CardItem* pastCard = cursor.currentCard();
     REQUIRE(pastCard->year() == pastYear);
     CardItem* pastYearToc = pastCard->tableOfContents();

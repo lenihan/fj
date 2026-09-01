@@ -868,13 +868,22 @@ void Cursor::handleKey(const KeyEvent& event)
                 case U'k': down(); break;
                 case U'j': left(); break;
                 case U'l': right(); break;
-                case U'e': enterTypingMode(); break;
+                // a/s/q/w/e (edit/nav/+card/+toc/del): keyboardPanel.cpp's
+                // own comment on kLeftKeys explains why these five sit
+                // here and not on e/n/c/t/d, their old spots -- a key's
+                // command dispatches on the exact codepoint typing mode
+                // sends, so there's no way to relocate a *function*
+                // without relocating whichever letter used to carry its
+                // codepoint too; this is that relocation, done once here
+                // instead of in the keyboard panel's own layout table (so
+                // every letter can stay at its real-QWERTY position).
+                case U'a': enterTypingMode(); break;
                 case U'u': prevCard(); break;
                 case U'o': nextCard(); break;
-                case U'd': toggleDeleteCard(); break;
-                case U'c': addNewCard(CardItem::Type::Content); break;
-                case U't': addNewCard(CardItem::Type::TOC); break;
-                case U'n': toggleNavigationMode(); break;
+                case U'e': toggleDeleteCard(); break;
+                case U'q': addNewCard(CardItem::Type::Content); break;
+                case U'w': addNewCard(CardItem::Type::TOC); break;
+                case U's': toggleNavigationMode(); break;
                 case U'm': prevThreadCard(); break;
                 case U'.': nextThreadCard(); break;
                 default: break; // unmapped command-mode key: noop

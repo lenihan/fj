@@ -439,18 +439,20 @@ TEST_CASE("typingLabelFor previews shift's effect: capitals and symbols, matchin
 TEST_CASE("commandLegendFor: general command mode describes every implemented key, blank otherwise")
 {
     // i/k/j/l/u/o/m/./n/h/y/p live on the right panel (n included -- see
-    // kRightKeys), the rest of the command keys on the left.
+    // kRightKeys), the rest of the command keys on the left. q (+card)
+    // sits at its real-QWERTY spot, not c's -- see kLeftKeys' own
+    // comment on why only a key's *function* moved, never its letter.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& i = findKey(rightKeys, U"i");
-    const KeyRect& c = findKey(leftKeys, U"c");
+    const KeyRect& q = findKey(leftKeys, U"q");
     const KeyRect& tab = findKey(leftKeys, U"tab");
-    const KeyRect& w = findKey(leftKeys, U"w"); // an ordinary, wholly unmapped letter
+    const KeyRect& c = findKey(leftKeys, U"c"); // an ordinary, wholly unmapped letter now
 
     CHECK(commandLegendFor(i, /*isLinkMode=*/false) == U"↑");
-    CHECK(commandLegendFor(c, /*isLinkMode=*/false) == U"+card");
+    CHECK(commandLegendFor(q, /*isLinkMode=*/false) == U"+card");
     CHECK_FALSE(commandLegendFor(tab, /*isLinkMode=*/false).has_value());
-    CHECK_FALSE(commandLegendFor(w, /*isLinkMode=*/false).has_value());
+    CHECK_FALSE(commandLegendFor(c, /*isLinkMode=*/false).has_value());
 }
 
 TEST_CASE("commandLegendFor: navigation mode only describes its own live keys")
@@ -458,15 +460,15 @@ TEST_CASE("commandLegendFor: navigation mode only describes its own live keys")
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& i = findKey(rightKeys, U"i");
-    const KeyRect& e = findKey(leftKeys, U"e");   // no longer live in navigation mode -- cmd is the only way out
-    const KeyRect& n = findKey(rightKeys, U"n");  // ditto
-    const KeyRect& c = findKey(leftKeys, U"c");   // live in general command mode, blocked in navigation mode
+    const KeyRect& a = findKey(leftKeys, U"a");   // no longer live in navigation mode -- cmd is the only way out
+    const KeyRect& s = findKey(leftKeys, U"s");   // ditto
+    const KeyRect& q = findKey(leftKeys, U"q");   // live in general command mode, blocked in navigation mode
     const KeyRect& u = findKey(rightKeys, U"u");  // ditto
 
     CHECK(commandLegendFor(i, /*isLinkMode=*/true) == U"prev");
-    CHECK_FALSE(commandLegendFor(e, /*isLinkMode=*/true).has_value());
-    CHECK_FALSE(commandLegendFor(n, /*isLinkMode=*/true).has_value());
-    CHECK_FALSE(commandLegendFor(c, /*isLinkMode=*/true).has_value());
+    CHECK_FALSE(commandLegendFor(a, /*isLinkMode=*/true).has_value());
+    CHECK_FALSE(commandLegendFor(s, /*isLinkMode=*/true).has_value());
+    CHECK_FALSE(commandLegendFor(q, /*isLinkMode=*/true).has_value());
     CHECK_FALSE(commandLegendFor(u, /*isLinkMode=*/true).has_value());
 }
 
@@ -481,7 +483,7 @@ TEST_CASE("commandLegendFor: cmd always describes itself, in either command sub-
 
 TEST_CASE("modeColorFor: cmd always shows its own color, in any mode")
 {
-    // Unlike n/e, cmd never produces literal text, so it has no
+    // Unlike s/a, cmd never produces literal text, so it has no
     // "ordinary key" state to fall back to in typing mode.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& cmd = findKey(leftKeys, U"cmd");
@@ -491,7 +493,7 @@ TEST_CASE("modeColorFor: cmd always shows its own color, in any mode")
             CHECK(modeColorFor(cmd, isTypingMode, isLinkMode) == ModeColor::Command);
 }
 
-TEST_CASE("modeColorFor: typing mode colors every key some shade of red, cmd excepted -- n/e included")
+TEST_CASE("modeColorFor: typing mode colors every key some shade of red, cmd excepted -- s/a included")
 {
     // The user was explicit: typing mode should read as "everything is
     // some shade of red except cmd" -- including shift/tab, which aren't
@@ -499,27 +501,26 @@ TEST_CASE("modeColorFor: typing mode colors every key some shade of red, cmd exc
     // brightest (EditLetter), digits a shade less (EditNumber),
     // punctuation/spacebar less still (EditOther), and tab/shift/enter/bs
     // least of all (EditControl -- control keys, not text you're
-    // producing). n/e are ordinary letters here too (this is where they
-    // type a literal 'n'/'e') -- found live, not by inspection: n showing
-    // its command-mode blue while typing read as wrong the instant it was
-    // seen on screen, since it's just a letter like any other in this
-    // mode.
+    // producing). s/a (nav/edit's own keys) are ordinary letters here too
+    // (this is where they type a literal 's'/'a') -- found live, not by
+    // inspection (against an earlier version of this mapping, where nav
+    // lived on 'n'): showing its command-mode blue while typing read as
+    // wrong the instant it was seen on screen, since it's just a letter
+    // like any other in this mode.
     auto keys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     const KeyRect& q = findKey(keys, U"q");
-    const KeyRect& e = findKey(keys, U"e");
+    const KeyRect& a = findKey(keys, U"a");
     const KeyRect& one = findKey(keys, U"1");
     const KeyRect& spacebar = keys.back();
     const KeyRect& shift = findKey(keys, U"shift");
     const KeyRect& tab = findKey(keys, U"tab");
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
-    const KeyRect& n = findKey(rightKeys, U"n");
     const KeyRect& enter = findKey(rightKeys, U"enter");
     const KeyRect& bs = findKey(rightKeys, U"bs");
     const KeyRect& comma = findKey(rightKeys, U",");
 
     CHECK(modeColorFor(q, /*isTypingMode=*/true, false) == ModeColor::EditLetter);
-    CHECK(modeColorFor(e, /*isTypingMode=*/true, false) == ModeColor::EditLetter);
-    CHECK(modeColorFor(n, /*isTypingMode=*/true, false) == ModeColor::EditLetter);
+    CHECK(modeColorFor(a, /*isTypingMode=*/true, false) == ModeColor::EditLetter);
     CHECK(modeColorFor(one, /*isTypingMode=*/true, false) == ModeColor::EditNumber);
     CHECK(modeColorFor(spacebar, /*isTypingMode=*/true, false) == ModeColor::EditOther);
     CHECK(modeColorFor(comma, /*isTypingMode=*/true, false) == ModeColor::EditOther);
@@ -529,21 +530,20 @@ TEST_CASE("modeColorFor: typing mode colors every key some shade of red, cmd exc
     CHECK(modeColorFor(tab, /*isTypingMode=*/true, false) == ModeColor::EditControl);
 }
 
-TEST_CASE("modeColorFor: general command mode colors n/e their own permanent color")
+TEST_CASE("modeColorFor: general command mode colors s/a their own permanent color")
 {
-    // In general command mode, n/e are mode-transition keys, not literal
+    // In general command mode, s/a are mode-transition keys, not literal
     // text -- this is where they show their permanent identity color
     // instead.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
-    const KeyRect& e = findKey(leftKeys, U"e");
-    const KeyRect& n = findKey(rightKeys, U"n");
+    const KeyRect& a = findKey(leftKeys, U"a");
+    const KeyRect& s = findKey(leftKeys, U"s");
 
-    CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Edit);
-    CHECK(modeColorFor(n, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Navigation);
+    CHECK(modeColorFor(a, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Edit);
+    CHECK(modeColorFor(s, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Navigation);
 }
 
-TEST_CASE("modeColorFor: KeyDisabledState grays out e/d/m/./u/o in general command mode")
+TEST_CASE("modeColorFor: KeyDisabledState grays out a/e/m/./u/o in general command mode")
 {
     // Driven by CardItem::canEdit()/canDelete() and Cursor::
     // hasPrevThreadCard()/hasNextThreadCard()/isAtFirstCard()/
@@ -552,15 +552,15 @@ TEST_CASE("modeColorFor: KeyDisabledState grays out e/d/m/./u/o in general comma
     // suggesting they'd do something right now.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
+    const KeyRect& a = findKey(leftKeys, U"a");
     const KeyRect& e = findKey(leftKeys, U"e");
-    const KeyRect& d = findKey(leftKeys, U"d");
     const KeyRect& m = findKey(rightKeys, U"m"); // right panel -- see kRightKeys
     const KeyRect& dot = findKey(rightKeys, U".");
     const KeyRect& u = findKey(rightKeys, U"u");
     const KeyRect& o = findKey(rightKeys, U"o");
 
-    CHECK(modeColorFor(e, false, false, KeyDisabledState{.editDisabled = true}) == ModeColor::Disabled);
-    CHECK(modeColorFor(d, false, false, KeyDisabledState{.deleteDisabled = true}) == ModeColor::Disabled);
+    CHECK(modeColorFor(a, false, false, KeyDisabledState{.editDisabled = true}) == ModeColor::Disabled);
+    CHECK(modeColorFor(e, false, false, KeyDisabledState{.deleteDisabled = true}) == ModeColor::Disabled);
     CHECK(modeColorFor(m, false, false, KeyDisabledState{.prevThreadDisabled = true}) == ModeColor::Disabled);
     CHECK(modeColorFor(dot, false, false, KeyDisabledState{.nextThreadDisabled = true}) == ModeColor::Disabled);
     CHECK(modeColorFor(u, false, false, KeyDisabledState{.prevCardDisabled = true}) == ModeColor::Disabled);
@@ -568,13 +568,13 @@ TEST_CASE("modeColorFor: KeyDisabledState grays out e/d/m/./u/o in general comma
 
     // Not disabled -- back to their ordinary colors (`{}` -- every field
     // false -- matching every other call site in this file).
-    CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Edit);
-    CHECK(modeColorFor(d, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Command);
+    CHECK(modeColorFor(a, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Edit);
+    CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Command);
     CHECK(modeColorFor(u, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Command);
 
-    // Irrelevant in typing mode -- e is an ordinary red letter there
+    // Irrelevant in typing mode -- a is an ordinary red letter there
     // regardless.
-    CHECK(modeColorFor(e, true, false, KeyDisabledState{.editDisabled = true}) == ModeColor::EditLetter);
+    CHECK(modeColorFor(a, true, false, KeyDisabledState{.editDisabled = true}) == ModeColor::EditLetter);
 }
 
 TEST_CASE("modeColorFor: KeyDisabledState grays out the arrows in general command mode when read-only")
@@ -642,21 +642,21 @@ TEST_CASE("modeColorFor: backDisabled/prevDisabled/nextDisabled independently gr
           ModeColor::Command);
 }
 
-TEST_CASE("modeColorFor: navigation mode blocks n/e -- neither keeps its color while dead")
+TEST_CASE("modeColorFor: navigation mode blocks s/a -- neither keeps its color while dead")
 {
-    // Unlike cmd (always live, always its own color), n/e are ordinary
+    // Unlike cmd (always live, always its own color), s/a are ordinary
     // blocked keys in Navigation mode -- see cursor.cpp's exclusive-
     // navigation-mode gate -- so they show None like any other dead key,
-    // not their permanent identity color. Found live, not by inspection:
-    // a blank blue 'n' and a blank red 'e' both read as live when they
-    // weren't.
+    // not their permanent identity color. Found live, not by inspection
+    // (against an earlier version of this mapping, where nav lived on
+    // 'n'): a blank blue 'n' and a blank red 'e' both read as live when
+    // they weren't.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
-    const KeyRect& e = findKey(leftKeys, U"e");
-    const KeyRect& n = findKey(rightKeys, U"n");
+    const KeyRect& a = findKey(leftKeys, U"a");
+    const KeyRect& s = findKey(leftKeys, U"s");
 
-    CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
-    CHECK(modeColorFor(n, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
+    CHECK(modeColorFor(a, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
+    CHECK(modeColorFor(s, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
 }
 
 TEST_CASE("modeColorFor: command mode colors exactly the keys commandLegendFor lives for")
@@ -665,7 +665,7 @@ TEST_CASE("modeColorFor: command mode colors exactly the keys commandLegendFor l
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& i = findKey(rightKeys, U"i");
     const KeyRect& u = findKey(rightKeys, U"u");
-    const KeyRect& c = findKey(leftKeys, U"c");
+    const KeyRect& q = findKey(leftKeys, U"q");
     const KeyRect& tab = findKey(leftKeys, U"tab");
 
     // General command mode: Command for every live key.
@@ -675,9 +675,9 @@ TEST_CASE("modeColorFor: command mode colors exactly the keys commandLegendFor l
 
     // Navigation mode: Navigation for the keys still live there, None for
     // the ones blocked (see the exclusive-navigation-mode gate in
-    // cursor.cpp) -- 'e'/'n' included now (see the "navigation mode
-    // blocks n/e" test above), not permanent exceptions.
+    // cursor.cpp) -- 's'/'a' included now (see the "navigation mode
+    // blocks s/a" test above), not permanent exceptions.
     CHECK(modeColorFor(i, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::Navigation);
     CHECK(modeColorFor(u, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
-    CHECK(modeColorFor(c, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
+    CHECK(modeColorFor(q, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
 }

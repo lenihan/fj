@@ -70,12 +70,12 @@ class Cursor
 
     void toggleNavigationMode();
     // Whether command mode's navigation sub-state is currently Link
-    // (reached via 'n', displayed as "Navigation mode" -- see
+    // (reached via 's', displayed as "Navigation mode" -- see
     // keyboardPanel.cpp's commandLegendFor/modeColorFor) rather than
     // Cursor. Needed by the keyboard panel's legend lookup to know which
     // command sub-state applies; also what handleKey's own dispatch gates
     // command keys on, now that Link mode is exclusive: only i/k/j/l stay
-    // live there (see handleKey's own comment) -- n/e are ordinary
+    // live there (see handleKey's own comment) -- s/a are ordinary
     // blocked keys like every other command key, not permanent
     // exceptions. The only way out is the cmd key stepping up one level
     // at a time (Link -> general Command -> Typing -- see handleKey's

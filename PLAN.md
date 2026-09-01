@@ -505,7 +505,9 @@ manually) rather than assuming emsdk's own env scripts handled it.
          verifying the above live. `resolveKeyGesture`'s `CapsToggle`
          same-key branch now always emits a real pair.
 
-      Also, live user feedback while building this: the keyboard panel's
+      Also, live user feedback while building this (letter relocation
+      since reverted -- see the "fourth round" entry below; the on-card
+      cursor coloring below is still current): the keyboard panel's
       edit/navigation mode keys moved next to cmd -- first to left panel
       row 2's 2nd/3rd keys (`q`/`w` swapped into their old spots), then,
       on a second round of feedback once it was visible on screen, down
@@ -769,6 +771,47 @@ manually) rather than assuming emsdk's own env scripts handled it.
       `y u i o p` / `n m , . /` on the right, matching a real keyboard
       exactly; pressing and holding the left panel's spacebar inverts
       both spacebars at once.
+- [x] A fifth round: the user wanted +card/+toc/del/edit/nav on
+      specific keys -- `q`/`w`/`e`/`a`/`s` respectively -- rather than
+      wherever their own mnemonic letter's real position happened to
+      land. Since a key's command dispatches on the exact codepoint
+      typing mode sends (no separate "command identity" -- see the
+      fourth round above), this time the reassignment happens once, at
+      the source, in `Cursor::handleKey`'s own switch -- not in the
+      keyboard panel's layout table, which stays real-QWERTY throughout.
+      `keyboardPanel.cpp`'s `commandLegendFor`/`modeColorFor` and
+      `main.cpp`'s disabled-key-message codepoints follow the same
+      remap. This *is* a real behavior change (not just cosmetic), so
+      every test that invoked one of these five commands via its old
+      letter needed updating to the new one -- about two dozen call
+      sites in `cursorTests.cpp`, each checked individually rather than
+      blindly find-replaced, since old-`e` (edit) and old-`d` (delete)
+      landed on new-`a` and new-`e` respectively -- a genuine swap, not
+      a simple rename, that a naive substitution would have corrupted.
+
+      Two more pieces of feedback in the same round:
+      - The keyboard panel's own font size now picks the *largest* baked
+        atlas that still fits a key's text, not just whichever is
+        numerically closest to the target -- those aren't the same
+        thing (closest can round up and overflow past a key's border).
+        `pickPanelAtlas` no longer delegates to `canvas.h`'s `pickAtlas()`
+        for this reason: that function's "closest either way" is the
+        right call for the card body/title (matching physical pixel
+        density, where landing a little over or under costs nothing but
+        blur), but wrong for a key label with a hard ceiling.
+      - `f`/`j` now draw the same short raised-bump marker a real
+        keyboard puts on its own home-row index-finger keys, so touch
+        typing on the emulated panel works the same way -- drawn in
+        whatever color the key's own text is using, so it stays visible
+        against any face color or inversion state.
+
+      59 tests passing (Windows/Linux) -- same count as the fourth
+      round's, since this changed existing tests' letters rather than
+      adding new ones; web and Windows builds clean. Verified live on
+      Windows: `+card`/`+toc`/`del`/`edit`/`nav` sit on `q`/`w`/`e`/`a`/`s`
+      while typing mode still types real QWERTY throughout (`q` itself
+      creates a new card and then types literally); `f`/`j` show a
+      visible dash under their legend/blank face in every mode.
 - [x] (Superseded by the entry above, kept for history) `+card`/`+toc`/
       `del` (`c`/`t`/`d`) relocated to the left panel's row 2, keys
       2/3/4 -- another straight label swap in `keyboardPanel.cpp`'s
