@@ -333,9 +333,13 @@ int main()
     // Re-picked only on a resize settle (below) -- unlike the panels'
     // pixels themselves, which redraw every frame, the baked atlas they
     // draw text from only needs to change when the panel's own resolution
-    // does.
+    // does. The …Large… pair is drawKeyboardPanel's own single-character
+    // font (see pickPanelLargeAtlas's comment) -- picked alongside the
+    // regular one rather than inside the render loop, same reasoning.
     const HackAtlas::Atlas* leftPanelAtlas = &pickPanelAtlas(leftPanelCanvas.width());
     const HackAtlas::Atlas* rightPanelAtlas = &pickPanelAtlas(rightPanelCanvas.width());
+    const HackAtlas::Atlas* leftPanelLargeAtlas = &pickPanelLargeAtlas(leftPanelCanvas.width());
+    const HackAtlas::Atlas* rightPanelLargeAtlas = &pickPanelLargeAtlas(rightPanelCanvas.width());
 
     // The whole 15"x5" device, three regions wide: left panel, monitor,
     // right panel, left to right.
@@ -409,12 +413,12 @@ int main()
 
         leftPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         rightPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
-        drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, *leftPanelAtlas, leftPressedRect, leftHoveredRect,
-                           shiftEngaged, spacebarEngaged, isTypingModeForLegend, isLinkModeForLegend, disabled,
-                           keyMessage);
-        drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, rightPressedRect, rightHoveredRect,
-                           shiftEngaged, spacebarEngaged, isTypingModeForLegend, isLinkModeForLegend, disabled,
-                           keyMessage);
+        drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, *leftPanelAtlas, *leftPanelLargeAtlas, leftPressedRect,
+                           leftHoveredRect, shiftEngaged, spacebarEngaged, isTypingModeForLegend, isLinkModeForLegend,
+                           disabled, keyMessage);
+        drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, *rightPanelLargeAtlas,
+                           rightPressedRect, rightHoveredRect, shiftEngaged, spacebarEngaged, isTypingModeForLegend,
+                           isLinkModeForLegend, disabled, keyMessage);
 
         deviceCanvas = Canvas(monitorCanvas.width() * 3, monitorCanvas.height());
         deviceCanvas.blit(leftPanelCanvas, {0, 0});
@@ -750,6 +754,8 @@ int main()
                 Canvas(cursor.currentCard()->cardWidth_px(*atlas), cursor.currentCard()->cardHeight_px(*atlas));
             leftPanelAtlas = &pickPanelAtlas(cardCanvas.width());
             rightPanelAtlas = &pickPanelAtlas(cardCanvas.width());
+            leftPanelLargeAtlas = &pickPanelLargeAtlas(cardCanvas.width());
+            rightPanelLargeAtlas = &pickPanelLargeAtlas(cardCanvas.width());
             redraw(); // renderContent rebuilds/redraws the panels at the new resolution
             window.setTitle(titleFor(unit, dpi, dpiKnown));
         },

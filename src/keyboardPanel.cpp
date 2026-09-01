@@ -382,28 +382,22 @@ GestureOutcome resolveKeyGesture(const KeyRect& pressedKey, bool pressedLeftSide
     return outcome;
 }
 
-const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px)
+// Shared by pickPanelAtlas/pickPanelLargeAtlas below: the largest baked
+// atlas whose cellWidth still leaves a bit of margin (charBudget + 1
+// character widths) within one key's pitch. Deliberately not canvas.h's
+// pickAtlas() -- that picks whichever baked size is *closest* to the
+// target either way, which is right for the card body/title (matching
+// physical pixel density as closely as possible, where landing a hair
+// over or under doesn't cost anything but a little blur), but wrong
+// here: a key's text has a hard ceiling (its own pitch), so "closest"
+// can round up and overflow past the key's border. kAtlases is sorted
+// ascending by cellWidth (see hackAtlas.h), so the last one still under
+// the ceiling is the answer; if even the smallest doesn't fit (an
+// extremely small panel), fall back to it anyway rather than rendering
+// nothing.
+const HackAtlas::Atlas& pickAtlasForCharBudget(int pitch_px, std::size_t charBudget)
 {
-    int pitch_px = static_cast<int>(KeyboardPanel::kKeyPitch_in / KeyboardPanel::kWidth_in * panelSize_px);
-    // A bit of margin (kLongestSingleWidthLabel + 1) so "shift"/"enter"/a
-    // command legend like "prevT" don't render edge-to-edge against the
-    // key's own border.
-    int maxCellWidth_px = pitch_px / static_cast<int>(kLongestSingleWidthLabel + 1);
-
-    // Deliberately not canvas.h's pickAtlas() -- that picks whichever
-    // baked size is *closest* to the target either way, which is right
-    // for the card body/title (matching physical pixel density as
-    // closely as possible, where landing a hair over or under doesn't
-    // cost anything but a little blur), but wrong here: a key's text has
-    // a hard ceiling (its own pitch), so "closest" can round up and
-    // overflow past the key's border. This picks the largest baked
-    // atlas that still fits under maxCellWidth_px -- the user was
-    // explicit the panel should use the largest font that fits, not
-    // just whichever is nearest. kAtlases is sorted ascending by
-    // cellWidth (see hackAtlas.h), so the last one still <= the ceiling
-    // is the answer; if even the smallest doesn't fit (an extremely
-    // small panel), fall back to it anyway rather than rendering
-    // nothing.
+    int maxCellWidth_px = pitch_px / static_cast<int>(charBudget + 1);
     const HackAtlas::Atlas* best = &HackAtlas::kAtlases[0];
     for (std::size_t i = 0; i < HackAtlas::kAtlasCount; ++i)
     {
@@ -412,6 +406,32 @@ const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px)
         best = &HackAtlas::kAtlases[i];
     }
     return *best;
+}
+
+const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px)
+{
+    int pitch_px = static_cast<int>(KeyboardPanel::kKeyPitch_in / KeyboardPanel::kWidth_in * panelSize_px);
+    return pickAtlasForCharBudget(pitch_px, kLongestSingleWidthLabel);
+}
+
+// The user was explicit, found live: a single-character key (an
+// ordinary typing-mode letter/digit, or a single-glyph command legend
+// like the arrow keys) should render *much* larger than a multi-
+// character one, not the same size trimmed down to fit "shift"/
+// "prevT"/etc. alongside it -- real keycaps don't share one font size
+// with a laptop's smaller function-row legends either. Budget of 1
+// character (well past what any baked atlas actually needs -- the
+// largest is 26px wide, nowhere near a whole key's pitch), so this
+// always resolves to the single largest baked atlas; expressed as a
+// budget anyway, via the same pickAtlasForCharBudget as
+// pickPanelAtlas, rather than reaching into HackAtlas::kAtlases
+// directly, so both stay correct together if the baked ladder ever
+// changes. drawKeyboardPanel picks between this and pickPanelAtlas per
+// key, keyed on the rendered text's own length.
+const HackAtlas::Atlas& pickPanelLargeAtlas(int panelSize_px)
+{
+    int pitch_px = static_cast<int>(KeyboardPanel::kKeyPitch_in / KeyboardPanel::kWidth_in * panelSize_px);
+    return pickAtlasForCharBudget(pitch_px, 1);
 }
 
 std::u32string typingLabelFor(const KeyRect& key, bool shiftEngaged)
@@ -551,9 +571,10 @@ ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode, c
     return ModeColor::None;
 }
 
-void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas, const Rect* pressedKeyRect,
-                        const Rect* hoveredKeyRect, bool shiftEngaged, bool spacebarEngaged, bool isTypingMode,
-                        bool isLinkMode, const KeyDisabledState& disabled, const std::optional<KeyMessage>& message)
+void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas,
+                        const HackAtlas::Atlas& largeAtlas, const Rect* pressedKeyRect, const Rect* hoveredKeyRect,
+                        bool shiftEngaged, bool spacebarEngaged, bool isTypingMode, bool isLinkMode,
+                        const KeyDisabledState& disabled, const std::optional<KeyMessage>& message)
 {
     canvas.fillRect({0, 0, canvas.width(), canvas.height()}, kPanelColor);
 
@@ -637,9 +658,15 @@ void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& at
         if (!text)
             continue; // dead in this mode -- blank key face, no text at all
 
-        int textWidth = static_cast<int>(text->size()) * atlas.cellWidth;
+        // A single character (an ordinary typing-mode letter/digit, a
+        // single-glyph command legend like an arrow, or any other
+        // one-codepoint label) gets the bigger font -- see
+        // pickPanelLargeAtlas's own comment.
+        const HackAtlas::Atlas& keyAtlas = text->size() == 1 ? largeAtlas : atlas;
+
+        int textWidth = static_cast<int>(text->size()) * keyAtlas.cellWidth;
         Point textPos{key.rect.x + std::max(0, (key.rect.w - textWidth) / 2),
-                      key.rect.y + std::max(0, (key.rect.h - atlas.cellHeight) / 2)};
-        canvas.drawText(*text, textPos, textColor, atlas);
+                      key.rect.y + std::max(0, (key.rect.h - keyAtlas.cellHeight) / 2)};
+        canvas.drawText(*text, textPos, textColor, keyAtlas);
     }
 }

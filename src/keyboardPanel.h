@@ -115,11 +115,18 @@ GestureOutcome resolveKeyGesture(const KeyRect& pressedKey, bool pressedLeftSide
                                   const std::optional<KeyRect>& releasedKey, bool releasedLeftSide,
                                   bool capsLatchedBefore, bool shiftLatchedBefore, bool isTypingMode);
 
-// Picks whichever baked atlas best fits the longest single-width key
-// label/legend within one key's pitch at panelSize_px -- see
+// Picks whichever baked atlas best fits the longest *regularly shown*
+// key label/legend within one key's pitch at panelSize_px -- see
 // keyboardPanel.cpp. Exposed so main.cpp doesn't need to know that
 // heuristic itself.
 const HackAtlas::Atlas& pickPanelAtlas(int panelSize_px);
+
+// The larger font drawKeyboardPanel uses for any key whose text is a
+// single character -- see its own comment in keyboardPanel.cpp. Exposed
+// (rather than picked internally by drawKeyboardPanel) so main.cpp can
+// cache it the same way it already caches pickPanelAtlas's own result,
+// re-picking only on a resize settle instead of every frame.
+const HackAtlas::Atlas& pickPanelLargeAtlas(int panelSize_px);
 
 // What a key displays in typing mode: its physical label, unless it's a
 // Fire+Char key and shiftEngaged, in which case the shifted form --
@@ -288,8 +295,14 @@ struct KeyMessage
 // what commandLegendFor would otherwise show. Requires an exact
 // codepoint *and* isLinkMode match (see KeyMessage's own comment) --
 // main.cpp owns clearing it again after a few seconds.
+//
+// atlas/largeAtlas are two different font sizes, both pre-picked by the
+// caller (see pickPanelAtlas/pickPanelLargeAtlas) -- each key's own
+// rendered text picks between them by its own length, single character
+// or not (see pickPanelLargeAtlas's comment), so a key's font size
+// isn't fixed per-panel the way it used to be.
 void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas,
-                        const Rect* pressedKeyRect = nullptr, const Rect* hoveredKeyRect = nullptr,
-                        bool shiftEngaged = false, bool spacebarEngaged = false, bool isTypingMode = true,
-                        bool isLinkMode = false, const KeyDisabledState& disabled = {},
+                        const HackAtlas::Atlas& largeAtlas, const Rect* pressedKeyRect = nullptr,
+                        const Rect* hoveredKeyRect = nullptr, bool shiftEngaged = false, bool spacebarEngaged = false,
+                        bool isTypingMode = true, bool isLinkMode = false, const KeyDisabledState& disabled = {},
                         const std::optional<KeyMessage>& message = std::nullopt);

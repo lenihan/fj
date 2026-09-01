@@ -841,6 +841,32 @@ manually) rather than assuming emsdk's own env scripts handled it.
       clicking a disabled key still shows its explanation, now visibly
       clipped by the neighboring key rather than shrunk to fit --
       confirmed as the intended trade-off, not a bug.
+- [x] One more round on the same font: single-character keys (every
+      ordinary typing-mode letter/digit, single punctuation, and
+      single-glyph command legends like the arrow keys) should be *much*
+      bigger still, while multi-character keys (`shift`/`enter`/`+card`/
+      `prevT`/etc.) stay exactly where the previous round left them --
+      two different sizes on the same panel, not one uniform font
+      shrunk to accommodate the longer strings. Added a second baked
+      atlas, `pickPanelLargeAtlas` (mirroring `pickPanelAtlas`'s own
+      "largest that fits" logic, now factored out into a shared
+      `pickAtlasForCharBudget(pitch_px, charBudget)` both call), with a
+      budget of a single character -- which, given the baked ladder's
+      widest atlas is nowhere near a whole key's pitch, always resolves
+      to the single largest available size. `main.cpp` picks and caches
+      both atlases the same way it already cached one (re-picked only on
+      a resize settle, not every frame), and `drawKeyboardPanel` now
+      takes both, choosing per key by the rendered text's own length
+      (`text->size() == 1`) rather than one fixed size for the whole
+      panel.
+
+      613 tests passing (unchanged -- no test pins exact pixel sizes),
+      Windows/Linux/web builds clean. Verified live on Windows: general
+      command mode's arrow legends (`↑←↓→`) read visibly larger than
+      `prev`/`next`/`prevT`/`nextT` beside them; typing mode's letters,
+      digits, and single punctuation (`;`/`,`/`.`) all render at the
+      larger size while `tab`/`cmd`/`shift`/`spacebar`/`enter`/`bs`
+      stay at the prior (smaller) size, side by side on the same panel.
 - [x] (Superseded by the entry above, kept for history) `+card`/`+toc`/
       `del` (`c`/`t`/`d`) relocated to the left panel's row 2, keys
       2/3/4 -- another straight label swap in `keyboardPanel.cpp`'s
