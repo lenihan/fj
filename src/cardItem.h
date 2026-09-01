@@ -27,6 +27,7 @@
 #include "types.h"
 
 #include <array>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -133,13 +134,40 @@ class CardItem
 
     void setDeleted(bool deleted);
     bool deleted() const;
+    // Whether setDeleted() would actually take effect right now -- the
+    // exact predicate it already enforces internally, exposed so callers
+    // (the keyboard panel's disabled-key styling, see keyboardPanel.h)
+    // can know in advance rather than finding out by trying. A stack's
+    // primary TOC (card 0 of its own thread) can never be deleted, and
+    // neither can any read-only card (see setReadOnly) -- Master's, most
+    // days, since setupInitialContent() marks every card there read-only.
+    bool canDelete() const;
 
     void setReadOnly(bool readOnly);
     bool readOnly() const;
     void setRowReadOnly(Row row, bool readOnly);
     bool rowReadOnly(Row row) const;
+    // Whether entering typing mode on this card would actually succeed
+    // right now -- the exact predicate Cursor::enterTypingMode() already
+    // enforces internally, exposed for the same reason as canDelete()
+    // above. A TOC that isn't its own thread's start (a continuation
+    // page) can't have its title edited, and neither can a read-only or
+    // deleted card.
+    bool canEdit() const;
 
     bool hasLinks() const;
+    // How many links this card has -- distinct from hasLinks() (>=1),
+    // used where "any at all" isn't specific enough.
+    std::size_t linkCount() const;
+    // Whether prevLink()/nextLink() would actually move anywhere from
+    // here (both no-op at their respective end -- see their own
+    // comments) -- true too when there are no links at all, so callers
+    // don't need their own hasLinks() check first. The keyboard panel's
+    // disabled-key styling uses these to gray out prev/next
+    // independently: a card with several links doesn't disable either
+    // one until you're actually sitting at one end.
+    bool isAtFirstLink() const;
+    bool isAtLastLink() const;
     CardLink currentLink() const;
     void nextLink();
     void prevLink();

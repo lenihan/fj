@@ -82,6 +82,18 @@ class Cursor
     // CapsLock-release branch), never straight to Typing from Link.
     bool isLinkMode() const;
 
+    // Whether left() (Navigation mode's "back") has anywhere to go --
+    // exposed so the keyboard panel's disabled-key styling can know in
+    // advance, the same way CardItem::canEdit()/canDelete() do for e/d.
+    bool hasLinkHistory() const { return !m_linkHistory.empty(); }
+
+    // Whether prevCard()/nextCard() (u/o) would actually go anywhere from
+    // here -- the same "would this be a no-op" check those two already
+    // make before calling shakeCardNo(), exposed so the keyboard panel's
+    // disabled-key styling can know in advance.
+    bool isAtFirstCard() const;
+    bool isAtLastCard() const;
+
     void up();
     void down();
     void left();
@@ -102,6 +114,17 @@ class Cursor
     void prevThreadCard();
     void nextThreadCard();
     void nextThreadCardCreateCard();
+
+    // Whether prevThreadCard()/nextThreadCard() (m/. -- "prevT"/"nextT")
+    // would actually go anywhere from here -- exposed so the keyboard
+    // panel's disabled-key styling can know in advance, the same way
+    // hasLinkHistory() does for j. Mirrors those methods' own "skip
+    // deleted cards" walk (see findLivePrevThreadCard()/
+    // findLiveNextThreadCard()) rather than just checking
+    // CardItem::threadPrev()/threadNext() directly, so a thread whose
+    // only neighbor is deleted correctly reads as having none.
+    bool hasPrevThreadCard() const { return findLivePrevThreadCard() != nullptr; }
+    bool hasNextThreadCard() const { return findLiveNextThreadCard() != nullptr; }
 
     void addNewCard(CardItem::Type type);
     void addContinuationCard(CardItem::Type type);
@@ -136,6 +159,12 @@ class Cursor
 
     void showCard(CardItem* card);
     void tocCurrent();
+    // The live (non-deleted) card prevThreadCard()/nextThreadCard() would
+    // actually land on, or nullptr if there isn't one -- shared by those
+    // two action methods and by hasPrevThreadCard()/hasNextThreadCard()
+    // above, rather than duplicating the same skip-deleted walk twice.
+    CardItem* findLivePrevThreadCard() const;
+    CardItem* findLiveNextThreadCard() const;
     void addCard(CardItem::Type type, CardStack::ThreadMode threadMode);
     void shakeCardNo() const;
 
@@ -143,9 +172,7 @@ class Cursor
     // pointing at the current year's stack and a Help TOC of topics) and
     // the current year's own empty stack (its TOC linking back to
     // Master) -- in place of a single blank scratch card. Called once
-    // from the constructor. See PLAN.md for the full design and the
-    // Cursor::m_year/current-stack tracking gap this deliberately leaves
-    // for later (the year stack starts empty, so nothing hits it yet).
+    // from the constructor. See PLAN.md for the full design.
     void setupInitialContent();
 
     Year m_year{0};
@@ -175,4 +202,16 @@ class Cursor
     // from m_capsDown, which is already false again by the time a tap's
     // release is even being handled.
     bool m_capsTapLatched{false};
+
+    // Whether a chorded command (hold cmd, tap a key, release -- 'c'/'t'/
+    // 'e' specifically, via enterTypingMode()) already explicitly changed
+    // the keyboard mode *during* the current hold, before cmd itself has
+    // even been released yet. handleKey's CapsLock-release branch checks
+    // this first and, if set, leaves the mode exactly as that command set
+    // it -- its usual m_capsTapLatched/m_wasTypingMode "revert to
+    // whatever preceded this hold" bookkeeping is stale by definition
+    // once something mid-hold has already moved the mode on. Reset when
+    // a fresh hold begins (CapsLock press) and consumed (reset again) the
+    // moment a release actually checks it.
+    bool m_modeChangedDuringHold{false};
 };

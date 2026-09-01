@@ -21,6 +21,8 @@
 
 #include <cassert>
 #include <cmath>
+#include <optional>
+#include <unordered_map>
 #include <vector>
 
 struct PlatformWindow::Impl
@@ -35,6 +37,12 @@ struct PlatformWindow::Impl
     std::function<void(int x_px, int y_px, bool pressed)> onClick;
     std::function<void(int x_px, int y_px)> onMouseMove;
     bool trackingLeave{false}; // TrackMouseEvent's own one-shot arming state -- see WM_MOUSEMOVE
+    std::function<void(const KeyEvent&)> onPhysicalKey;
+
+    // scheduleOnce()'s pending callbacks, keyed by the SetTimer() ID that
+    // will bring each one back via WM_TIMER -- see wndProc's own case.
+    std::unordered_map<UINT_PTR, std::function<void()>> pendingTimers;
+    UINT_PTR nextTimerId{1};
 
     // Kept so WM_PAINT (e.g. after alt-tab, or another window dragged over
     // ours) has something to redraw with -- present() doesn't get called
@@ -74,14 +82,49 @@ LRESULT CALLBACK lowLevelKeyboardProc(int code, WPARAM wParam, LPARAM lParam)
     if (code == HC_ACTION)
     {
         auto* p = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-        if (p->vkCode == VK_CAPITAL && g_activeImpl && g_activeImpl->onKey)
+        if (p->vkCode == VK_CAPITAL && g_activeImpl)
         {
             bool isDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
-            g_activeImpl->onKey({KeyEvent::Kind::CapsLock, 0, isDown});
+            if (g_activeImpl->onKey)
+                g_activeImpl->onKey({KeyEvent::Kind::CapsLock, 0, isDown});
+            if (g_activeImpl->onPhysicalKey)
+                g_activeImpl->onPhysicalKey({KeyEvent::Kind::CapsLock, 0, isDown});
             return 1; // eat it -- stop Windows from toggling caps lock itself
         }
     }
     return CallNextHookEx(nullptr, code, wParam, lParam);
+}
+
+// Maps a WM_KEYDOWN/WM_KEYUP virtual-key code to the physical-key
+// identity platform.h's onPhysicalKey expects -- always the key's
+// unshifted base character (VK codes are already position-based, not
+// shift-aware, unlike WM_CHAR), covering exactly the keys
+// keyboardPanel.cpp's layout tables actually use. VK_CAPITAL is handled
+// separately, by the low-level hook below (see this file's header
+// comment for why); nullopt for anything else (numpad, function keys,
+// [/]/\/=, ...) -- those don't appear on the panel at all, so there's no
+// key for them to flash.
+std::optional<KeyEvent> vkToPhysicalKeyEvent(WPARAM vk)
+{
+    if (vk >= 'A' && vk <= 'Z')
+        return KeyEvent{KeyEvent::Kind::Char, static_cast<char32_t>(vk - 'A' + 'a')};
+    if (vk >= '0' && vk <= '9')
+        return KeyEvent{KeyEvent::Kind::Char, static_cast<char32_t>(vk)};
+    switch (vk)
+    {
+    case VK_OEM_1: return KeyEvent{KeyEvent::Kind::Char, U';'};
+    case VK_OEM_2: return KeyEvent{KeyEvent::Kind::Char, U'/'};
+    case VK_OEM_7: return KeyEvent{KeyEvent::Kind::Char, U'\''};
+    case VK_OEM_COMMA: return KeyEvent{KeyEvent::Kind::Char, U','};
+    case VK_OEM_PERIOD: return KeyEvent{KeyEvent::Kind::Char, U'.'};
+    case VK_OEM_MINUS: return KeyEvent{KeyEvent::Kind::Char, U'-'};
+    case VK_SPACE: return KeyEvent{KeyEvent::Kind::Char, U' '};
+    case VK_TAB: return KeyEvent{KeyEvent::Kind::Char, U'\t'}; // matches fillKeyEvent's tab identity
+    case VK_RETURN: return KeyEvent{KeyEvent::Kind::Enter, 0};
+    case VK_BACK: return KeyEvent{KeyEvent::Kind::Backspace, 0};
+    case VK_SHIFT: return KeyEvent{KeyEvent::Kind::Shift, 0};
+    default: return std::nullopt;
+    }
 }
 
 std::wstring toWide(const char* s)
@@ -249,18 +292,38 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         return 0;
     case WM_KEYDOWN:
-        if (impl && impl->onKey)
+        if (impl)
         {
-            if (wParam == VK_RETURN)
-                impl->onKey({KeyEvent::Kind::Enter, 0, true});
-            else if (wParam == VK_BACK)
-                impl->onKey({KeyEvent::Kind::Backspace, 0, true});
-            else if (wParam == VK_F5) // see platform.h's Kind::Calibrate comment
-                impl->onKey({KeyEvent::Kind::Calibrate, 0, true});
-            // Everything else either arrives as WM_CHAR below (printable
-            // text, including i/k/j/l home-row navigation -- see
-            // platform.h's Kind::Char comment) or isn't part of this
-            // contract (Escape/Tab/Delete: see platform.h's file comment).
+            if (impl->onKey)
+            {
+                if (wParam == VK_RETURN)
+                    impl->onKey({KeyEvent::Kind::Enter, 0, true});
+                else if (wParam == VK_BACK)
+                    impl->onKey({KeyEvent::Kind::Backspace, 0, true});
+                else if (wParam == VK_F5) // see platform.h's Kind::Calibrate comment
+                    impl->onKey({KeyEvent::Kind::Calibrate, 0, true});
+                // Everything else either arrives as WM_CHAR below
+                // (printable text, including i/k/j/l home-row navigation
+                // -- see platform.h's Kind::Char comment) or isn't part
+                // of this contract (Escape/Delete: see platform.h's file
+                // comment).
+            }
+            // Separate from onKey above (which only cares about the few
+            // keys Cursor actually dispatches) -- onPhysicalKey flashes
+            // whatever's pressed, including a key onKey never even sees
+            // here (a letter, which only fires from WM_CHAR below).
+            // Auto-repeat harmlessly re-sends the same press; main.cpp
+            // already no-ops a redundant one (see its own comment).
+            if (impl->onPhysicalKey)
+                if (std::optional<KeyEvent> phys = vkToPhysicalKeyEvent(wParam))
+                    impl->onPhysicalKey({phys->kind, phys->codepoint, true});
+        }
+        break;
+    case WM_KEYUP:
+        if (impl && impl->onPhysicalKey)
+        {
+            if (std::optional<KeyEvent> phys = vkToPhysicalKeyEvent(wParam))
+                impl->onPhysicalKey({phys->kind, phys->codepoint, false});
         }
         break;
     case WM_CHAR:
@@ -315,6 +378,24 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 impl->onMouseMove(-1, -1); // see platform.h's run() comment
         }
         return 0;
+    case WM_TIMER:
+        if (impl)
+        {
+            // One-shot: stop it and pull the callback out before invoking
+            // -- KillTimer first, since the callback could itself call
+            // scheduleOnce() again and get handed back this exact same
+            // now-freed ID.
+            KillTimer(hwnd, wParam);
+            auto it = impl->pendingTimers.find(wParam);
+            if (it != impl->pendingTimers.end())
+            {
+                std::function<void()> callback = std::move(it->second);
+                impl->pendingTimers.erase(it);
+                if (callback)
+                    callback();
+            }
+        }
+        return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -344,13 +425,15 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                           std::function<void(int width_px, int height_px)> onResize,
                           std::function<void(int width_px, int height_px)> onResizeEnd,
                           std::function<void(int x_px, int y_px, bool pressed)> onClick,
-                          std::function<void(int x_px, int y_px)> onMouseMove)
+                          std::function<void(int x_px, int y_px)> onMouseMove,
+                          std::function<void(const KeyEvent&)> onPhysicalKey)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
     m_impl->onClick = std::move(onClick);
     m_impl->onMouseMove = std::move(onMouseMove);
+    m_impl->onPhysicalKey = std::move(onPhysicalKey);
 
     // createPlatformWindow's own size-correction (see its comment) can
     // still fail to hit the request: CW_USEDEFAULT positioning makes a
@@ -383,6 +466,13 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
+}
+
+void PlatformWindow::scheduleOnce(int delay_ms, std::function<void()> callback)
+{
+    UINT_PTR id = m_impl->nextTimerId++;
+    m_impl->pendingTimers.emplace(id, std::move(callback));
+    SetTimer(m_impl->hwnd, id, static_cast<UINT>(delay_ms), nullptr);
 }
 
 void PlatformWindow::present(std::span<const Pixel> pixels, int w, int h)

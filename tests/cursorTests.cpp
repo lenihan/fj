@@ -54,16 +54,14 @@ void tapCmd(Cursor& cursor)
 // PLAN.md) -- tests exercising typing/editing/thread creation need a
 // real writable card instead, exactly what a real user gets by
 // following the link to their own current-year TOC and adding a card
-// there. cursor.setYear() is called explicitly first (rather than just
-// navigating and letting m_year drift) because addNewCard()/
-// addContinuationCard() operate on whichever stack m_year currently
-// names, not on m_currentCard's own year() -- see cursor.h's
-// currentCalendarYear() comment and PLAN.md's writeup of that gap.
-// currentCalendarYear() (not a hardcoded year literal) guarantees this
-// points at the exact same stack setupInitialContent() already created.
+// there. No cursor.setYear() call needed (an earlier version of this
+// helper made one explicitly, working around m_year not otherwise being
+// set correctly for real navigation -- see the "pressing 'c'/'t' ...
+// actually adds to the year stack" test below for the bug that masked):
+// setupInitialContent() already leaves m_year on the real current year,
+// matching exactly the stack this link leads to.
 void gotoYearTocInCommandMode(Cursor& cursor)
 {
-    cursor.setYear(currentCalendarYear());
     sendCommand(cursor, U'l'); // master TOC's first link -- this year's own TOC
     tapCmd(cursor);            // Link -> general command, one step (see cursor.cpp)
 }
@@ -305,6 +303,28 @@ TEST_CASE("'d' toggles the deleted flag on the current card")
     CHECK_FALSE(cursor.currentCard()->deleted());
 }
 
+TEST_CASE("canDelete()/canEdit() refuse a read-only card, not just the stack's own TOC")
+{
+    // setDeleted() used to only refuse card 0 of a stack's own thread (a
+    // TOC) -- read-only blocked *editing* (enterTypingMode()) but not
+    // deletion, an inconsistency the keyboard panel's disabled-key
+    // styling would otherwise have to guess around. Master's own TOC
+    // already covers the "TOC" half (see the "read-only TOC" test
+    // above); this covers an ordinary read-only card instead.
+    Cursor cursor;
+    freshScratchCard(cursor);
+    CardItem* card = cursor.currentCard();
+    REQUIRE(card->canDelete());
+    REQUIRE(card->canEdit());
+
+    card->setReadOnly(true);
+    CHECK_FALSE(card->canDelete());
+    CHECK_FALSE(card->canEdit());
+
+    card->setDeleted(true); // refused -- canDelete() is false
+    CHECK_FALSE(card->deleted());
+}
+
 TEST_CASE("'n' enters Link navigation mode; cmd is the only way back to Cursor mode")
 {
     // isLinkMode() exists (added for the keyboard panel's phase 3 legend
@@ -349,6 +369,82 @@ TEST_CASE("'n' enters Link navigation mode; cmd is the only way back to Cursor m
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
     cursor.handleKey({KeyEvent::Kind::Char, U'k', true}); // down() in Cursor mode: actually moves
     CHECK(cursor.row() == before + 1);
+}
+
+TEST_CASE("hasLinkHistory()/isAtFirstLink()/isAtLastLink() reflect navigation state for the keyboard "
+          "panel's disabled styling")
+{
+    // A fresh Cursor lands on Master's own TOC, already in Link
+    // (Navigation) mode -- see setupInitialContent()/m_navigationMode's
+    // own default. Nothing's been followed yet, so there's no history to
+    // pop; Master's TOC lists both the year stack and Help, and starts
+    // positioned on the first of the two, so it's at the first link but
+    // not the last.
+    Cursor cursor;
+    CHECK_FALSE(cursor.hasLinkHistory());
+    CHECK(cursor.currentCard()->linkCount() >= 2);
+    CHECK(cursor.currentCard()->isAtFirstLink());
+    CHECK_FALSE(cursor.currentCard()->isAtLastLink());
+
+    sendCommand(cursor, U'k'); // nextLink(): advance to the last one
+    CHECK_FALSE(cursor.currentCard()->isAtFirstLink());
+    CHECK(cursor.currentCard()->isAtLastLink());
+
+    sendCommand(cursor, U'l'); // right(): follow the current link
+    CHECK(cursor.hasLinkHistory());
+
+    sendCommand(cursor, U'j'); // left(): pop back -- the only entry, so history empties again
+    CHECK_FALSE(cursor.hasLinkHistory());
+}
+
+TEST_CASE("hasPrevThreadCard()/hasNextThreadCard() reflect thread position for prevT/nextT's disabled styling")
+{
+    // Master's own TOC has no threadPrev() at all -- nothing points to it
+    // (see setupInitialContent()) -- and, being freshly landed on, no
+    // threadNext() either.
+    Cursor cursor;
+    CHECK_FALSE(cursor.hasPrevThreadCard());
+    CHECK_FALSE(cursor.hasNextThreadCard());
+
+    // A freshly created card's own threadPrev() is whatever TOC it was
+    // added from (see CardStack::add()'s ThreadMode::New branch) -- a
+    // real, live "back to the TOC" link, not nothing.
+    freshScratchCard(cursor);
+    CardItem* firstCard = cursor.currentCard();
+    CHECK(cursor.hasPrevThreadCard());
+    CHECK_FALSE(cursor.hasNextThreadCard());
+
+    CardItem* secondCard = createContinuationCard(cursor);
+    REQUIRE(cursor.currentCard() == secondCard);
+
+    // Still sitting on the second (and last) card of a two-card thread: a
+    // previous card exists, a next one doesn't yet.
+    CHECK(cursor.hasPrevThreadCard());
+    CHECK_FALSE(cursor.hasNextThreadCard());
+
+    sendCommand(cursor, U'm'); // prevThreadCard(): back to the first card
+    CHECK(cursor.currentCard() == firstCard);
+    CHECK(cursor.hasPrevThreadCard()); // still true -- back to the TOC it was created from
+    CHECK(cursor.hasNextThreadCard());
+}
+
+TEST_CASE("general command mode's arrows refuse to move on a read-only card")
+{
+    // Master's own TOC is read-only (see setupInitialContent()) -- i/k/j/l
+    // (up/down/left/right in general command mode) shouldn't move the
+    // cursor there at all, matching the keyboard panel's own "arrows gray
+    // out when read-only" styling (see KeyDisabledState's comment in
+    // keyboardPanel.h for why that's a deliberate choice: these arrows
+    // exist to position the cursor for editing, meaningless on a card you
+    // can't edit anyway). tapCmd() to reach general command (Cursor)
+    // mode -- a fresh Cursor starts in Link/Navigation mode instead,
+    // where i/k/j/l mean something else entirely.
+    Cursor cursor;
+    tapCmd(cursor);
+    Row before = cursor.row();
+
+    sendCommand(cursor, U'k'); // down() -- would normally move to the next row
+    CHECK(cursor.row() == before);
 }
 
 TEST_CASE("navigation mode is exclusive: only i/k/j/l stay live, everything else is blocked")
@@ -427,7 +523,7 @@ TEST_CASE("'u' and 'o' navigate to the adjacent card by card number")
     // freshScratchCard's comment), so 'u' below has a non-TOC card to
     // land on: the year's own TOC is read-only, so landing directly on
     // it would block the release's own enterTypingMode() fallback (see
-    // handleKey's m_wasTypingMode branch), and land us in Link mode.
+    // handleKey's m_wasTypingMode branch).
     cursor.handleKey({KeyEvent::Kind::Char, U'c', true});
     tapCmd(cursor); // Typing -> Command again
     cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // land on a freshly added card
@@ -439,6 +535,48 @@ TEST_CASE("'u' and 'o' navigate to the adjacent card by card number")
 
     sendCommand(cursor, U'o'); // nextCard()
     CHECK(cursor.currentCard()->cardNumber() == hereNumber);
+}
+
+TEST_CASE("'u'/'o' stay in whichever command sub-state they were already in, even landing on a TOC")
+{
+    // showCard() itself always forces Navigation mode for any TOC target
+    // (right, so following an actual link into one does) -- but paging by
+    // card number isn't "following a link," so the user was explicit u/o
+    // shouldn't silently bump into a different sub-state just because the
+    // adjacent card happens to be a TOC. Reaching the year's own TOC (card
+    // 0 of its stack) this way, while still in general command (Cursor)
+    // mode, used to switch to Link -- see prevCard()'s own comment for the
+    // save/restore fix.
+    Cursor cursor;
+    gotoYearTocInCommandMode(cursor);
+    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // land on a fresh card, card number 1
+    tapCmd(cursor);                                       // Typing -> Command again
+    REQUIRE_FALSE(cursor.isLinkMode());
+    REQUIRE(cursor.currentCard()->cardNumber() > 0);
+
+    sendCommand(cursor, U'u'); // prevCard(): steps onto card 0, the TOC itself
+    REQUIRE(cursor.currentCard()->isTOC());
+    CHECK_FALSE(cursor.isLinkMode()); // stayed in Cursor mode, not forced into Link
+
+    sendCommand(cursor, U'o'); // nextCard(): back off the TOC
+    CHECK_FALSE(cursor.isLinkMode());
+}
+
+TEST_CASE("isAtFirstCard()/isAtLastCard() reflect paging position for u/o's disabled styling")
+{
+    Cursor cursor;
+    gotoYearTocInCommandMode(cursor);
+    CHECK(cursor.isAtFirstCard()); // freshly landed on the year TOC, card 0 of its stack
+    CHECK(cursor.isAtLastCard());  // also the *only* card in the stack so far
+
+    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // card 1
+    tapCmd(cursor);
+    CHECK_FALSE(cursor.isAtFirstCard());
+    CHECK(cursor.isAtLastCard());
+
+    sendCommand(cursor, U'u'); // back to the TOC, card 0
+    CHECK(cursor.isAtFirstCard());
+    CHECK_FALSE(cursor.isAtLastCard()); // card 1 still exists ahead of it
 }
 
 TEST_CASE("typing to a card's last row and pressing Enter creates a thread "
@@ -537,6 +675,15 @@ TEST_CASE("every non-deleted card added to a TOC is reachable from it via links"
     }
     REQUIRE(cursor.currentCard() == toc);
 
+    // 'u' no longer switches into Navigation mode just because it landed
+    // on a TOC (see prevCard()/nextCard()'s own comment -- the user was
+    // explicit paging by card number shouldn't silently change command
+    // sub-state), so this needs its own explicit 'n' to reach it before
+    // the link-walking below, where the old side effect used to do it
+    // for free.
+    sendCommand(cursor, U'n');
+    REQUIRE(cursor.isLinkMode());
+
     // Walk every link on the TOC: rewind to the first one with prevLink()
     // ('i'), then repeatedly follow the current link ('l' -- right()) and
     // come back ('j' -- left(), which pops the link-history showCard()
@@ -577,29 +724,66 @@ TEST_CASE("every non-deleted card added to a TOC is reachable from it via links"
     CHECK(std::find(visited.begin(), visited.end(), cardB) == visited.end()); // deleted -- must not be reachable
 }
 
+TEST_CASE("pressing 'c'/'t' on the year TOC (reached by following Master's own link, "
+          "no setYear() involved) actually adds to that stack")
+{
+    // The exact scenario setupInitialContent()'s m_year fix addresses,
+    // reported live: a fresh Cursor never calls setYear() at all (no
+    // production code path does -- only tests used to, as a workaround --
+    // see gotoYearTocInCommandMode's own comment), so before that fix,
+    // m_year stayed on Master::kYear forever and every addCard() call
+    // silently allocated into Master's permanently-read-only stack
+    // instead, making 'c'/'t' look like they'd stopped doing anything at
+    // all, anywhere.
+    Cursor cursor;
+    gotoYearTocInCommandMode(cursor);
+    CardItem* yearToc = cursor.currentCard();
+    REQUIRE(yearToc->isTOC());
+    Year year = yearToc->year();
+
+    sendCommand(cursor, U'c');
+    CHECK(cursor.currentCard() != yearToc);       // actually moved to a new card...
+    CHECK(cursor.currentCard()->year() == year);  // ...in the *same* (year, not Master) stack
+    CHECK(cursor.isTypingMode());                 // addNewCard() ends in typing mode on its new card
+}
+
 TEST_CASE("setYear() refuses to move backward, so new content can never target a year that's already passed")
 {
+    // Both relative to currentCalendarYear(), not hardcoded literals --
+    // setupInitialContent() now leaves m_year at the real current year
+    // (see its own comment: this used to be the bug reported live --
+    // m_year got stuck on Master::kYear forever, so 'c'/'t' silently did
+    // nothing anywhere), so a literal past year here would already be
+    // refused by the very first setYear() call below, before the
+    // "refuses to move backward" behavior this test actually means to
+    // exercise ever runs at all.
+    Year firstYear = currentCalendarYear() + 1;
+    Year laterYear = currentCalendarYear() + 2;
+
     Cursor cursor;
-    cursor.setYear(2020);
-    REQUIRE(cursor.year() == 2020);
+    cursor.setYear(firstYear);
+    REQUIRE(cursor.year() == firstYear);
 
-    cursor.setYear(2026);
-    REQUIRE(cursor.year() == 2026);
+    cursor.setYear(laterYear);
+    REQUIRE(cursor.year() == laterYear);
 
-    cursor.setYear(2020); // attempt to go back to a year that's already passed -- refused
-    CHECK(cursor.year() == 2026);
+    cursor.setYear(firstYear); // attempt to go back to a year that's already passed -- refused
+    CHECK(cursor.year() == laterYear);
 }
 
 TEST_CASE("a thread continued into a new year's stack links back to the original card, "
           "but is also listed in the new year's own TOC")
 {
     Cursor cursor;
-    Year pastYear = 2020;
     // Deliberately far from any real calendar year -- setupInitialContent()
     // links Master to currentCalendarYear()'s own stack, so a literal that
     // happened to match today's real year would give that stack an extra
     // "back to Master" link this test doesn't expect, making its outcome
-    // depend on which day it happened to run.
+    // depend on which day it happened to run. Both still have to be *at or
+    // after* the real current year, though -- m_year starts there now (see
+    // the "refuses to move backward" test above), so anything earlier
+    // would already be refused by the very first setYear() call below.
+    Year pastYear = 9998;
     Year currentYear = 9999; // must come *after* pastYear -- setYear() refuses to move backward (see the test above)
 
     // setYear() lazily creates that year's own CardStack (and TOC) the

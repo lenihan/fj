@@ -31,9 +31,13 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
+#include <utility>
+#include <vector>
 
 struct PlatformWindow::Impl
 {
@@ -60,6 +64,13 @@ struct PlatformWindow::Impl
     std::function<void(int width_px, int height_px)> onResizeEnd;
     std::function<void(int x_px, int y_px, bool pressed)> onClick;
     std::function<void(int x_px, int y_px)> onMouseMove;
+    std::function<void(const KeyEvent&)> onPhysicalKey;
+
+    // scheduleOnce()'s pending callbacks -- run()'s own select() loop
+    // gains a second timeout reason alongside its existing resize-settle
+    // one to fire these (see run()'s comment), rather than each needing
+    // its own OS-level timer the way Win32's SetTimer does.
+    std::vector<std::pair<std::chrono::steady_clock::time_point, std::function<void()>>> pendingTimers;
 };
 
 namespace
@@ -164,21 +175,72 @@ char32_t decodeUtf8(const char* s)
     return 0;
 }
 
+// Maps a KeyPress/KeyRelease's base keysym (index 0 -- see below, already
+// shift-independent) to the physical-key identity platform.h's
+// onPhysicalKey expects, covering exactly the keys keyboardPanel.cpp's
+// layout tables actually use. XK_Caps_Lock is handled separately, inline
+// in handleKeyEvent (it already needs both edges for onKey too); nullopt
+// for anything else (function keys, [/]/\/=, ...) -- those don't appear
+// on the panel at all, so there's no key for them to flash.
+std::optional<KeyEvent> keysymToPhysicalKeyEvent(KeySym keysym)
+{
+    if (keysym >= XK_a && keysym <= XK_z)
+        return KeyEvent{KeyEvent::Kind::Char, static_cast<char32_t>(keysym - XK_a + U'a')};
+    if (keysym >= XK_0 && keysym <= XK_9)
+        return KeyEvent{KeyEvent::Kind::Char, static_cast<char32_t>(keysym - XK_0 + U'0')};
+    switch (keysym)
+    {
+    case XK_semicolon: return KeyEvent{KeyEvent::Kind::Char, U';'};
+    case XK_slash: return KeyEvent{KeyEvent::Kind::Char, U'/'};
+    case XK_apostrophe: return KeyEvent{KeyEvent::Kind::Char, U'\''};
+    case XK_comma: return KeyEvent{KeyEvent::Kind::Char, U','};
+    case XK_period: return KeyEvent{KeyEvent::Kind::Char, U'.'};
+    case XK_minus: return KeyEvent{KeyEvent::Kind::Char, U'-'};
+    case XK_space: return KeyEvent{KeyEvent::Kind::Char, U' '};
+    case XK_Tab: return KeyEvent{KeyEvent::Kind::Char, U'\t'}; // matches fillKeyEvent's tab identity
+    case XK_Return:
+    case XK_KP_Enter: return KeyEvent{KeyEvent::Kind::Enter, 0};
+    case XK_BackSpace: return KeyEvent{KeyEvent::Kind::Backspace, 0};
+    case XK_Shift_L:
+    case XK_Shift_R: return KeyEvent{KeyEvent::Kind::Shift, 0};
+    default: return std::nullopt;
+    }
+}
+
 void handleKeyEvent(PlatformWindow::Impl& impl, XEvent& event)
 {
-    if (!impl.onKey)
-        return;
-
     bool pressed = (event.type == KeyPress);
+    // Index 0, not whatever modifiers are actually held -- X11 keeps the
+    // unshifted symbol at group/level 0 regardless of live Shift state,
+    // so this is already the same stable, shift-independent identity
+    // onPhysicalKey needs (see keysymToPhysicalKeyEvent), no separate
+    // "unshift it" step required the way Win32's WM_CHAR would.
     KeySym keysym = XLookupKeysym(&event.xkey, 0);
 
     if (keysym == XK_Caps_Lock) // both edges matter -- see platform.h's Kind::CapsLock comment
     {
-        impl.onKey({KeyEvent::Kind::CapsLock, 0, pressed});
+        if (impl.onKey)
+            impl.onKey({KeyEvent::Kind::CapsLock, 0, pressed});
+        if (impl.onPhysicalKey)
+            impl.onPhysicalKey({KeyEvent::Kind::CapsLock, 0, pressed});
         return;
     }
 
-    if (!pressed) // everything else is press-only (platform.h)
+    // Separate from onKey below (which only cares about the few keys
+    // Cursor actually dispatches, and only ever on press) -- onPhysicalKey
+    // flashes whatever's pressed, both edges, including a key onKey never
+    // even looks at here (ordinary printable text, which onKey only sees
+    // via Xutf8LookupString further down, press-only).
+    if (impl.onPhysicalKey)
+    {
+        if (std::optional<KeyEvent> phys = keysymToPhysicalKeyEvent(keysym))
+            impl.onPhysicalKey({phys->kind, phys->codepoint, pressed});
+    }
+
+    if (!impl.onKey)
+        return;
+
+    if (!pressed) // everything else onKey cares about is press-only (platform.h)
         return;
 
     if (keysym == XK_Return || keysym == XK_KP_Enter)
@@ -419,13 +481,15 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                           std::function<void(int width_px, int height_px)> onResize,
                           std::function<void(int width_px, int height_px)> onResizeEnd,
                           std::function<void(int x_px, int y_px, bool pressed)> onClick,
-                          std::function<void(int x_px, int y_px)> onMouseMove)
+                          std::function<void(int x_px, int y_px)> onMouseMove,
+                          std::function<void(const KeyEvent&)> onPhysicalKey)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
     m_impl->onClick = std::move(onClick);
     m_impl->onMouseMove = std::move(onMouseMove);
+    m_impl->onPhysicalKey = std::move(onPhysicalKey);
 
     // X11 has no protocol-level "the interactive resize just ended" event
     // the way Win32 has WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE (see platform.h's
@@ -441,23 +505,62 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
     bool resizePending = false;
     int pendingWidth = 0;
     int pendingHeight = 0;
+    std::chrono::steady_clock::time_point resizeDeadline;
     int xfd = ConnectionNumber(m_impl->display);
 
     while (true)
     {
+        // The select() timeout is whichever deadline is soonest: the
+        // resize-settle one (if a resize is pending) and/or the earliest
+        // pending scheduleOnce() callback (if any) -- nullptr (block
+        // indefinitely) only when neither is pending.
+        auto now = std::chrono::steady_clock::now();
+        std::optional<std::chrono::steady_clock::time_point> deadline;
+        if (resizePending)
+            deadline = resizeDeadline;
+        for (const auto& timer : m_impl->pendingTimers)
+        {
+            if (!deadline || timer.first < *deadline)
+                deadline = timer.first;
+        }
+
         fd_set fds;
         FD_ZERO(&fds);
         FD_SET(xfd, &fds);
-        timeval tv{0, kResizeSettleMs * 1000};
-        // nullptr (block indefinitely) when nothing is pending -- only a
-        // live resize needs the timeout at all.
-        int ready = select(xfd + 1, &fds, nullptr, nullptr, resizePending ? &tv : nullptr);
-
-        if (ready == 0 && resizePending)
+        timeval tv{};
+        if (deadline)
         {
-            // Timed out waiting for the next tick -- the resize has
-            // settled. main.cpp only re-picks its baked atlas and
-            // redraws crisply here, not on every onResize tick above.
+            auto remaining = *deadline > now ? std::chrono::duration_cast<std::chrono::microseconds>(*deadline - now)
+                                              : std::chrono::microseconds::zero();
+            tv.tv_sec = static_cast<time_t>(remaining.count() / 1'000'000);
+            tv.tv_usec = static_cast<suseconds_t>(remaining.count() % 1'000'000);
+        }
+        select(xfd + 1, &fds, nullptr, nullptr, deadline ? &tv : nullptr);
+
+        // Checked against the clock directly, not select()'s own return
+        // value -- a real X event arriving at (near) the same moment a
+        // deadline elapses shouldn't delay firing it. Erases as it goes,
+        // so a callback that itself calls scheduleOnce() again only ever
+        // sees the *new* entry on some future pass.
+        auto afterSelect = std::chrono::steady_clock::now();
+        for (std::size_t i = 0; i < m_impl->pendingTimers.size();)
+        {
+            if (m_impl->pendingTimers[i].first <= afterSelect)
+            {
+                std::function<void()> callback = std::move(m_impl->pendingTimers[i].second);
+                m_impl->pendingTimers.erase(m_impl->pendingTimers.begin() + static_cast<std::ptrdiff_t>(i));
+                if (callback)
+                    callback();
+            }
+            else
+                ++i;
+        }
+
+        if (resizePending && afterSelect >= resizeDeadline)
+        {
+            // The resize has settled. main.cpp only re-picks its baked
+            // atlas and redraws crisply here, not on every onResize tick
+            // above.
             resizePending = false;
             if (m_impl->onResizeEnd)
                 m_impl->onResizeEnd(pendingWidth, pendingHeight);
@@ -496,6 +599,7 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                 if (m_impl->onResize)
                     m_impl->onResize(event.xconfigure.width, event.xconfigure.height);
                 resizePending = true;
+                resizeDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kResizeSettleMs);
                 pendingWidth = event.xconfigure.width;
                 pendingHeight = event.xconfigure.height;
                 break;
@@ -543,6 +647,12 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
             }
         }
     }
+}
+
+void PlatformWindow::scheduleOnce(int delay_ms, std::function<void()> callback)
+{
+    m_impl->pendingTimers.emplace_back(std::chrono::steady_clock::now() + std::chrono::milliseconds(delay_ms),
+                                        std::move(callback));
 }
 
 void PlatformWindow::present(std::span<const Pixel> pixels, int srcW, int srcH)

@@ -141,10 +141,20 @@ void CardItem::setThreadNext(CardItem* card)
 }
 CardItem* CardItem::threadNext() const { return m_threadNext; }
 
+bool CardItem::canDelete() const
+{
+    // Card 0 of a stack's own thread (its TOC) can never be deleted, and
+    // neither can anything read-only (every card of Master's, most days
+    // -- see setupInitialContent()) -- read-only used to only block
+    // *editing*, not deletion, which was really the same "can't touch
+    // this card at all" intent left half-enforced.
+    return m_threadStart->cardNumber() != 0 && !m_readOnly;
+}
+
 void CardItem::setDeleted(bool deleted)
 {
-    if (m_threadStart->cardNumber() == 0)
-        return; // Don't allow deleting the TOC for a card stack
+    if (!canDelete())
+        return;
     m_deleted = deleted;
 }
 bool CardItem::deleted() const { return m_deleted; }
@@ -152,10 +162,24 @@ bool CardItem::deleted() const { return m_deleted; }
 void CardItem::setReadOnly(bool readOnly) { m_readOnly = readOnly; }
 bool CardItem::readOnly() const { return m_readOnly; }
 
+bool CardItem::canEdit() const
+{
+    if (isTOC() && m_threadStart != this)
+        return false; // a TOC continuation page's title can't be edited, only its own thread-start's
+    return !m_readOnly && !m_deleted;
+}
+
 void CardItem::setRowReadOnly(Row row, bool readOnly) { m_rows[row].readOnly = readOnly; }
 bool CardItem::rowReadOnly(Row row) const { return m_rows[row].readOnly; }
 
 bool CardItem::hasLinks() const { return !m_links.empty(); }
+std::size_t CardItem::linkCount() const { return m_links.size(); }
+
+bool CardItem::isAtFirstLink() const { return m_links.empty() || m_currentLinkIndex <= 0; }
+bool CardItem::isAtLastLink() const
+{
+    return m_links.empty() || static_cast<std::size_t>(m_currentLinkIndex) >= m_links.size() - 1;
+}
 
 CardItem::CardLink CardItem::currentLink() const
 {

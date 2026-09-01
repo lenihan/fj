@@ -44,7 +44,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 struct PlatformWindow::Impl
@@ -54,6 +56,16 @@ struct PlatformWindow::Impl
     std::function<void(int width_px, int height_px)> onResizeEnd;
     std::function<void(int x_px, int y_px, bool pressed)> onClick;
     std::function<void(int x_px, int y_px)> onMouseMove;
+    std::function<void(const KeyEvent&)> onPhysicalKey;
+
+    // scheduleOnce()'s pending callbacks, keyed by an id passed through
+    // emscripten_set_timeout's own void* userData slot (see
+    // onScheduledTimer) -- emscripten_set_timeout takes a plain C
+    // function pointer, not a std::function, so it can't carry an
+    // arbitrary callback directly the way Win32's SetTimer/WM_TIMER
+    // pairing or X11's own pending-timer vector can.
+    std::unordered_map<int, std::function<void()>> pendingTimers;
+    int nextTimerId{1};
 
     // Debounces onResizeEnd the same way xlibWindow.cpp's select()-based
     // loop does (X11 and the browser's 'resize' event share the same
@@ -229,6 +241,26 @@ extern "C" EMSCRIPTEN_KEEPALIVE void fj_web_on_char(uint32_t codepoint)
 
 // --- Native event callbacks ------------------------------------------
 
+// The trampoline scheduleOnce() registers with emscripten_set_timeout --
+// userData carries the pendingTimers key (packed into a void*, not a real
+// pointer), since emscripten_set_timeout has no way to carry an arbitrary
+// std::function directly. g_activeImpl, not a captured Impl*, for the
+// same reason resizeSettled et al. already use it: only one PlatformWindow
+// is ever live per process.
+void onScheduledTimer(void* userData)
+{
+    if (!g_activeImpl)
+        return;
+    auto id = static_cast<int>(reinterpret_cast<std::intptr_t>(userData));
+    auto it = g_activeImpl->pendingTimers.find(id);
+    if (it == g_activeImpl->pendingTimers.end())
+        return;
+    std::function<void()> callback = std::move(it->second);
+    g_activeImpl->pendingTimers.erase(it);
+    if (callback)
+        callback();
+}
+
 void resizeSettled(void* userData)
 {
     auto* impl = static_cast<PlatformWindow::Impl*>(userData);
@@ -262,6 +294,35 @@ bool onResizeEvent(int /*eventType*/, const EmscriptenUiEvent* uiEvent, void* us
     return false; // no default browser action on window resize to suppress
 }
 
+// Maps a KeyboardEvent.code -- the DOM's own layout-/shift-independent
+// physical-key identifier (spec-guaranteed to name the key's position,
+// not whatever character it currently produces) -- to the identity
+// platform.h's onPhysicalKey expects, covering exactly the keys
+// keyboardPanel.cpp's layout tables actually use. "CapsLock" is handled
+// separately, inline in onKeydownEvent/onKeyupEvent (it already needs
+// both edges for onKey too); nullopt for anything else (function keys,
+// BracketLeft/BracketRight/Backslash/Equal, ...) -- those don't appear on
+// the panel at all, so there's no key for them to flash.
+std::optional<KeyEvent> codeToPhysicalKeyEvent(std::string_view code)
+{
+    if (code.size() == 4 && code.substr(0, 3) == "Key")
+        return KeyEvent{KeyEvent::Kind::Char, static_cast<char32_t>(code[3] - 'A' + 'a')};
+    if (code.size() == 6 && code.substr(0, 5) == "Digit")
+        return KeyEvent{KeyEvent::Kind::Char, static_cast<char32_t>(code[5])};
+    if (code == "Semicolon") return KeyEvent{KeyEvent::Kind::Char, U';'};
+    if (code == "Slash") return KeyEvent{KeyEvent::Kind::Char, U'/'};
+    if (code == "Quote") return KeyEvent{KeyEvent::Kind::Char, U'\''};
+    if (code == "Comma") return KeyEvent{KeyEvent::Kind::Char, U','};
+    if (code == "Period") return KeyEvent{KeyEvent::Kind::Char, U'.'};
+    if (code == "Minus") return KeyEvent{KeyEvent::Kind::Char, U'-'};
+    if (code == "Space") return KeyEvent{KeyEvent::Kind::Char, U' '};
+    if (code == "Tab") return KeyEvent{KeyEvent::Kind::Char, U'\t'}; // matches fillKeyEvent's tab identity
+    if (code == "Enter") return KeyEvent{KeyEvent::Kind::Enter, 0};
+    if (code == "Backspace") return KeyEvent{KeyEvent::Kind::Backspace, 0};
+    if (code == "ShiftLeft" || code == "ShiftRight") return KeyEvent{KeyEvent::Kind::Shift, 0};
+    return std::nullopt;
+}
+
 // Returning true here (for the four keys this shell actually intercepts)
 // tells the Emscripten runtime to call the DOM event's preventDefault()
 // for us -- see library_html5.js's handling of this callback's return
@@ -276,13 +337,29 @@ bool onResizeEvent(int /*eventType*/, const EmscriptenUiEvent* uiEvent, void* us
 bool onKeydownEvent(int /*eventType*/, const EmscriptenKeyboardEvent* keyEvent, void* userData)
 {
     auto* impl = static_cast<PlatformWindow::Impl*>(userData);
-    if (!impl->onKey)
-        return false;
 
     std::string_view key(keyEvent->key);
-    if (key == "CapsLock") // both edges matter -- see platform.h's Kind::CapsLock comment
-    {
+    bool isCapsLock = (key == "CapsLock"); // both edges matter -- see platform.h's Kind::CapsLock comment
+    if (isCapsLock)
         impl->capsLockHeld = true; // see Impl::capsLockHeld's comment
+
+    // Separate from onKey below (which only cares about the few keys
+    // Cursor actually dispatches, and only ever on press) -- onPhysicalKey
+    // flashes whatever's pressed, both edges, including a key onKey never
+    // even looks at here (ordinary printable text, which onKey only sees
+    // via the hidden <input>'s own 'input' event -- see fj_web_on_char).
+    if (impl->onPhysicalKey)
+    {
+        if (isCapsLock)
+            impl->onPhysicalKey({KeyEvent::Kind::CapsLock, 0, true});
+        else if (std::optional<KeyEvent> phys = codeToPhysicalKeyEvent(keyEvent->code))
+            impl->onPhysicalKey({phys->kind, phys->codepoint, true});
+    }
+
+    if (!impl->onKey)
+        return false;
+    if (isCapsLock)
+    {
         impl->onKey({KeyEvent::Kind::CapsLock, 0, true});
         return true;
     }
@@ -307,12 +384,22 @@ bool onKeydownEvent(int /*eventType*/, const EmscriptenKeyboardEvent* keyEvent, 
 bool onKeyupEvent(int /*eventType*/, const EmscriptenKeyboardEvent* keyEvent, void* userData)
 {
     auto* impl = static_cast<PlatformWindow::Impl*>(userData);
-    if (std::string_view(keyEvent->key) == "CapsLock")
-    {
+
+    std::string_view key(keyEvent->key);
+    bool isCapsLock = (key == "CapsLock");
+    if (isCapsLock)
         impl->capsLockHeld = false; // see Impl::capsLockHeld's comment
-        if (impl->onKey)
-            impl->onKey({KeyEvent::Kind::CapsLock, 0, false});
+
+    if (impl->onPhysicalKey)
+    {
+        if (isCapsLock)
+            impl->onPhysicalKey({KeyEvent::Kind::CapsLock, 0, false});
+        else if (std::optional<KeyEvent> phys = codeToPhysicalKeyEvent(keyEvent->code))
+            impl->onPhysicalKey({phys->kind, phys->codepoint, false});
     }
+
+    if (isCapsLock && impl->onKey)
+        impl->onKey({KeyEvent::Kind::CapsLock, 0, false});
     return false;
 }
 
@@ -385,13 +472,15 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
                           std::function<void(int width_px, int height_px)> onResize,
                           std::function<void(int width_px, int height_px)> onResizeEnd,
                           std::function<void(int x_px, int y_px, bool pressed)> onClick,
-                          std::function<void(int x_px, int y_px)> onMouseMove)
+                          std::function<void(int x_px, int y_px)> onMouseMove,
+                          std::function<void(const KeyEvent&)> onPhysicalKey)
 {
     m_impl->onKey = std::move(onKey);
     m_impl->onResize = std::move(onResize);
     m_impl->onResizeEnd = std::move(onResizeEnd);
     m_impl->onClick = std::move(onClick);
     m_impl->onMouseMove = std::move(onMouseMove);
+    m_impl->onPhysicalKey = std::move(onPhysicalKey);
 
     emscripten_set_keydown_callback("#fjInput", m_impl.get(), false, onKeydownEvent);
     emscripten_set_keyup_callback("#fjInput", m_impl.get(), false, onKeyupEvent);
@@ -410,6 +499,13 @@ void PlatformWindow::run(std::function<void(const KeyEvent&)> onKey,
     emscripten_set_mouseleave_callback("#fjCanvas", m_impl.get(), false, onMouseLeaveEvent);
 
     emscripten_set_main_loop(mainLoopTick, 0, true); // see this file's header comment
+}
+
+void PlatformWindow::scheduleOnce(int delay_ms, std::function<void()> callback)
+{
+    int id = m_impl->nextTimerId++;
+    m_impl->pendingTimers.emplace(id, std::move(callback));
+    emscripten_set_timeout(onScheduledTimer, delay_ms, reinterpret_cast<void*>(static_cast<std::intptr_t>(id)));
 }
 
 void PlatformWindow::present(std::span<const Pixel> pixels, int w, int h)

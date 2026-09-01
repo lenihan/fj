@@ -525,20 +525,306 @@ manually) rather than assuming emsdk's own env scripts handled it.
       mid-edit); the year link's TOC is empty and its own link returns
       to Master; the Help link opens a TOC of all four topics, each
       opening directly (not via its own up-arrow) and read-only.
-- [ ] **Known gap, deliberately deferred**: `Cursor::m_year` (which
-      stack `addNewCard()`/`nextCard()`/`prevCard()` physically operate
-      on) is only ever set by an explicit `setYear()` call -- it does
-      *not* track whichever card is actually being viewed. Invisible
-      until just now, since Master was the only stack that ever existed;
-      now that a second, reachable year stack exists (still empty), the
-      first real use of `c`/`t`/`u`/`o` while actually viewing *that*
-      stack's TOC (reached by following Master's own link, not via
-      `setYear()`) would silently operate on Master's storage instead --
-      wrong physical stack, though still linked into the right TOC
-      visually. Needs a real design pass on `Cursor`'s year-tracking
-      (`m_year` conflates "which stack pagination/new-content targets"
-      with "which stack is being viewed" -- they need to be different
-      things), not a quick patch.
+- [x] The `m_year` gap flagged above turned out to have two genuinely
+      different fixes, not one:
+      1. `setupInitialContent()` never actually advanced `m_year` off
+         `Master::kYear` once its own setup finished -- so `addNewCard()`/
+         `addContinuationCard()` (`c`/`t`) always resolved
+         `m_yearToCardStack.at(m_year)` to Master's own, permanently
+         read-only stack, silently doing nothing *anywhere*, not just on
+         Master. Fixed with one line, `m_year = currentYear;`, right
+         after Master's own content is built.
+      2. `lastCardNumber()`/`nextCard()`/`prevCard()` (`u`/`o`) had the
+         opposite problem: they *also* read `m_year`, but what they
+         actually need is "whichever stack the cursor is currently
+         viewing," which isn't always the same thing (`m_year` means
+         "which stack new content targets" -- the two concepts the
+         now-superseded gap above worried about conflating). Fixed by
+         switching those three to `m_currentCard->year()` instead.
+      Found via a new regression test (`"pressing 'c'/'t' on the year
+      TOC..."`) that reached the year TOC by following Master's own
+      link, the same path a real user takes, rather than the old
+      `setYear()` shortcut every earlier test used.
+- [x] Fixing the above surfaced a second, deeper bug in the same area:
+      a hold-cmd-drag-to-key chord whose chorded command itself changes
+      mode (`c`/`t`/`e`, via `enterTypingMode()`) had its own transition
+      immediately undone by the *same chord's* CapsLock-release
+      bookkeeping -- `enterTypingMode()`'s existing "clear the tap
+      latch" reset doesn't apply mid-hold (`m_capsDown` true), so the
+      release handler's stale `m_wasTypingMode` snapshot (captured
+      *before* the chord ran) incorrectly reverted back to Command mode.
+      Fixed with a new `m_modeChangedDuringHold` flag: set by
+      `enterTypingMode()` specifically when `m_capsDown` is true, and
+      checked first by the release handler, which then trusts whatever
+      mode the chorded command already set instead of reverting it.
+      Also found via the same new regression test above, which failed
+      once (`isTypingMode()` false after `sendCommand(cursor, 'c')`)
+      before this fix and passed after.
+- [x] MSVC-only rendering bug: `cardItem.cpp`'s `U"↑"`/`U"→"`
+      link-arrow literals rendered as blank cells on Windows only --
+      MSVC's default source encoding is the Windows ANSI code page, not
+      UTF-8, so the literal's UTF-8 bytes were being decoded one at a
+      time against the wrong code page (confirmed via temporary
+      codepoint tracing: `226, 8224, 8216` instead of one `8593`).
+      Linux/web unaffected (GCC/Clang already assume UTF-8). Fixed with
+      a build flag, not a source-code workaround: `add_compile_options(
+      /utf-8)` under `if(MSVC)` in `CMakeLists.txt`.
+- [x] Read-only cards (most of Master's, most days) now show it on the
+      keyboard panel instead of just silently ignoring `e`/`d`:
+      `CardItem::canEdit()`/`canDelete()` (the exact predicates
+      `enterTypingMode()`/`setDeleted()` already enforced internally)
+      are now exposed publicly so `main.cpp` can know in advance, and a
+      new `ModeColor::Disabled` (gray) overrides `e`/`d`'s usual color
+      in `modeColorFor` whenever they say no. Clicking a disabled key
+      goes further: its text replaces itself with an explanation
+      ("Read-Only") and its face inverts (the same visual weight a held
+      key gets) for a few seconds -- a new cross-platform one-shot timer
+      primitive, `PlatformWindow::scheduleOnce(delay_ms, callback)`, done
+      once per shell (Win32 `SetTimer`/`WM_TIMER`; X11 by extending the
+      existing resize-settle `select()` loop to also track timer
+      deadlines; web via `emscripten_set_timeout`), since nothing like it
+      existed yet. `main.cpp`'s own `messageGeneration` counter guards
+      against a stale timer clearing a *newer* message out from under it.
+      Debugged live down to a genuine one-frame race in how a synthetic
+      `PostMessage` test script's fixed capture delay could land outside
+      a real (correctly-firing) 5-second window -- not an app bug; the
+      underlying logic was confirmed correct via a temporary timestamped
+      trace before removal.
+- [x] Extended the same disabled-key pattern to Navigation mode and to
+      typing mode's own coloring, all from one round of live feedback:
+      `j` (back) grays out via a new `Cursor::hasLinkHistory()` when
+      there's no history to pop ("No history" on click); `i`/`k`
+      (prev/next) gray out via a new `CardItem::linkCount()` when a card
+      has one link or fewer ("No links" on click) -- both wired through
+      the same `showXDisabledMessage`/`scheduleOnce` machinery above.
+      Building this surfaced a real latent bug: every `addNewCard()`/
+      `addContinuationCard()` call inside `setupInitialContent()` itself
+      (building Help's content) pushes onto the same `m_linkHistory`
+      stack a real user's `j` pops from, so `hasLinkHistory()` read true
+      the instant the app launched, before any real navigation -- found
+      via a new headless test, fixed with `m_linkHistory.clear()` at the
+      end of setup. Also: general command mode's `i`/`k`/`j`/`l` legends
+      are now actual arrow glyphs (`↑↓←→`) instead of
+      the words "up"/"down"/"left"/"right" -- needed baking two more
+      codepoints (`←`/`↓`) into `bakeFont`'s glyph set alongside
+      the two link-arrows it already had, then re-running it. And typing
+      mode's uniform red became three tiers keyed off each key's own
+      codepoint -- letters brightest (`EditLetter`), digits a shade less
+      (`EditNumber`), everything else least (`EditOther`, punctuation/
+      shift/tab/enter/bs/spacebar) -- rather than one flat color for
+      every key.
+
+      53 tests passing (Windows/Linux), web and Windows builds clean.
+      Verified live on Windows: Master's TOC correctly refuses `e`
+      ("Read-Only", inverted) while a fresh year-stack card entered via
+      `c` accepts it normally; a fresh launch's `j` (back) is gray until
+      a link is followed, then live, then gray again after backing out;
+      a TOC with only its own back-link grays `i`/`k` ("No links" on
+      click) while Master's two-entry TOC keeps them live; typing mode
+      visibly shows three distinct red shades across letters/digits/
+      everything else.
+- [x] A follow-up round of live feedback on the above, five pieces:
+      1. The disabled-key message's 5-second timeout felt too long --
+         shortened to 3.
+      2. `i`/`k` (prev/next) in Navigation mode now disable
+         *independently* via new `CardItem::isAtFirstLink()`/
+         `isAtLastLink()`, replacing the old shared "linkCount() <= 1"
+         check -- a card with several links only grays out whichever end
+         you're actually sitting at, not both just because there's more
+         than one.
+      3. Typing mode's three red tiers became four: tab/shift/enter/bs
+         (`ModeColor::EditControl`, new) now read lighter than
+         punctuation/spacebar (`EditOther`), classified the same way as
+         before -- Fire+Char keys that are neither letter nor digit stay
+         `EditOther`; everything else (not Fire+Char at all) drops to
+         `EditControl`.
+      4. `m`/`.` (prevT/nextT) now gray out in general command mode via
+         two new `Cursor` predicates, `hasPrevThreadCard()`/
+         `hasNextThreadCard()` -- refactored out of `prevThreadCard()`/
+         `nextThreadCard()`'s own "skip deleted cards" walk so both the
+         action and the predicate share one implementation. Narrower
+         than it first sounds: `CardStack::add()`'s `ThreadMode::New`
+         branch always sets a fresh card's `threadPrev()` to whatever
+         TOC it was created from, so an ordinary content card *always*
+         has a live "back to the TOC" thread-prev -- only a stack's own
+         TOC (`threadPrev() == nullptr`, nothing points to it) actually
+         triggers "No prevT"/"No nextT". Found via a test written on the
+         wrong assumption (a fresh scratch card has no prev thread
+         card) -- it doesn't; that back-link is real, existing,
+         intentional behavior.
+      5. General command mode's arrows (`i`/`k`/`j`/`l`) now gray out on
+         a read-only card, and -- unlike every other disabled key so
+         far -- this one isn't purely cosmetic: `Cursor::up()`/`down()`/
+         `left()`/`right()`'s own `NavigationMode::Cursor` branches now
+         refuse (`shakeCardNo()`, matching `enterTypingMode()`'s own
+         canEdit() gate) instead of silently moving the cursor, since
+         without that the panel would show "disabled" on a key that
+         still visibly worked. Deliberate, not an oversight: these
+         arrows exist to position the cursor for *editing*, meaningless
+         on a card you can't edit anyway -- Navigation mode's own
+         `i`/`k`/`j`/`l` (unaffected, different branch entirely) is how
+         a read-only TOC like Master's is meant to be browsed.
+
+      Refactored the keyboard panel's own parameter lists along the way
+      -- `modeColorFor`/`drawKeyboardPanel` were accumulating a new bool
+      pair per disabled key (six-plus and climbing), easy to
+      transpose positionally and hard to read at any call site. Two new
+      types replace them: `KeyDisabledState` (one bool field per
+      disabled reason, aggregate-initialized with designated
+      initializers at call sites, e.g. `{.editDisabled = true}`) for the
+      persistent gray styling, and `KeyMessage` (a codepoint + which
+      command sub-state it belongs to + the explanation text) for the
+      one "why didn't that work" message that can be showing at a time
+      -- replacing five-plus `showXDisabledMessage` bools with a single
+      `std::optional<KeyMessage>`. The `isLinkMode` field on `KeyMessage`
+      does the job the old per-message `isLinkMode`-gated `if`s used to:
+      the same physical key (`i`/`k`/`j`) can now mean two different
+      things with two different messages depending on command sub-state
+      (Navigation's "no links"/"no history" vs. general command's new
+      "read-only" arrows), so a message set just before a mode change
+      doesn't misapply to the wrong meaning until its timeout.
+
+      56 tests passing (Windows/Linux), web and Windows builds clean.
+      Verified live on Windows: a card with two links grays `i` at the
+      first and `k` at the last, independently; typing mode shows four
+      visibly distinct red shades, tab/shift/enter/bs palest; Master's
+      TOC (no threadPrev/threadNext, read-only) grays `prevT`/`nextT`
+      ("No prevT"/"No nextT" on click) and all four arrows ("Read-Only"
+      on click, and the cursor genuinely doesn't move); the disabled-key
+      message visibly persists past 1.2s and is gone by 3.5s.
+- [x] A third round of live feedback, four more pieces:
+      1. `u`/`o` (prevCard()/nextCard(), by absolute card number) used to
+         silently switch into Navigation mode whenever the adjacent card
+         happened to be a TOC -- `showCard()` always forces that for any
+         TOC target, right for "followed a link into one" (Navigation is
+         how you'd want to browse it) but wrong for "paged onto one by
+         number," which isn't following a link at all. Fixed by saving
+         `m_navigationMode` before `prevCard()`/`nextCard()`'s own
+         `showCard()` call and restoring it after, rather than touching
+         `showCard()` itself (every other caller's own TOC landing *does*
+         want the switch).
+      2. `u`/`o` now gray out in general command mode via two new
+         `Cursor` predicates, `isAtFirstCard()`/`isAtLastCard()` -- the
+         same "would this be a no-op" check `prevCard()`/`nextCard()`
+         already made before calling `shakeCardNo()`, now factored out
+         and exposed so the panel can know in advance ("No prev"/"No
+         next" on click).
+      3. The on-card cursor indicator itself (not just the keyboard
+         panel) now draws nothing at all in general command mode on a
+         read-only card, rather than a green triangle suggesting an
+         action that's refused the moment you take it -- Navigation
+         mode's own cursor (a different branch of `Cursor::draw()`) is
+         unaffected, since browsing a read-only TOC's links is exactly
+         how it's meant to work.
+      4. The disabled-key message's timeout, already shortened from 5s
+         to 3s two rounds ago, felt *still* too long -- shortened again
+         to 1s.
+
+      Live-testing the shortened timeout surfaced the same lesson from
+      the original Read-Only investigation, now sharper with a smaller
+      budget: capturing a screenshot in the same synthetic-click
+      invocation (down+up+150ms fixed delay) reliably lands on the
+      *press* frame, not the post-release one, because the two
+      `PostMessage`s and the app's own dispatch+redraw don't always
+      finish inside 150ms -- looks identical to the message already
+      being gone (inverted face, but the key's ordinary legend text, not
+      the explanation) unless the click and the screenshot are split
+      into separate calls with real settle time between them.
+
+      58 tests passing (Windows/Linux), web and Windows builds clean.
+      Verified live on Windows: paging with `o` from Master's TOC onto
+      the read-only Help TOC stays in general command mode (`cmd`/`edit`/
+      `nav` legends throughout, never Navigation's `back`/`next`/`go`);
+      `prev` grays out on card 0 with "No prev" on click; no cursor
+      triangle anywhere on Master's stack; the message shows at 400ms
+      and is gone within roughly a second.
+- [x] A fourth round of live feedback reverted the physical letter
+      relocation from the two entries below (`+card`/`+toc`/`del` next
+      to `cmd`'s row, edit/nav next to `cmd` itself, and their various
+      `a`/`s`/`q`/`w` knock-on swaps) -- the user was explicit only a
+      key's *command-mode function* should ever move, never the letter
+      it produces: Cursor dispatches command mode on the exact same
+      codepoint typing mode sends (there's no separate "command
+      identity" for a key, independent of that one codepoint -- see
+      `fillKeyEvent`), so relocating a function inherently means
+      relocating whatever letter used to carry that codepoint too,
+      which is exactly the muscle-memory confusion this caused. Fixed
+      by reverting `kLeftKeys`/`kRightKeys` to real-QWERTY letter
+      positions throughout -- `c`/`t`/`d`/`e`/`n` (+card/+toc/del/edit/
+      nav) simply live wherever their own mnemonic letter's real
+      position already is (scattered, not clustered near `cmd`), same
+      as `d` (delete) and `e`/`n` always did before any of this
+      relocation work started. A new headless test locks each letter to
+      its real row/col so the mistake can't quietly come back.
+
+      Also: the spacebar now lights up on *both* panels together
+      whenever either is pressed (mouse or physical), matching shift's
+      existing cross-panel behavior, rather than just the one side
+      actually pressed -- a new `spacebarEngaged` bool threaded through
+      `drawKeyboardPanel` the same way `shiftEngaged` already was.
+
+      59 tests passing (Windows/Linux), web and Windows builds clean.
+      Verified live on Windows: typing mode's letters now read
+      `q w e r t` / `a s d f g` / `z x c v b` on the left panel and
+      `y u i o p` / `n m , . /` on the right, matching a real keyboard
+      exactly; pressing and holding the left panel's spacebar inverts
+      both spacebars at once.
+- [x] (Superseded by the entry above, kept for history) `+card`/`+toc`/
+      `del` (`c`/`t`/`d`) relocated to the left panel's row 2, keys
+      2/3/4 -- another straight label swap in `keyboardPanel.cpp`'s
+      layout tables, same as the mode-key relocations above; `a`/`s`/`q`
+      take over their old spots.
+- [x] Physical-keyboard key presses now flash the matching on-screen
+      panel key -- the keyboard equivalent of the mouse hover/press
+      feedback above, so typing on a real keyboard visibly connects to
+      the emulated one, even for a key (an unbound letter, Shift itself)
+      that has no effect on `Cursor` at all. Needed a new `platform.h`
+      contract addition, the same shape as hover's `onMouseMove`: a
+      `run()` callback, `onPhysicalKey`, firing on every physical key's
+      own down *and* up edge (every `Kind`, unlike `onKey`, where only
+      CapsLock ever reports a release) -- entirely separate from `onKey`,
+      never routed to `Cursor`.
+
+      The hard part, same as hover's own write-up: identifying *which*
+      on-screen key to flash without conflating it with what the key
+      currently *produces* (Shift changes that without changing which
+      physical key it is). Solved the same way `KeyRect` already does it
+      internally -- every physical key's identity is its **unshifted**
+      `KeyEvent::Kind`/codepoint (a new `Kind::Shift`, used only by this
+      callback, stands in for the physical Shift key itself, which has
+      no dispatch meaning of its own). Each shell already has its own raw
+      per-key identifier for other reasons, conveniently already
+      shift-independent everywhere: Win32's `WM_KEYDOWN`/`WM_KEYUP` gives
+      virtual-key codes (already position-based --
+      `VK_A`..`VK_Z`/`VK_0`..`VK_9` equal their ASCII, so most of the
+      table is trivial; the low-level Caps Lock hook feeds it too, since
+      that key never reaches ordinary `WM_KEYDOWN`), X11's `KeyPress`/
+      `KeyRelease` give a keysym at group/level 0, which is *already*
+      shift-independent (no separate "unshift it" step needed at all),
+      and the web shell's `KeyboardEvent.code` is spec-guaranteed
+      layout-/shift-independent by design -- three small lookup tables,
+      one per shell, covering exactly the ~40 keys the panel actually
+      shows.
+
+      `main.cpp` tracks a `physicalPressedKey` (found by scanning both
+      panels' `layoutKeys()` for a `kind`/codepoint match) alongside the
+      existing mouse-driven `pressedKey`, merged into the same
+      `leftPressedRect`/`rightPressedRect` `drawKeyboardPanel` already
+      expected -- no rendering-side changes needed at all. Shift gets its
+      own `physicalShiftHeld` bool instead, merged into the existing
+      `shiftEngaged`, since both physical shift keys already light up
+      together whenever that's true.
+
+      47 -> 48 tests passing (Windows/Linux), web builds clean. Verified
+      live on Windows via synthetic `WM_KEYDOWN`/`WM_KEYUP` `PostMessage`s
+      (not `SendInput` -- that requires real OS focus a background test
+      process doesn't reliably have, confirmed by it silently going
+      nowhere): a dead key (no effect on `Cursor`) still flashes solid
+      with no text, exactly like a mouse-pressed dead key already did; a
+      live key (`i`, "prev" in Navigation mode) flashes with its legend
+      text visible, matching a mouse press pixel-for-pixel. X11/web are
+      implemented and build clean but unverified live -- no Linux desktop
+      or browser available to test interactively in this environment.
 - [ ] Port the old "darken all but the current row while typing" effect
       -- `Canvas::blendRect` (real alpha blending) exists now, nothing
       uses it for this yet
@@ -936,8 +1222,7 @@ manually) rather than assuming emsdk's own env scripts handled it.
   - <https://a.co/d/03qzhl5Z>
   - 5 rows, 6 col per side (left and right hand)
   - Possible layout (superseded below -- see "Initial content..." entry
-    under Platform/architecture for the actual, current layout: `caps`
-    renamed to `cmd`, and edit/navigation relocated next to it)
+    under Platform/architecture for `caps` -> `cmd`)
     Left                Right
     ;     1 2 3 4 5     6 7 8 9 0 bs        (No =)
     tab   q w e r t     y u i o p -         (No [ and ] and \)
@@ -947,13 +1232,17 @@ manually) rather than assuming emsdk's own env scripts handled it.
 
 Mode-transition dispatch (Command/Typing keyboard mode, Link/Cursor
 navigation mode) sketched here originally is now real, implemented code
--- see `Cursor::handleKey` in `src/cursor.cpp`. Current physical layout:
+-- see `Cursor::handleKey` in `src/cursor.cpp`. Current physical layout
+(`caps` -> `cmd` aside, identical to the sketch above -- every letter
+stays at its real-QWERTY position; see the "A third round..." entry
+under Platform/architecture for why an earlier version that physically
+relocated `c`/`t`/`d`/`e`/`n`/`q`/`w`/`a`/`s` was reverted):
 
     Left                Right
     ;     1 2 3 4 5     6 7 8 9 0 bs
-    tab   a s q r t     y u i o p -
-    cmd   e n d f g     h j k l ' enter
-    shift z x c v b     w m , . / shift
+    tab   q w e r t     y u i o p -
+    cmd   a s d f g     h j k l ' enter
+    shift z x c v b     n m , . / shift
            spacebar     spacebar
 
 ### Emulator keyboard panels (planned)

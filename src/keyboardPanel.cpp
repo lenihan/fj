@@ -14,20 +14,27 @@ namespace
 // transcribed one row array per side. Row 4 (the spacebar) isn't in here --
 // it's handled separately in layoutKeys/drawKeyboardPanel since it spans
 // two columns instead of one.
-// e/n sit next to cmd (row 3's 2nd/3rd keys, same row as cmd itself),
-// not their original q/w/n spots -- the user wanted the mode keys
-// spatially clustered together given how important they are, rather
-// than edit two keys away and navigation on the other panel entirely.
-// a/s (still needed as literal typed letters) take over e's/n's old
-// row-2 spots instead -- a straight swap within this one table (unlike
-// the previous relocation, kRightKeys is untouched this time), so every
-// letter stays reachable somewhere. Cursor dispatches on codepoint,
-// never on physical position, so nothing outside this table needs to
-// change.
+//
+// Every letter sits at its real-QWERTY position -- q/w/e/r/t, a/s/d/f/g,
+// z/x/c/v/b, y/u/i/o/p, h/j/k/l, n/m -- matching what a real keyboard
+// (and a real touch-typist's fingers) already expects in typing mode.
+// An earlier version of this table physically relocated c/t/d/e/n (and,
+// as a knock-on, q/w/a/s) to new grid positions so +card/+toc/del/edit/
+// nav would sit spatially close to cmd -- reverted: the user was
+// explicit that only the *command-mode function* a key performs should
+// move, never the letter it types, since Cursor dispatches command mode
+// on the exact same codepoint typing mode sends (there is no separate
+// "command identity" for a key, only its one codepoint -- see
+// fillKeyEvent below) -- so relocating a function inherently means
+// relocating whatever letter used to carry that codepoint too, which is
+// precisely the confusion this reverts. c/t/d/e/n (+card/+toc/del/edit/
+// nav) simply live wherever their own mnemonic letter's real position
+// already is; only "caps" -> "cmd" is still a label change here, since
+// that key was never a letter to begin with.
 const std::array<std::array<const char32_t*, KeyboardPanel::kCols>, KeyboardPanel::kKeyRows> kLeftKeys = {{
     {U";", U"1", U"2", U"3", U"4", U"5"},
-    {U"tab", U"a", U"s", U"q", U"r", U"t"},
-    {U"cmd", U"e", U"n", U"d", U"f", U"g"},
+    {U"tab", U"q", U"w", U"e", U"r", U"t"},
+    {U"cmd", U"a", U"s", U"d", U"f", U"g"},
     {U"shift", U"z", U"x", U"c", U"v", U"b"},
 }};
 
@@ -35,7 +42,7 @@ const std::array<std::array<const char32_t*, KeyboardPanel::kCols>, KeyboardPane
     {U"6", U"7", U"8", U"9", U"0", U"bs"},
     {U"y", U"u", U"i", U"o", U"p", U"-"},
     {U"h", U"j", U"k", U"l", U"'", U"enter"},
-    {U"w", U"m", U",", U".", U"/", U"shift"},
+    {U"n", U"m", U",", U".", U"/", U"shift"},
 }};
 
 constexpr Pixel kPanelColor = 0x00202020;
@@ -54,17 +61,35 @@ constexpr int kHoverBorderWidth_px = 2;
 // every other key already uses) rather than fully saturated colors --
 // keeps the mode-colored keys consistent with kKeyColor's own soft,
 // cream-adjacent palette instead of clashing with it.
-constexpr Pixel kEditColor = 0x00EBC4C4;       // red
+constexpr Pixel kEditColor = 0x00EBC4C4;       // red -- e's own mode-key face
 constexpr Pixel kCommandColor = 0x00C4E0C4;    // green
 constexpr Pixel kNavigationColor = 0x00C4D4EB; // blue
+constexpr Pixel kDisabledColor = 0x00CACACA;   // gray -- deliberately not tinted toward red/green,
+                                                // so "disabled" doesn't read as some fourth mode color
+
+// Typing mode's four-tier red, brightest (most saturated) to dimmest --
+// same hue throughout, just less pink/more toward kKeyColor's neutral
+// cream as each tier matters less: letters are what you're mostly
+// typing, digits less often, punctuation/spacebar less often still, and
+// tab/shift/enter/bs -- control keys, not text you're producing --
+// least of all.
+constexpr Pixel kEditLetterColor = 0x00E8A6A6;  // brighter/more saturated than the old uniform kEditColor
+constexpr Pixel kEditNumberColor = 0x00EBC4C4;  // == kEditColor -- the previous uniform shade
+constexpr Pixel kEditOtherColor = 0x00EEDDDD;   // punctuation/spacebar
+constexpr Pixel kEditControlColor = 0x00F0E8E8; // tab/shift/enter/bs -- closest to neutral
 
 Pixel modeColorPixel(ModeColor color)
 {
     switch (color)
     {
     case ModeColor::Edit: return kEditColor;
+    case ModeColor::EditLetter: return kEditLetterColor;
+    case ModeColor::EditNumber: return kEditNumberColor;
+    case ModeColor::EditOther: return kEditOtherColor;
+    case ModeColor::EditControl: return kEditControlColor;
     case ModeColor::Command: return kCommandColor;
     case ModeColor::Navigation: return kNavigationColor;
+    case ModeColor::Disabled: return kDisabledColor;
     case ModeColor::None: default: return kKeyColor;
     }
 }
@@ -77,11 +102,16 @@ void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
     canvas.line({r.x, r.y + r.h}, {r.x, r.y}, color, thickness);
 }
 
-// The longest single-width key label/legend ("shift"/"enter"/"prevT"/
-// "nextT", 5-6 codepoints) -- pickPanelAtlas sizes text to fit this
-// within one key's pitch, not the double-wide spacebar's more generous
-// width.
-constexpr std::size_t kLongestSingleWidthLabel = 6;
+// The longest single-width key label/legend -- pickPanelAtlas sizes text
+// to fit this within one key's pitch, not the double-wide spacebar's more
+// generous width. "No history" (11 codepoints, one of KeyMessage's own
+// disabled-key explanations -- see drawKeyboardPanel) is now the
+// longest -- past even "Read-Only" (9) -- well past "shift"/"enter"/
+// "prevT"/"nextT" (5-6) -- a real trade-off, since every other key's
+// text shrinks slightly to keep fitting a message that's shown rarely
+// and briefly, but truncating or abbreviating the user's exact
+// requested wording seemed worse.
+constexpr std::size_t kLongestSingleWidthLabel = 11;
 
 // What a key labeled `label` does -- see KeyRect::Action's comment.
 // "tab" has no corresponding Cursor::handleKey case at all today (PLAN.md's
@@ -100,6 +130,12 @@ void fillKeyEvent(KeyRect& key)
     if (key.label == U"tab")
     {
         key.action = KeyRect::Action::None;
+        // Never actually dispatched (Action::None) -- set purely so this
+        // key has a stable identity main.cpp's physical-key flash (see
+        // platform.h's onPhysicalKey) can match against, the same way
+        // every other key's kind/codepoint already doubles as its
+        // identity there.
+        key.codepoint = U'\t';
     }
     else if (key.label == U"shift")
     {
@@ -379,11 +415,14 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
     }
 
     // General command mode (Cursor navigation sub-state): every key
-    // Cursor::handleKey's switch implements.
-    if (key.label == U"i") return std::u32string(U"up");
-    if (key.label == U"k") return std::u32string(U"down");
-    if (key.label == U"j") return std::u32string(U"left");
-    if (key.label == U"l") return std::u32string(U"right");
+    // Cursor::handleKey's switch implements. i/k/j/l move the cursor, so
+    // they show actual arrow glyphs rather than the word -- same U+2190..
+    // U+2193 arrows CardItem::linkStr() already uses for card links, now
+    // also baked into bakeFont's glyphCodepoints() for this.
+    if (key.label == U"i") return std::u32string(U"↑");
+    if (key.label == U"k") return std::u32string(U"↓");
+    if (key.label == U"j") return std::u32string(U"←");
+    if (key.label == U"l") return std::u32string(U"→");
     if (key.label == U"e") return std::u32string(U"edit");
     if (key.label == U"u") return std::u32string(U"prev");
     if (key.label == U"o") return std::u32string(U"next");
@@ -396,36 +435,77 @@ std::optional<std::u32string> commandLegendFor(const KeyRect& key, bool isLinkMo
     return std::nullopt;
 }
 
-ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode)
+ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode, const KeyDisabledState& disabled)
 {
     // cmd always shows its own color regardless of mode -- unlike n/e, it
     // never produces literal text, so there's no "just an ordinary key"
     // state for it to defer to.
     if (key.label == U"cmd") return ModeColor::Command;
 
-    // Typing mode: every other key is red, full stop -- the user was
-    // explicit that typing mode should read as "everything is red except
-    // cmd," not just the keys that do something while typing (shift/tab
-    // included, even though neither is itself a Fire key). n/e are
+    // Typing mode: every other key is some shade of red, full stop -- the
+    // user was explicit that typing mode should read as "everything is
+    // red except cmd" (shift/tab included, even though neither is itself
+    // a Fire key), then later that letters should read slightly brighter
+    // than digits, punctuation less still, and tab/shift/enter/bs least
+    // of all -- keyed off what the key actually is (a Fire+Char key's
+    // own codepoint, or lack of one), not its label, so it stays correct
+    // regardless of which physical spot a letter/digit lives at. n/e are
     // ordinary letters here (this is where they type a literal 'n'/'e'),
     // not mode keys -- found live, not by inspection: n showing its
     // command-mode blue while typing read as wrong the instant it was
     // seen on screen, since here it's just a letter like any other.
     if (isTypingMode)
-        return ModeColor::Edit;
+    {
+        if (key.action == KeyRect::Action::Fire && key.kind == KeyEvent::Kind::Char)
+        {
+            if (key.codepoint >= U'a' && key.codepoint <= U'z') return ModeColor::EditLetter;
+            if (key.codepoint >= U'0' && key.codepoint <= U'9') return ModeColor::EditNumber;
+            return ModeColor::EditOther; // punctuation, spacebar
+        }
+        return ModeColor::EditControl; // tab (None), shift (ShiftToggle), enter/bs (Fire but not Char)
+    }
 
     // General command mode: n/e show their own permanent color here --
     // they're not producing text in this mode, they're mode-transition
-    // keys. In Navigation mode they're blocked like any other key that
-    // isn't i/k/j/l (see cursor.cpp's exclusive-navigation-mode gate), so
-    // they fall through to the ordinary live/blank check below instead --
-    // found live, not by inspection: a blocked n/e still showing its own
-    // color read as live when it wasn't, the same mistake as any other
-    // blocked key showing its command-mode color.
+    // keys. editDisabled/deleteDisabled/prevThreadDisabled/
+    // nextThreadDisabled/prevCardDisabled/nextCardDisabled override
+    // e/d/m/./u/o's usual color with gray here, each driven by the
+    // matching CardItem/Cursor predicate -- still shows a legend
+    // (commandLegendFor doesn't change), just not the color that would
+    // suggest pressing it does something.
+    //
+    // i/k/j/l (the arrows themselves) also gray out here when
+    // editDisabled -- see KeyDisabledState's own comment for why that's
+    // deliberate, not an oversight.
+    //
+    // Navigation mode: j (back)/i (prev)/k (next) get the same disabled
+    // treatment, driven by backDisabled/prevDisabled/nextDisabled --
+    // Cursor::hasLinkHistory() (nothing to pop) / CardItem::
+    // isAtFirstLink()/isAtLastLink() (nothing further that way to select)
+    // respectively, independently for i and k.
+    //
+    // Both branches found live, not by inspection: a blocked n/e still
+    // showing its own color read as live when it wasn't, the same
+    // mistake disabled-but-uncolored keys would make if this didn't
+    // handle them explicitly.
     if (!isLinkMode)
     {
         if (key.label == U"n") return ModeColor::Navigation;
-        if (key.label == U"e") return ModeColor::Edit;
+        if (key.label == U"e") return disabled.editDisabled ? ModeColor::Disabled : ModeColor::Edit;
+        if (key.label == U"d") return disabled.deleteDisabled ? ModeColor::Disabled : ModeColor::Command;
+        if (key.label == U"m") return disabled.prevThreadDisabled ? ModeColor::Disabled : ModeColor::Command;
+        if (key.label == U".") return disabled.nextThreadDisabled ? ModeColor::Disabled : ModeColor::Command;
+        if (key.label == U"u") return disabled.prevCardDisabled ? ModeColor::Disabled : ModeColor::Command;
+        if (key.label == U"o") return disabled.nextCardDisabled ? ModeColor::Disabled : ModeColor::Command;
+        if ((key.label == U"i" || key.label == U"k" || key.label == U"j" || key.label == U"l") &&
+            disabled.editDisabled)
+            return ModeColor::Disabled;
+    }
+    else
+    {
+        if (key.label == U"j" && disabled.backDisabled) return ModeColor::Disabled;
+        if (key.label == U"i" && disabled.prevDisabled) return ModeColor::Disabled;
+        if (key.label == U"k" && disabled.nextDisabled) return ModeColor::Disabled;
     }
 
     // Whichever other keys commandLegendFor considers live right now --
@@ -438,12 +518,24 @@ ModeColor modeColorFor(const KeyRect& key, bool isTypingMode, bool isLinkMode)
 }
 
 void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& atlas, const Rect* pressedKeyRect,
-                        const Rect* hoveredKeyRect, bool shiftEngaged, bool isTypingMode, bool isLinkMode)
+                        const Rect* hoveredKeyRect, bool shiftEngaged, bool spacebarEngaged, bool isTypingMode,
+                        bool isLinkMode, const KeyDisabledState& disabled, const std::optional<KeyMessage>& message)
 {
     canvas.fillRect({0, 0, canvas.width(), canvas.height()}, kPanelColor);
 
     for (const KeyRect& key : layoutKeys(leftSide, canvas.width()))
     {
+        // A key showing its own "why didn't that work" explanation (see
+        // message below) matches on codepoint *and* isLinkMode -- see
+        // KeyMessage's own comment for why both are needed (the same
+        // physical key can mean two different things depending on
+        // command sub-state). Requires action == Fire && kind == Char
+        // since that's the only thing message->codepoint could mean
+        // (cmd/shift/tab/enter/bs never carry a disabled-key message).
+        bool showingMessage = message.has_value() && key.action == KeyRect::Action::Fire &&
+                              key.kind == KeyEvent::Kind::Char && message->codepoint == key.codepoint &&
+                              message->isLinkMode == isLinkMode;
+
         // cmd inverts only for as long as it's actually held down
         // (pressedKeyRect, same as any other key) -- a momentary flash on
         // press and again on release, not a persistent indicator of
@@ -452,9 +544,14 @@ void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& at
         // its own permanent Command-colored face (modeColorFor) to show
         // "this is what I do," so a lasting invert on top of that would
         // just be redundant -- the user was explicit cmd shouldn't stay
-        // inverted the way shift does.
-        bool inverted = (pressedKeyRect && sameRect(key.rect, *pressedKeyRect)) ||
-                        (key.action == KeyRect::Action::ShiftToggle && shiftEngaged);
+        // inverted the way shift does. A key showing its own message
+        // stays inverted for the message's whole lifetime, not just the
+        // originating press -- reads as "this is the reason," the same
+        // visual weight a held key already gets, rather than just gray
+        // text sitting quietly on its usual disabled face.
+        bool inverted = showingMessage || (pressedKeyRect && sameRect(key.rect, *pressedKeyRect)) ||
+                        (key.action == KeyRect::Action::ShiftToggle && shiftEngaged) ||
+                        (key.label == U"spacebar" && spacebarEngaged);
 
         // The key's own "light" color -- its mode color if it has one
         // right now (cmd/n/e always; any other key only while live in
@@ -462,7 +559,7 @@ void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& at
         // Inverting swaps this with the universal dark kKeyLabelColor,
         // exactly the same press-feedback/latch pattern as before, just
         // parameterized per key instead of a single hardcoded pair.
-        Pixel lightColor = modeColorPixel(modeColorFor(key, isTypingMode, isLinkMode));
+        Pixel lightColor = modeColorPixel(modeColorFor(key, isTypingMode, isLinkMode, disabled));
         Pixel faceColor = inverted ? kKeyLabelColor : lightColor;
         Pixel textColor = inverted ? lightColor : kKeyLabelColor;
 
@@ -478,6 +575,14 @@ void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& at
 
         std::optional<std::u32string> text =
             isTypingMode ? std::optional(typingLabelFor(key, shiftEngaged)) : commandLegendFor(key, isLinkMode);
+
+        // Overrides whatever text was just picked above -- explains *why*
+        // the key that was just clicked didn't do anything, instead of it
+        // just silently sitting there gray. main.cpp owns clearing this
+        // again after a few seconds.
+        if (showingMessage)
+            text = message->text;
+
         if (!text)
             continue; // dead in this mode -- blank key face, no text at all
 

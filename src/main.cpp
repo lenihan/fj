@@ -269,6 +269,53 @@ int main()
                a->key.rect.w == b->key.rect.w && a->key.rect.h == b->key.rect.h;
     };
 
+    // Physical-keyboard press/release (see platform.h's onPhysicalKey) --
+    // flashes the matching on-screen key the same way a mouse press
+    // already does, entirely separate from pressedKey above: never
+    // touches resolveKeyGesture/Cursor, purely visual. Shift gets its own
+    // bool instead of a PressedKey, matching drawKeyboardPanel's own
+    // shiftEngaged parameter: both physical shift keys already light up
+    // together whenever that's true, so there's no need to know which
+    // side was actually pressed.
+    std::optional<PressedKey> physicalPressedKey;
+    bool physicalShiftHeld = false;
+
+    // Which key (if any) should currently show its own "why didn't that
+    // work" explanation instead of its usual legend -- set for a few
+    // seconds after clicking a disabled key (see onClick's own comment),
+    // so the click explains itself instead of just silently doing
+    // nothing. Only one shows at a time (simplicity -- these are rare,
+    // brief, and never simultaneous in practice). messageGeneration
+    // guards the scheduleOnce() callback that clears it against firing
+    // late and clobbering a *newer* message: a second disabled-key click
+    // before the first one's timer fires bumps this, and the stale
+    // callback checks its own captured snapshot against the current
+    // value before clearing anything.
+    std::optional<KeyMessage> keyMessage;
+    int messageGeneration = 0;
+
+    // Finds whichever on-screen key (either panel) has the same kind/
+    // codepoint identity as event -- see platform.h's onPhysicalKey
+    // comment for why that's enough, without this needing to know
+    // anything about physical scan codes itself. cmd is matched by its
+    // CapsToggle action specifically (its own KeyRect's kind is
+    // CapsLock, same as event's, so kind alone already lands on the
+    // right key -- codepoint is irrelevant there and left unchecked).
+    // Shift is handled by the caller instead (see physicalShiftHeld
+    // above); event.kind == Shift never reaches here.
+    auto findPhysicalKey = [&](const KeyEvent& event) -> std::optional<PressedKey>
+    {
+        for (bool leftSide : {true, false})
+        {
+            for (const KeyRect& key : layoutKeys(leftSide, cardCanvas.width()))
+            {
+                if (key.kind == event.kind && (event.kind != KeyEvent::Kind::Char || key.codepoint == event.codepoint))
+                    return PressedKey{key, leftSide};
+            }
+        }
+        return std::nullopt;
+    };
+
     // Square, cardCanvas.width() on a side: Monitor::kWidth_in ==
     // Card::kWidth_in, so at whatever resolution the atlas rendered the
     // card's width, that same pixel count is exactly Monitor::kHeight_in
@@ -308,8 +355,16 @@ int main()
         monitorCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         monitorCanvas.blit(cardCanvas, {0, (monitorCanvas.height() - cardCanvas.height()) / 2});
 
-        const Rect* leftPressedRect = (pressedKey && pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
-        const Rect* rightPressedRect = (pressedKey && !pressedKey->leftSide) ? &pressedKey->key.rect : nullptr;
+        // Mouse takes precedence on the vanishingly unlikely chance both
+        // are somehow set at once -- effectivePressedKey is just
+        // "whichever press should currently flash," feeding the same
+        // leftPressedRect/rightPressedRect drawKeyboardPanel already
+        // expects regardless of which source it came from.
+        const std::optional<PressedKey>& effectivePressedKey = pressedKey ? pressedKey : physicalPressedKey;
+        const Rect* leftPressedRect =
+            (effectivePressedKey && effectivePressedKey->leftSide) ? &effectivePressedKey->key.rect : nullptr;
+        const Rect* rightPressedRect =
+            (effectivePressedKey && !effectivePressedKey->leftSide) ? &effectivePressedKey->key.rect : nullptr;
         const Rect* leftHoveredRect = (hoveredKey && hoveredKey->leftSide) ? &hoveredKey->key.rect : nullptr;
         const Rect* rightHoveredRect = (hoveredKey && !hoveredKey->leftSide) ? &hoveredKey->key.rect : nullptr;
 
@@ -317,18 +372,49 @@ int main()
         // mid-press (pressed but not yet released) previews its effect
         // immediately, the same way its own face already inverts before
         // release -- see keyboardPanel.h's drawKeyboardPanel comment.
-        bool shiftEngaged = shiftLatched || (pressedKey && pressedKey->key.action == KeyRect::Action::ShiftToggle);
+        // physicalShiftHeld/effectivePressedKey extend that same preview
+        // to a physical keypress, not just a mouse one (see platform.h's
+        // onPhysicalKey).
+        bool shiftEngaged = shiftLatched || physicalShiftHeld ||
+                             (pressedKey && pressedKey->key.action == KeyRect::Action::ShiftToggle);
+        // Both panels' spacebar light up together regardless of which
+        // side is actually pressed -- mouse or physical (effectivePressedKey
+        // already unifies the two, same as leftPressedRect/rightPressedRect
+        // above), matching shift's own cross-panel behavior. Unlike shift,
+        // there's no latch to check: spacebar is an ordinary momentary Fire
+        // key, so this is only true for as long as the press itself lasts.
+        bool spacebarEngaged = effectivePressedKey && effectivePressedKey->key.label == U"spacebar";
         bool commandModeForLegend =
-            cursor.isCommandMode() || (pressedKey && pressedKey->key.action == KeyRect::Action::CapsToggle);
+            cursor.isCommandMode() ||
+            (effectivePressedKey && effectivePressedKey->key.action == KeyRect::Action::CapsToggle);
         bool isTypingModeForLegend = !commandModeForLegend;
         bool isLinkModeForLegend = cursor.isLinkMode(); // only meaningful once actually in command mode
+
+        // CardItem's own canEdit()/canDelete()/isAtFirstLink()/
+        // isAtLastLink() and Cursor's own hasLinkHistory()/
+        // hasPrevThreadCard()/hasNextThreadCard()/isAtFirstCard()/
+        // isAtLastCard() -- see their comments -- queried fresh every
+        // frame so every key's gray "disabled" styling always matches
+        // whichever card/history is actually current right now.
+        KeyDisabledState disabled;
+        disabled.editDisabled = !cursor.currentCard()->canEdit();
+        disabled.deleteDisabled = !cursor.currentCard()->canDelete();
+        disabled.backDisabled = !cursor.hasLinkHistory();
+        disabled.prevDisabled = cursor.currentCard()->isAtFirstLink();
+        disabled.nextDisabled = cursor.currentCard()->isAtLastLink();
+        disabled.prevThreadDisabled = !cursor.hasPrevThreadCard();
+        disabled.nextThreadDisabled = !cursor.hasNextThreadCard();
+        disabled.prevCardDisabled = cursor.isAtFirstCard();
+        disabled.nextCardDisabled = cursor.isAtLastCard();
 
         leftPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         rightPanelCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         drawKeyboardPanel(leftPanelCanvas, /*leftSide=*/true, *leftPanelAtlas, leftPressedRect, leftHoveredRect,
-                           shiftEngaged, isTypingModeForLegend, isLinkModeForLegend);
+                           shiftEngaged, spacebarEngaged, isTypingModeForLegend, isLinkModeForLegend, disabled,
+                           keyMessage);
         drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, rightPressedRect, rightHoveredRect,
-                           shiftEngaged, isTypingModeForLegend, isLinkModeForLegend);
+                           shiftEngaged, spacebarEngaged, isTypingModeForLegend, isLinkModeForLegend, disabled,
+                           keyMessage);
 
         deviceCanvas = Canvas(monitorCanvas.width() * 3, monitorCanvas.height());
         deviceCanvas.blit(leftPanelCanvas, {0, 0});
@@ -445,7 +531,84 @@ int main()
                                                          releasedLeftSide, capsLatched, shiftLatched,
                                                          cursor.isTypingMode());
             for (const KeyEvent& event : outcome.events)
+            {
+                // Most of these have to be read *before* dispatch: unlike
+                // e/d (whose target -- the current card -- never changes
+                // on a refusal, only on a success), a successful 'j' pops
+                // link history, a successful i/k just moves the link
+                // selection, and a successful m/./u/o/i/k/j/l just moves
+                // the cursor/current card -- none of that necessarily
+                // leaves state distinguishable afterward the way
+                // canEdit()/canDelete() do (a successful 'j' that empties
+                // the history in the process would otherwise look
+                // identical to a refused one). isLinkMode is captured
+                // too, since i/k/j mean something else entirely outside
+                // Navigation mode -- see KeyMessage's own comment.
+                bool wasLinkMode = cursor.isLinkMode();
+                bool cardWasReadOnly = !cursor.currentCard()->canEdit();
+                bool backWasDisabled = !cursor.hasLinkHistory();
+                bool prevLinkWasDisabled = cursor.currentCard()->isAtFirstLink();
+                bool nextLinkWasDisabled = cursor.currentCard()->isAtLastLink();
+                bool prevThreadWasDisabled = !cursor.hasPrevThreadCard();
+                bool nextThreadWasDisabled = !cursor.hasNextThreadCard();
+                bool prevCardWasDisabled = cursor.isAtFirstCard();
+                bool nextCardWasDisabled = cursor.isAtLastCard();
+
                 cursor.handleKey(event);
+
+                // Each explanation shows for a few seconds on whichever
+                // key was just refused -- e/d via CardItem::canEdit()/
+                // canDelete(), queried fresh right after the dispatch
+                // above (still false here means this exact attempt was
+                // the one that got refused, not some earlier unrelated
+                // state); everything else via the pre-dispatch snapshot
+                // above, since Cursor::up()/down()/left()/right()
+                // themselves now refuse (see cursor.cpp) rather than
+                // silently moving, so the card's canEdit() can't have
+                // changed either way. Only one message at a time, for
+                // simplicity; messageGeneration lets a second click (of
+                // any key) invalidate whichever scheduleOnce() callback is
+                // already pending for the first, so it can't clear a
+                // *newer* message out from under it later.
+                bool isChar = event.kind == KeyEvent::Kind::Char;
+                std::optional<KeyMessage> refusal;
+                if (isChar && event.codepoint == U'e' && !cursor.currentCard()->canEdit())
+                    refusal = KeyMessage{U'e', false, U"Read-Only"};
+                else if (isChar && event.codepoint == U'd' && !cursor.currentCard()->canDelete())
+                    refusal = KeyMessage{U'd', false, U"Read-Only"};
+                else if (wasLinkMode && isChar && event.codepoint == U'j' && backWasDisabled)
+                    refusal = KeyMessage{U'j', true, U"No history"};
+                else if (wasLinkMode && isChar && event.codepoint == U'i' && prevLinkWasDisabled)
+                    refusal = KeyMessage{U'i', true, U"No links"};
+                else if (wasLinkMode && isChar && event.codepoint == U'k' && nextLinkWasDisabled)
+                    refusal = KeyMessage{U'k', true, U"No links"};
+                else if (!wasLinkMode && isChar && event.codepoint == U'm' && prevThreadWasDisabled)
+                    refusal = KeyMessage{U'm', false, U"No prevT"};
+                else if (!wasLinkMode && isChar && event.codepoint == U'.' && nextThreadWasDisabled)
+                    refusal = KeyMessage{U'.', false, U"No nextT"};
+                else if (!wasLinkMode && isChar && event.codepoint == U'u' && prevCardWasDisabled)
+                    refusal = KeyMessage{U'u', false, U"No prev"};
+                else if (!wasLinkMode && isChar && event.codepoint == U'o' && nextCardWasDisabled)
+                    refusal = KeyMessage{U'o', false, U"No next"};
+                else if (!wasLinkMode && isChar && cardWasReadOnly &&
+                         (event.codepoint == U'i' || event.codepoint == U'k' || event.codepoint == U'j' ||
+                          event.codepoint == U'l'))
+                    refusal = KeyMessage{event.codepoint, false, U"Read-Only"};
+
+                if (refusal)
+                {
+                    keyMessage = refusal;
+                    int myGeneration = ++messageGeneration;
+                    window.scheduleOnce(1000,
+                                         [&, myGeneration]()
+                                         {
+                                             if (myGeneration != messageGeneration)
+                                                 return; // a newer click already superseded this one
+                                             keyMessage.reset();
+                                             redraw();
+                                         });
+                }
+            }
             // Cursor's own isCommandMode() -- queried fresh after
             // replaying every event above -- rather than
             // outcome.capsLatched: a plain tap's blind "flip the latch"
@@ -478,6 +641,46 @@ int main()
         if (sameHoveredSpot(hit, hoveredKey))
             return;
         hoveredKey = hit;
+        redraw();
+    };
+
+    // Flashes the on-screen key matching a physical keypress -- see
+    // platform.h's onPhysicalKey. Shift has no KeyRect identity of its
+    // own to look up (see findPhysicalKey's comment), just the shared
+    // shiftEngaged bool. Guards against redundant redraws two ways: a
+    // held key's OS auto-repeat re-sends the same press over and over
+    // (sameHoveredSpot already true, so a no-op), and a release is only
+    // honored if it matches whatever's currently flashed -- otherwise
+    // it's a stale release for a key some *other* physical press already
+    // overtook (fast rollover while typing), and clearing the newer
+    // press's own flash early would be wrong.
+    auto onPhysicalKey = [&](const KeyEvent& event)
+    {
+        if (event.kind == KeyEvent::Kind::Shift)
+        {
+            if (physicalShiftHeld == event.pressed)
+                return;
+            physicalShiftHeld = event.pressed;
+            redraw();
+            return;
+        }
+
+        std::optional<PressedKey> found = findPhysicalKey(event);
+        if (!found)
+            return; // a physical key this panel doesn't show at all
+
+        if (event.pressed)
+        {
+            if (sameHoveredSpot(found, physicalPressedKey))
+                return;
+            physicalPressedKey = found;
+        }
+        else
+        {
+            if (!sameHoveredSpot(found, physicalPressedKey))
+                return;
+            physicalPressedKey.reset();
+        }
         redraw();
     };
 
@@ -549,7 +752,7 @@ int main()
             redraw(); // renderContent rebuilds/redraws the panels at the new resolution
             window.setTitle(titleFor(unit, dpi, dpiKnown));
         },
-        onClick, onMouseMove);
+        onClick, onMouseMove, onPhysicalKey);
 
     return 0;
 }

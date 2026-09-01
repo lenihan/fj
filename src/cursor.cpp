@@ -121,7 +121,13 @@ Cursor::Cursor()
 
 CardNumber Cursor::lastCardNumber() const
 {
-    return m_yearToCardStack.at(m_year)->lastCardNumber();
+    // m_currentCard->year(), not m_year: this answers "how many cards are
+    // in the stack I'm *looking at* right now" (nextCard()'s own "am I
+    // already at the end" check, right below), which has to follow
+    // wherever the cursor actually is -- Master, say -- independent of
+    // m_year's own separate meaning (see its own comment: which stack
+    // *new* content targets, deliberately not the same question).
+    return m_yearToCardStack.at(m_currentCard->year())->lastCardNumber();
 }
 
 Year Cursor::year() const { return m_year; }
@@ -165,43 +171,58 @@ bool Cursor::isLinkMode() const { return m_navigationMode == NavigationMode::Lin
 
 void Cursor::enterTypingMode()
 {
-    // Checked first, before anything below touches m_row: every stack's
-    // own card-0 TOC (Master's, every year's) is permanently read-only,
-    // and used to hit this *after* the isTOC() branch below had already
-    // set m_row = 0 -- so pressing 'e' on one silently left the cursor on
-    // the title row despite the switch to typing mode being refused,
-    // corrupting later navigation mode is Cursor/Link decisions
-    // (Navigation mode) also branch on m_row == 0 for TOC cards. Found
-    // live, not by inspection: pressing 'e' then 'n' on Master's own TOC
-    // looked like both keys had stopped doing anything.
-    if (m_currentCard->readOnly() || m_currentCard->deleted())
+    // canEdit() bundles every reason this can be refused (read-only,
+    // deleted, or a TOC continuation page) into the one predicate
+    // CardItem itself owns -- checked before anything below touches
+    // m_row, not after: a stack's own card-0 TOC (Master's, every year's)
+    // is permanently read-only, and this used to only be checked *after*
+    // the isTOC() branch below had already set m_row = 0 -- so pressing
+    // 'e' on one silently left the cursor on the title row despite the
+    // switch to typing mode being refused, corrupting later navigation
+    // mode Cursor/Link decisions (toggleNavigationMode() also branches on
+    // m_row == 0 for TOC cards). Found live, not by inspection: pressing
+    // 'e' then 'n' on Master's own TOC looked like both keys had stopped
+    // doing anything.
+    if (!m_currentCard->canEdit())
     {
         shakeCardNo();
         return;
     }
 
     if (m_currentCard->isTOC())
-    {
-        if (m_currentCard != m_currentCard->threadStart())
-        {
-            shakeCardNo();
-            return;
-        }
-        m_row = 0; // move to title
-    }
+        m_row = 0; // move to title -- canEdit() above already confirmed this is the thread-start TOC
 
     m_keyboardMode = KeyboardMode::Typing;
     m_navigationMode = NavigationMode::Cursor; // so you can use navigation keys
 
-    // A stale latch, not just irrelevant, if left set: 'e' reaches typing
-    // mode without ever going through the CapsLock-release branch that
-    // owns this flag (see handleKey), so leaving it true here meant the
-    // *next* cmd tap still believed it was releasing an already-latched
-    // command mode and immediately bounced straight back to typing,
-    // instead of latching a fresh one -- found live, not by inspection:
-    // cmd -> e -> cmd flashed to command mode and back to typing in one
-    // tap.
-    m_capsTapLatched = false;
+    if (m_capsDown)
+    {
+        // A chorded command ('c'/'t'/'e' -- see handleKey's dispatch)
+        // just explicitly, intentionally moved us to typing mode *while*
+        // cmd is still physically down, mid-gesture -- handleKey's own
+        // CapsLock-release branch (still to come, once cmd actually lifts)
+        // needs to know that happened, or its usual "revert to whatever
+        // preceded this hold" bookkeeping (m_capsTapLatched/m_wasTypingMode,
+        // both stale by definition here -- captured before this command
+        // ever ran) will stomp straight back over it. Found live, not by
+        // inspection: hold cmd, drag to 'c', release landed back in
+        // command mode instead of typing mode on the new card.
+        m_modeChangedDuringHold = true;
+    }
+    else
+    {
+        // A stale latch, not just irrelevant, if left set: 'e' reaches
+        // typing mode without ever going through the CapsLock-release
+        // branch that owns this flag, so leaving it true here meant the
+        // *next* cmd tap still believed it was releasing an
+        // already-latched command mode and immediately bounced straight
+        // back to typing, instead of latching a fresh one -- found live,
+        // not by inspection: cmd -> e -> cmd flashed to command mode and
+        // back to typing in one tap. Only relevant outside a hold ('e'
+        // pressed as its own separate tap, not chorded) -- see the
+        // m_capsDown branch above for the chord's own version of this.
+        m_capsTapLatched = false;
+    }
 }
 
 void Cursor::enterCommandMode() { m_keyboardMode = KeyboardMode::Command; }
@@ -231,6 +252,17 @@ void Cursor::up()
     }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
+        // General command mode's arrows exist to position the cursor for
+        // *editing* -- meaningless on a card you can't edit anyway (see
+        // KeyDisabledState's own comment in keyboardPanel.h for why the
+        // panel grays them out here). shakeCardNo() matches every other
+        // canEdit()-gated refusal (enterTypingMode()'s own, most
+        // directly).
+        if (!m_currentCard->canEdit())
+        {
+            shakeCardNo();
+            return;
+        }
         ColCount oldColsPerRow = m_currentCard->colPerRow(m_row);
         prevRow();
         ColCount newColsPerRow = m_currentCard->colPerRow(m_row);
@@ -249,6 +281,11 @@ void Cursor::down()
     }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
+        if (!m_currentCard->canEdit()) // see up()'s own comment
+        {
+            shakeCardNo();
+            return;
+        }
         if (m_row != 0 && m_currentCard->isTOC())
             nextRow();
         else
@@ -275,6 +312,11 @@ void Cursor::left()
     }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
+        if (!m_currentCard->canEdit()) // see up()'s own comment
+        {
+            shakeCardNo();
+            return;
+        }
         if (m_row != 0 && m_currentCard->isTOC())
             ; // noop
         else
@@ -343,6 +385,11 @@ void Cursor::right()
     }
     else if (m_navigationMode == NavigationMode::Cursor)
     {
+        if (!m_currentCard->canEdit()) // see up()'s own comment
+        {
+            shakeCardNo();
+            return;
+        }
         if (m_currentCard->isTOC())
         {
             auto* toc = dynamic_cast<TOCItem*>(m_currentCard);
@@ -528,49 +575,79 @@ void Cursor::prevRow()
         m_row--;
 }
 
+bool Cursor::isAtFirstCard() const { return m_currentCard->cardNumber() == 0; }
+bool Cursor::isAtLastCard() const { return m_currentCard->cardNumber() == lastCardNumber(); }
+
 void Cursor::nextCard()
 {
-    if (m_currentCard->cardNumber() == lastCardNumber())
+    if (isAtLastCard())
     {
         shakeCardNo(); // last card
     }
     else
     {
-        CardStack* cardStack = m_yearToCardStack.at(m_year).get();
+        // m_currentCard->year(), matching lastCardNumber()'s own comment
+        // -- pages through whichever stack is actually being viewed.
+        CardStack* cardStack = m_yearToCardStack.at(m_currentCard->year()).get();
         CardNumber cardNum = m_currentCard->cardNumber();
         CardItem* next = cardStack->cardItemAt(cardNum + 1);
         if (next->isTOC())
             tocCurrent();
+        // u/o page strictly by card number -- landing on a TOC this way
+        // isn't "following a link into it" (which does want Navigation
+        // mode -- see right()'s own showCard() calls), so it shouldn't
+        // silently bump the user into a different command sub-state than
+        // the one they were already in. showCard() itself always forces
+        // Navigation mode for any TOC target; save/restore around it
+        // rather than touching showCard() itself, since every other
+        // caller's own TOC landing *does* want that.
+        NavigationMode modeBefore = m_navigationMode;
         showCard(next);
+        m_navigationMode = modeBefore;
     }
 }
 
 void Cursor::prevCard()
 {
-    if (m_currentCard->cardNumber() == 0)
+    if (isAtFirstCard())
     {
         shakeCardNo(); // first card
     }
     else
     {
-        CardStack* cardStack = m_yearToCardStack.at(m_year).get();
+        CardStack* cardStack = m_yearToCardStack.at(m_currentCard->year()).get();
         CardNumber cardNumber = m_currentCard->cardNumber();
         CardItem* prev = cardStack->cardItemAt(cardNumber - 1);
         if (prev->isTOC())
             tocCurrent();
+        NavigationMode modeBefore = m_navigationMode; // see nextCard()'s own comment
         showCard(prev);
+        m_navigationMode = modeBefore;
     }
+}
+
+CardItem* Cursor::findLivePrevThreadCard() const
+{
+    assert(m_currentCard);
+    CardItem* prevCard = m_currentCard->threadPrev();
+    while (prevCard && prevCard->deleted())
+        prevCard = prevCard->threadPrev();
+    return prevCard;
+}
+
+CardItem* Cursor::findLiveNextThreadCard() const
+{
+    assert(m_currentCard);
+    CardItem* nextCard = m_currentCard->threadNext();
+    while (nextCard && nextCard->deleted())
+        nextCard = nextCard->threadNext();
+    return nextCard;
 }
 
 void Cursor::prevThreadCard()
 {
-    assert(m_currentCard);
-    CardItem* prevCard = m_currentCard->threadPrev();
-
-    while (prevCard && prevCard->deleted())
-        prevCard = prevCard->threadPrev();
-
-    if (prevCard && !prevCard->deleted())
+    CardItem* prevCard = findLivePrevThreadCard();
+    if (prevCard)
     {
         if (prevCard->isTOC())
         {
@@ -584,13 +661,8 @@ void Cursor::prevThreadCard()
 
 void Cursor::nextThreadCard()
 {
-    assert(m_currentCard);
-    CardItem* nextCard = m_currentCard->threadNext();
-
-    while (nextCard && nextCard->deleted())
-        nextCard = nextCard->threadNext();
-
-    if (nextCard && !nextCard->deleted())
+    CardItem* nextCard = findLiveNextThreadCard();
+    if (nextCard)
     {
         if (nextCard->isTOC())
             tocCurrent();
@@ -674,6 +746,16 @@ void Cursor::handleKey(const KeyEvent& event)
     if (event.kind == KeyEvent::Kind::CapsLock && !event.pressed)
     {
         m_capsDown = false;
+        if (m_modeChangedDuringHold)
+        {
+            // A chorded command already explicitly set the mode itself
+            // (see enterTypingMode()'s own comment) -- trust it
+            // completely and skip the tap/hold bookkeeping below
+            // entirely, which only knows about state from *before*
+            // whatever ran during this hold.
+            m_modeChangedDuringHold = false;
+            return;
+        }
         if (m_lastKeyKind == KeyEvent::Kind::CapsLock)
         {
             // A plain tap: pressed and released with nothing typed while
@@ -742,6 +824,7 @@ void Cursor::handleKey(const KeyEvent& event)
     {
         m_capsDown = true;
         m_wasTypingMode = isTypingMode();
+        m_modeChangedDuringHold = false; // a fresh hold starting -- see its own comment
         enterCommandMode();
         return;
     }
@@ -840,8 +923,17 @@ void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas, const HackAtlas
         Rect box{marginX + m_col * cellW, rowTop, cellW, cellH};
         drawBoxOutline(canvas, box, kOrangishRed, kCursorOutlineWidth_px);
     }
-    else // Command mode, cursor navigation: upward arrow under the current character
+    else if (m_currentCard->canEdit()) // Command mode, cursor navigation: upward arrow under the current character
     {
+        // Nothing drawn at all when the card is read-only (most of
+        // Master's, most days) -- the arrows this cursor exists to
+        // position for editing are themselves refused there (see
+        // up()/down()/left()/right()'s own canEdit() gate), so showing it
+        // would suggest an action that can't actually happen. Navigation
+        // mode's own cursor (the isLinkMode branch above) is unaffected
+        // -- browsing a read-only TOC's links is exactly how it's meant
+        // to be used.
+        //
         // Sized directly from the cell -- apex 3/4 down the cell, base at
         // the bottom (unlike drawCard's text, not vertically centered:
         // this is a UI indicator, not row content).
@@ -895,16 +987,12 @@ void Cursor::setupInitialContent()
 
     // The current year's own stack -- empty, linking back to Master.
     //
-    // Deliberately not Cursor::setYear(currentYear): that also reassigns
-    // m_year, which has to stay Master::kYear here -- this constructor
-    // ends with the cursor viewing Master's own TOC (year 0), and
-    // changing m_year out from under that would immediately corrupt
-    // u/o navigation there (Cursor::nextCard()/prevCard() paginate
-    // m_yearToCardStack.at(m_year), not whatever m_currentCard's own
-    // year() actually is). That mismatch -- m_year tracking which stack
-    // to operate on, never updated by simply navigating to a different
-    // card -- is a real, separate latent gap this sidesteps rather than
-    // fixes; see PLAN.md.
+    // Deliberately not Cursor::setYear(currentYear) here: that also
+    // refuses to move backward (see its own comment), which nothing
+    // needs at startup, and every addNewCard()/addContinuationCard()
+    // call below (building Help's content) still needs m_year to be
+    // Master::kYear -- it's reassigned to currentYear directly, once,
+    // after all of Master's own content is built (see below).
     Year currentYear = currentCalendarYear();
 
     auto yearStack = std::make_unique<CardStack>(currentYear);
@@ -1008,6 +1096,29 @@ void Cursor::setupInitialContent()
     // Nothing can be added to Master from here on -- see
     // addNewCard()/addContinuationCard()'s own read-only gate.
     masterCS->setReadOnly(true);
+
+    // m_year now switches to meaning what it always should have going
+    // forward: which stack *new* content targets (see its own comment),
+    // not Master -- every addNewCard()/addContinuationCard() call above
+    // needed it to still be Master::kYear while building Help's content
+    // there, but real user interaction starts right after this
+    // constructor returns, and until now nothing ever moved it off
+    // Master::kYear again. That's exactly what made 'c'/'t' silently do
+    // nothing everywhere, not just on Master (addCard() always allocates
+    // into m_yearToCardStack.at(m_year), and Master's stack is
+    // permanently read-only) -- found live, not by inspection.
+    m_year = currentYear;
+
+    // Every addCard() call above (each addNewCard()/addContinuationCard()
+    // building Help's content) pushed its then-current card onto
+    // m_linkHistory -- an internal side effect of setup, not real user
+    // navigation. Left alone, hasLinkHistory() would read true the
+    // instant the app opens, and the keyboard panel's "No history"
+    // disabled styling for 'j' (back) would never show on a fresh
+    // launch, and worse, an early 'j' would pop through setup's own
+    // leftover trail of Help pages instead of correctly doing nothing --
+    // found via the "hasLinkHistory()/linkCount()" test below, not live.
+    m_linkHistory.clear();
 
     showCard(masterToc);
     // Off the title row (0), not wherever the last addNewCard() call

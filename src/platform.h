@@ -71,12 +71,21 @@ struct KeyEvent
                    // future launches start out correct too. Modeled as a
                    // KeyEvent rather than a new callback so it doesn't
                    // need its own app-surface UI -- see main.cpp.
+        Shift,     // only ever appears via run()'s onPhysicalKey below,
+                   // never via onKey -- shift has no dispatch meaning of
+                   // its own for Cursor (see Char's comment above and
+                   // keyboardPanel.h's ShiftToggle), but it's still a
+                   // real physical key the keyboard panel needs to be
+                   // able to flash like any other.
     };
 
     Kind kind;
     char32_t codepoint{0}; // valid only when kind == Char
     bool pressed{true};    // key down vs up; only CapsLock ever reports
-                            // false -- every other kind is press-only
+                            // false via onKey -- every other kind is
+                            // press-only there. onPhysicalKey (below) is
+                            // different: every Kind it sends reports both
+                            // edges.
 };
 
 // Declared, never defined, in this header -- each platform's .cpp provides
@@ -149,10 +158,45 @@ class PlatformWindow
     // pointer crosses the window's edge, and (-1, -1) reuses main.cpp's
     // own hit-testing (already nullopt for any out-of-bounds position,
     // see hitTestClick) rather than needing a separate "cleared" signal.
+    //
+    // onPhysicalKey fires on every physical key's own down AND up edge
+    // (every Kind, unlike onKey where only CapsLock ever reports a
+    // release) -- purely so main.cpp can flash the matching on-screen
+    // panel key while it's held, the keyboard equivalent of onClick's
+    // press feedback, so typing on a real keyboard visibly connects to
+    // the emulated one even for a key (an unbound letter, Shift itself)
+    // that has no effect on Cursor at all. Entirely separate from onKey:
+    // never routed to Cursor, and fires for every physical key regardless
+    // of whether onKey does anything with it.
+    //
+    // codepoint (when kind == Char) is always the key's unshifted base
+    // character, regardless of the physical/OS Shift state -- matching
+    // KeyRect's own kind/codepoint (see keyboardPanel.h's fillKeyEvent),
+    // so main.cpp can find the right on-screen key by simple kind/
+    // codepoint equality without needing to know anything about physical
+    // scan codes itself. That decoding is each shell's own job here,
+    // same as it already owns turning a raw key into onKey's KeyEvent.
     void run(std::function<void(const KeyEvent&)> onKey, std::function<void(int width_px, int height_px)> onResize,
              std::function<void(int width_px, int height_px)> onResizeEnd,
              std::function<void(int x_px, int y_px, bool pressed)> onClick,
-             std::function<void(int x_px, int y_px)> onMouseMove);
+             std::function<void(int x_px, int y_px)> onMouseMove,
+             std::function<void(const KeyEvent&)> onPhysicalKey);
+
+    // Runs callback once, after delay_ms milliseconds, on this same
+    // thread -- only fires while run()'s event loop is actually pumping
+    // (a call before run() starts, or one that would fire after the
+    // window closes, simply never happens). No cancellation and no
+    // identity returned for one: main.cpp's one caller (clearing the
+    // keyboard panel's "Read-Only" message a few seconds after it
+    // appears -- see its own onClick comment) guards against a stale
+    // callback firing after something newer already superseded it with
+    // its own generation counter, which is simpler than this contract
+    // trying to support cancellation generically for a single caller
+    // that doesn't need it. Each shell's own native one-shot timer
+    // facility (Win32's SetTimer/WM_TIMER, X11's already-select()-based
+    // run() loop gains a second timeout reason alongside its existing
+    // resize-settle one, the web shell's emscripten_set_timeout).
+    void scheduleOnce(int delay_ms, std::function<void()> callback);
 
     // Presents a finished frame. pixels.size() must equal w * h, which
     // should already match the window's current client size (see

@@ -68,15 +68,18 @@ constexpr int kSideMarginCells = 2;   // CardItem::sideMargin_px == atlas.cellWi
 // baseline 96 dpi -- covers the standard Windows display-scaling steps.
 constexpr double kDefaultDpis[] = {96, 120, 144, 168, 192, 216, 240, 288, 336};
 
-// Printable ASCII, plus the two link-arrow glyphs CardItem::linkStr() uses
-// (U+2191 upwards arrow "^", U+2192 rightwards arrow "->").
+// Printable ASCII, plus the four directional-arrow glyphs CardItem::
+// linkStr() (up/right, U+2191/U+2192) and the keyboard panel's i/k/j/l
+// legends (all four, U+2190..U+2193) use.
 std::vector<char32_t> glyphCodepoints()
 {
     std::vector<char32_t> cps;
     for (char32_t cp = 0x20; cp <= 0x7E; ++cp)
         cps.push_back(cp);
+    cps.push_back(0x2190); // left arrow
     cps.push_back(0x2191); // up arrow
     cps.push_back(0x2192); // right arrow
+    cps.push_back(0x2193); // down arrow
     return cps;
 }
 
