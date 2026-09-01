@@ -25,7 +25,8 @@
     - Content card - Contains anything you want, has lines indicating rows
     - TOC card - Table of contents card that points to other TOC/content cards, no lines (blank)
   - Card stack - 1 or more cards
-    - Master card stack - Read-only with help thread and list of year card stacks
+    - Master card stack - Read-only with a Help TOC (one entry per topic,
+      each its own thread) and a list of year card stacks
     - Year card stack - New cards are placed the the card stack for current year (e.g. 2026)
   - Card number - The unique, sequential number of a card in a card stack
     - External card number - A card number from a different card stack in form YEAR-CARDNUM
@@ -42,9 +43,9 @@
 - Hierarchy
   - Master card stack
     - Master TOC
-      - Help thread
+      - Help TOC (one entry per topic)
       - Year card stacks (1 or more)
-    - Help thread cards
+    - Help topic cards (each topic its own thread)
   - Year card stack (1 or more)
     - Year TOC
       - Content/TOC (1 or more)
@@ -459,6 +460,85 @@ manually) rather than assuming emsdk's own env scripts handled it.
       refuse moving backward. `cmake --workflow --preset
       windows-x64-debug` (and the Linux equivalent) now build *and* run
       `ctest` in one command (`CMakePresets.json`'s `testPresets`).
+- [x] Real initial content, replacing the single blank debug "Help"
+      card `Cursor`'s constructor used to seed: Master's own stack
+      (read-only, TOC linking to the current year's stack and a Help
+      TOC), the current year's own empty stack (its TOC linking back to
+      Master), and four Help topics (What is fj/Modes/Keys/Finding your
+      way, one a two-page thread) explaining the app using the keyboard
+      panel's own vocabulary. All in a new private
+      `Cursor::setupInitialContent()`; `currentCalendarYear()` (a free
+      function, not a `Cursor` member -- shared with
+      `tests/cursorTests.cpp`, which needs the exact same value to point
+      scratch content at the same stack) reads the real year via
+      `std::chrono`'s C++20/23 calendar API.
+
+      Master's read-only flag is enforced for real: `CardStack` already
+      had an unused `readOnly()` (confirmed by grep -- nothing consulted
+      it), now wired into `addNewCard()`/`addContinuationCard()`'s own
+      gate so `c`/`t` can't add to Master, on top of every individual
+      Master card already being marked read-only (blocks typing/editing
+      via the existing per-card check).
+
+      Four real bugs found live wiring this up, not by inspection, each
+      in shared logic a future feature could hit again:
+      1. `m_capsTapLatched` (whether cmd's latch was engaged via a real
+         tap) started false even though the constructor now lands in
+         command mode directly (`enterCommandMode()`, not a tap) -- so
+         the very first cmd tap after launch did nothing until a second
+         tap. Now seeded `true` at the end of `setupInitialContent()`.
+      2. The constructor left `m_row` at 0 (title) when landing on
+         Master's TOC -- `right()` treats row 0 as title-editing
+         *before* it even looks at navigation mode, so pressing `l`
+         there just moved within the (empty, read-only) title text
+         instead of following Master's own link. Now leaves `m_row = 1`.
+      3. `TOCItem::addToTOC()` unconditionally resets the current-link
+         index to 0 on every call, regardless of `setupLinks()`'s own
+         "skip the up-arrow if there is one" logic -- invisible for
+         Master's own TOC (no up-arrow there) but meant Help's TOC
+         defaulted to its up-arrow instead of its first topic. Fixed by
+         explicitly calling `setCurrentLink()` after all four topics are
+         added.
+      4. A mouse tap on cmd sent a single collapsed `KeyEvent` instead of
+         a real press+release pair, so `Cursor`'s tap-vs-hold detection
+         could never actually fire from a click at all -- found
+         verifying the above live. `resolveKeyGesture`'s `CapsToggle`
+         same-key branch now always emits a real pair.
+
+      Also, live user feedback while building this: the keyboard panel's
+      edit/navigation mode keys moved next to cmd -- first to left panel
+      row 2's 2nd/3rd keys (`q`/`w` swapped into their old spots), then,
+      on a second round of feedback once it was visible on screen, down
+      one more row to sit directly beside cmd itself (row 3, `a`/`s`
+      swapped into their old spots instead) -- spatially clustering all
+      three mode keys together, given how central they are. `Cursor`
+      dispatches on codepoint, never on physical position, so nothing
+      outside `keyboardPanel.cpp`'s layout tables needed to change either
+      time. The on-card cursor indicator (not just the keyboard panel)
+      also now colors itself per mode -- green
+      (general command)/blue (Navigation)/red (typing, unchanged) --
+      bold/saturated hues rather than the panel's own pale tints, for
+      contrast against the card background.
+
+      47 tests passing (Windows/Linux), web builds clean. Verified live:
+      Master's TOC shows both entries and lands in command mode (not
+      mid-edit); the year link's TOC is empty and its own link returns
+      to Master; the Help link opens a TOC of all four topics, each
+      opening directly (not via its own up-arrow) and read-only.
+- [ ] **Known gap, deliberately deferred**: `Cursor::m_year` (which
+      stack `addNewCard()`/`nextCard()`/`prevCard()` physically operate
+      on) is only ever set by an explicit `setYear()` call -- it does
+      *not* track whichever card is actually being viewed. Invisible
+      until just now, since Master was the only stack that ever existed;
+      now that a second, reachable year stack exists (still empty), the
+      first real use of `c`/`t`/`u`/`o` while actually viewing *that*
+      stack's TOC (reached by following Master's own link, not via
+      `setYear()`) would silently operate on Master's storage instead --
+      wrong physical stack, though still linked into the right TOC
+      visually. Needs a real design pass on `Cursor`'s year-tracking
+      (`m_year` conflates "which stack pagination/new-content targets"
+      with "which stack is being viewed" -- they need to be different
+      things), not a quick patch.
 - [ ] Port the old "darken all but the current row while typing" effect
       -- `Canvas::blendRect` (real alpha blending) exists now, nothing
       uses it for this yet
@@ -770,7 +850,9 @@ manually) rather than assuming emsdk's own env scripts handled it.
         - [X] UI should indicate issue via shaking no - left and right?
       - [X] Links - box around link
       - [X] Edit - box around cursor location
-  - [ ] Use / for Help
+  - [x] Use / for Help -- superseded: Help is a TOC entry reached from
+        Master (see the new "Initial content" entry under Platform/
+        architecture), not a dedicated key
   - [ ] Save/load from disk automatically
 - [ ] Start personal use
 - [ ] UI - make it so user knows what to do instictively
@@ -853,7 +935,9 @@ manually) rather than assuming emsdk's own env scripts handled it.
   - $70
   - <https://a.co/d/03qzhl5Z>
   - 5 rows, 6 col per side (left and right hand)
-  - Possible layout
+  - Possible layout (superseded below -- see "Initial content..." entry
+    under Platform/architecture for the actual, current layout: `caps`
+    renamed to `cmd`, and edit/navigation relocated next to it)
     Left                Right
     ;     1 2 3 4 5     6 7 8 9 0 bs        (No =)
     tab   q w e r t     y u i o p -         (No [ and ] and \)
@@ -863,7 +947,14 @@ manually) rather than assuming emsdk's own env scripts handled it.
 
 Mode-transition dispatch (Command/Typing keyboard mode, Link/Cursor
 navigation mode) sketched here originally is now real, implemented code
--- see `Cursor::handleKey` in `src/cursor.cpp`.
+-- see `Cursor::handleKey` in `src/cursor.cpp`. Current physical layout:
+
+    Left                Right
+    ;     1 2 3 4 5     6 7 8 9 0 bs
+    tab   a s q r t     y u i o p -
+    cmd   e n d f g     h j k l ' enter
+    shift z x c v b     w m , . / shift
+           spacebar     spacebar
 
 ### Emulator keyboard panels (planned)
 
