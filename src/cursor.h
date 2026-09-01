@@ -29,6 +29,15 @@ namespace HackAtlas
 struct Atlas;
 }
 
+// The real current calendar year, via std::chrono's C++20/23 calendar
+// API. Free function, not a Cursor member -- it seeds Cursor's own
+// initial content (see setupInitialContent()) but has no Cursor state
+// of its own, and tests need the exact same value to point additional
+// scratch content at the same year stack setupInitialContent() already
+// created (see cursorTests.cpp) rather than re-deriving it and risking
+// a mismatch.
+Year currentCalendarYear();
+
 class Cursor
 {
   public:
@@ -129,6 +138,15 @@ class Cursor
     void tocCurrent();
     void addCard(CardItem::Type type, CardStack::ThreadMode threadMode);
     void shakeCardNo() const;
+
+    // Builds the app's real starting content -- Master's TOC (read-only,
+    // pointing at the current year's stack and a Help TOC of topics) and
+    // the current year's own empty stack (its TOC linking back to
+    // Master) -- in place of a single blank scratch card. Called once
+    // from the constructor. See PLAN.md for the full design and the
+    // Cursor::m_year/current-stack tracking gap this deliberately leaves
+    // for later (the year stack starts empty, so nothing hits it yet).
+    void setupInitialContent();
 
     Year m_year{0};
     Row m_row{0};

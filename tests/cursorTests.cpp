@@ -26,6 +26,83 @@
 #include <algorithm>
 #include <vector>
 
+namespace
+{
+// Sends one command-mode key the same way a real hold-Caps-then-tap does
+// -- a plain helper function so the tests below don't each repeat that
+// three-event dance. Nothing Catch2-specific here: a TEST_CASE body is
+// just an ordinary function, so ordinary refactoring (pull out a helper)
+// works exactly the way it would anywhere else in this codebase.
+void sendCommand(Cursor& cursor, char32_t key)
+{
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    cursor.handleKey({KeyEvent::Kind::Char, key, true});
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+}
+
+// A plain tap: press and release with nothing typed between -- distinct
+// from sendCommand's chord shape (see cursor.cpp's handleKey for why the
+// two are handled differently).
+void tapCmd(Cursor& cursor)
+{
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
+}
+
+// A fresh Cursor now starts on Master's own TOC, which is read-only and
+// only ever grows the two entries setupInitialContent() puts there (see
+// PLAN.md) -- tests exercising typing/editing/thread creation need a
+// real writable card instead, exactly what a real user gets by
+// following the link to their own current-year TOC and adding a card
+// there. cursor.setYear() is called explicitly first (rather than just
+// navigating and letting m_year drift) because addNewCard()/
+// addContinuationCard() operate on whichever stack m_year currently
+// names, not on m_currentCard's own year() -- see cursor.h's
+// currentCalendarYear() comment and PLAN.md's writeup of that gap.
+// currentCalendarYear() (not a hardcoded year literal) guarantees this
+// points at the exact same stack setupInitialContent() already created.
+void gotoYearTocInCommandMode(Cursor& cursor)
+{
+    cursor.setYear(currentCalendarYear());
+    sendCommand(cursor, U'l'); // master TOC's first link -- this year's own TOC
+    tapCmd(cursor);            // Link -> general command, one step (see cursor.cpp)
+}
+
+// Leaves the cursor in typing mode on a freshly added, blank Content
+// card -- the same "ready to type" state the old debug scratch card
+// used to hand every test for free, now built from a real, writable
+// card instead of Master's own (now read-only) content. A bare key
+// press, not sendCommand's hold-release chord: gotoYearTocInCommandMode
+// already leaves command mode latched (not momentarily held), and 'c'
+// itself enters typing mode -- chording it would immediately revert
+// that on release (the same "stay latched" behavior the "hold-tap-
+// release chord while already latched" test exercises on purpose),
+// undoing the very transition this helper exists to reach.
+CardItem* freshScratchCard(Cursor& cursor)
+{
+    gotoYearTocInCommandMode(cursor);
+    cursor.handleKey({KeyEvent::Kind::Char, U'c', true});
+    return cursor.currentCard();
+}
+
+// Presses Enter until a thread continuation card actually appears (see
+// nextRowCreateCard()'s comment on the original version of this loop for
+// why it's a bounded loop instead of jumping straight to Card::kNumRows)
+// -- pulled out here since several tests below need a multi-card thread
+// to exist before they can test navigating across it.
+CardItem* createContinuationCard(Cursor& cursor)
+{
+    CardItem* before = cursor.currentCard();
+    int guard = 0;
+    while (cursor.currentCard() == before && guard < 20)
+    {
+        cursor.handleKey({KeyEvent::Kind::Enter, 0, true});
+        ++guard;
+    }
+    return cursor.currentCard();
+}
+} // namespace
+
 TEST_CASE("typing and backspace edit the current row")
 {
     // Every SECTION below re-enters this TEST_CASE from the top -- Catch2
@@ -36,7 +113,8 @@ TEST_CASE("typing and backspace edit the current row")
     // for shared setup -- no separate fixture class/setUp() needed, it's
     // just ordinary code above the SECTIONs.
     Cursor cursor;
-    REQUIRE(cursor.isTypingMode()); // the Help card starts ready to type (see Cursor's constructor)
+    freshScratchCard(cursor);
+    REQUIRE(cursor.isTypingMode()); // addNewCard() leaves a fresh card ready to type
 
     cursor.handleKey({KeyEvent::Kind::Char, U'x', true});
 
@@ -57,6 +135,7 @@ TEST_CASE("typing and backspace edit the current row")
 TEST_CASE("holding Caps Lock forces command mode; releasing it restores typing mode")
 {
     Cursor cursor;
+    freshScratchCard(cursor);
     REQUIRE(cursor.isTypingMode());
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
@@ -85,6 +164,7 @@ TEST_CASE("a plain Caps Lock tap (nothing typed while held) latches command mode
     // command mode, but a second tap re-entered it again instead of
     // releasing back to typing mode.
     Cursor cursor;
+    freshScratchCard(cursor);
     REQUIRE(cursor.isTypingMode());
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
@@ -105,6 +185,7 @@ TEST_CASE("a hold-tap-release chord while already latched stays latched")
     // whatever it was before this gesture" invariant, just with "before"
     // being the latch rather than typing mode.
     Cursor cursor;
+    freshScratchCard(cursor);
     REQUIRE(cursor.isTypingMode());
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true}); // tap on -- latches
@@ -126,6 +207,7 @@ TEST_CASE("a fresh cmd tap after 'e' latches command mode, not a stale release")
     // (per the "second tap releases the latch" behavior above) and
     // bounced straight back to typing instead of latching a fresh one.
     Cursor cursor;
+    freshScratchCard(cursor);
     REQUIRE(cursor.isTypingMode());
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true}); // tap on -- latches
@@ -140,54 +222,32 @@ TEST_CASE("a fresh cmd tap after 'e' latches command mode, not a stale release")
     CHECK(cursor.isCommandMode()); // ...should latch on, not bounce back to typing
 }
 
-namespace
-{
-// Sends one command-mode key the same way a real hold-Caps-then-tap does
-// (see the test above) -- a plain helper function so the tests below
-// don't each repeat that three-event dance. Nothing Catch2-specific here:
-// a TEST_CASE body is just an ordinary function, so ordinary refactoring
-// (pull out a helper) works exactly the way it would anywhere else in
-// this codebase.
-void sendCommand(Cursor& cursor, char32_t key)
-{
-    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
-    cursor.handleKey({KeyEvent::Kind::Char, key, true});
-    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false});
-}
-
-// Presses Enter until a thread continuation card actually appears (see
-// nextRowCreateCard()'s comment on the original version of this loop for
-// why it's a bounded loop instead of jumping straight to Card::kNumRows)
-// -- pulled out here since several tests below need a multi-card thread
-// to exist before they can test navigating across it.
-CardItem* createContinuationCard(Cursor& cursor)
-{
-    CardItem* before = cursor.currentCard();
-    int guard = 0;
-    while (cursor.currentCard() == before && guard < 20)
-    {
-        cursor.handleKey({KeyEvent::Kind::Enter, 0, true});
-        ++guard;
-    }
-    return cursor.currentCard();
-}
-} // namespace
-
 TEST_CASE("'e' returns to typing mode from a held command")
 {
     Cursor cursor;
-    sendCommand(cursor, U'e'); // see cursor.cpp's handleKey dispatch: 'e' -> enterTypingMode()
+    freshScratchCard(cursor);
+    tapCmd(cursor); // Typing -> Command, so there's a real command to return from
+    REQUIRE(cursor.isCommandMode());
+    // A bare press, not sendCommand's chord -- see freshScratchCard's own
+    // comment: chording a key that itself enters typing mode would just
+    // revert on release, since command mode is latched here, not merely
+    // held.
+    cursor.handleKey({KeyEvent::Kind::Char, U'e', true}); // see cursor.cpp's handleKey dispatch: 'e' -> enterTypingMode()
     CHECK(cursor.isTypingMode());
 }
 
 TEST_CASE("'c' and 't' add a new card and move to its title row in typing mode")
 {
     Cursor cursor;
+    gotoYearTocInCommandMode(cursor);
     auto before = cursor.lastCardNumber();
 
+    // Bare presses throughout this test, not sendCommand's chord -- see
+    // freshScratchCard's own comment on why chording a key that itself
+    // enters typing mode would just revert on release here.
     SECTION("'c' adds a Content card")
     {
-        sendCommand(cursor, U'c');
+        cursor.handleKey({KeyEvent::Kind::Char, U'c', true});
         CHECK(cursor.lastCardNumber() == before + 1);
         CHECK(cursor.currentCard()->isContent());
         CHECK(cursor.row() == 0); // new cards start on their (blank) title row
@@ -196,7 +256,7 @@ TEST_CASE("'c' and 't' add a new card and move to its title row in typing mode")
 
     SECTION("'t' adds a TOC card")
     {
-        sendCommand(cursor, U't');
+        cursor.handleKey({KeyEvent::Kind::Char, U't', true});
         CHECK(cursor.lastCardNumber() == before + 1);
         CHECK(cursor.currentCard()->isTOC());
         CHECK(cursor.row() == 0);
@@ -207,6 +267,7 @@ TEST_CASE("'c' and 't' add a new card and move to its title row in typing mode")
 TEST_CASE("'d' toggles the deleted flag on the current card")
 {
     Cursor cursor;
+    freshScratchCard(cursor);
     // CHECK_FALSE/REQUIRE_FALSE are just the negated form of CHECK/REQUIRE
     // -- REQUIRE(!x) works too, but this reads better for a plain bool.
     REQUIRE_FALSE(cursor.currentCard()->deleted());
@@ -235,12 +296,13 @@ TEST_CASE("'n' enters Link navigation mode; cmd is the only way back to Cursor m
     // tap) is the only way back, stepping through general command mode
     // on the way (see the "tapping cmd from navigation mode..." test).
     //
-    // A fresh Cursor actually starts in *Cursor* navigation mode, not
-    // Link, despite Link being the member's default -- its constructor's
-    // last step is enterTypingMode(), which always resets navigation mode
-    // to Cursor ("so you can use navigation keys" -- see cursor.cpp), so
-    // 'n' needs to run first to reach Link mode at all.
+    // A fresh scratch card starts in *Cursor* navigation mode, not Link,
+    // despite Link being the member's default -- entering typing mode
+    // (which addNewCard(), inside freshScratchCard(), does) always resets
+    // navigation mode to Cursor ("so you can use navigation keys" -- see
+    // cursor.cpp), so 'n' needs to run first to reach Link mode at all.
     Cursor cursor;
+    freshScratchCard(cursor);
     Row before = cursor.row();
 
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
@@ -273,12 +335,9 @@ TEST_CASE("navigation mode is exclusive: only i/k/j/l stay live, everything else
     // tap) is the only way out, one step at a time -- see the "tapping
     // cmd from navigation mode steps up one level" test below.
     //
-    // A bare CapsLock press (never released here) forces command mode
-    // deterministically via handleKey's press branch, sidestepping the
-    // release branch's tap-vs-hold-vs-chord logic entirely -- simplest
-    // way to pin command mode for a test that isn't about that logic.
     Cursor cursor;
-    cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});
+    freshScratchCard(cursor);
+    tapCmd(cursor); // Typing -> general Command (Cursor sub-mode)
     REQUIRE(cursor.isCommandMode());
 
     cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // Cursor -> Link navigation mode
@@ -316,6 +375,7 @@ TEST_CASE("tapping cmd from navigation mode steps up one level at a time")
     // way out, one level at a time: Link -> tap -> general command ->
     // tap (or 'e') -> typing.
     Cursor cursor;
+    freshScratchCard(cursor);
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, true});  // hold...
     cursor.handleKey({KeyEvent::Kind::CapsLock, 0, false}); // ...release: plain tap, latches command mode
     REQUIRE(cursor.isCommandMode());
@@ -336,9 +396,17 @@ TEST_CASE("tapping cmd from navigation mode steps up one level at a time")
 TEST_CASE("'u' and 'o' navigate to the adjacent card by card number")
 {
     Cursor cursor;
-    sendCommand(cursor, U'c'); // land on a freshly added card
+    gotoYearTocInCommandMode(cursor);
+    // A buffer card first, bare (not sendCommand's chord -- see
+    // freshScratchCard's comment), so 'u' below has a non-TOC card to
+    // land on: the year's own TOC is read-only, so landing directly on
+    // it would block the release's own enterTypingMode() fallback (see
+    // handleKey's m_wasTypingMode branch), and land us in Link mode.
+    cursor.handleKey({KeyEvent::Kind::Char, U'c', true});
+    tapCmd(cursor); // Typing -> Command again
+    cursor.handleKey({KeyEvent::Kind::Char, U'c', true}); // land on a freshly added card
     auto hereNumber = cursor.currentCard()->cardNumber();
-    REQUIRE(hereNumber > 0); // there's at least one earlier card to navigate to
+    REQUIRE(hereNumber > 1); // there's an earlier *content* card to navigate to, not just the TOC
 
     sendCommand(cursor, U'u'); // prevCard()
     CHECK(cursor.currentCard()->cardNumber() == hereNumber - 1);
@@ -351,6 +419,7 @@ TEST_CASE("typing to a card's last row and pressing Enter creates a thread "
           "continuation, navigable with '.' and 'm'")
 {
     Cursor cursor;
+    freshScratchCard(cursor);
     CardItem* firstCard = cursor.currentCard();
     CardItem* secondCard = createContinuationCard(cursor);
     REQUIRE(secondCard != firstCard);
@@ -365,6 +434,7 @@ TEST_CASE("typing to a card's last row and pressing Enter creates a thread "
 TEST_CASE("row navigation ('i'/'k'), not just '.'/'m', also crosses an existing thread boundary")
 {
     Cursor cursor;
+    freshScratchCard(cursor);
     CardItem* firstCard = cursor.currentCard();
     CardItem* secondCard = createContinuationCard(cursor);
     REQUIRE(cursor.currentCard() == secondCard);
@@ -390,6 +460,7 @@ TEST_CASE("row navigation ('i'/'k'), not just '.'/'m', also crosses an existing 
 TEST_CASE("thread navigation skips a deleted card in the middle")
 {
     Cursor cursor;
+    freshScratchCard(cursor);
     CardItem* firstCard = cursor.currentCard();
     CardItem* secondCard = createContinuationCard(cursor);
     CardItem* thirdCard = createContinuationCard(cursor);
@@ -410,10 +481,15 @@ TEST_CASE("thread navigation skips a deleted card in the middle")
     CHECK(cursor.currentCard() == thirdCard); // skipped straight to thirdCard
 }
 
-TEST_CASE("every non-deleted card added to the master TOC is reachable from it via links")
+TEST_CASE("every non-deleted card added to a TOC is reachable from it via links")
 {
+    // Master's own TOC is read-only and only ever holds the two entries
+    // setupInitialContent() puts there (see PLAN.md) -- this exercises
+    // the same TOC/link-walking logic on the current year's own
+    // (writable) TOC instead, which is otherwise identical.
     Cursor cursor;
-    CardItem* helpCard = cursor.currentCard(); // added by Cursor's own constructor
+    gotoYearTocInCommandMode(cursor);
+    CardItem* toc = cursor.currentCard();
 
     sendCommand(cursor, U'c');
     CardItem* cardA = cursor.currentCard();
@@ -424,12 +500,9 @@ TEST_CASE("every non-deleted card added to the master TOC is reachable from it v
 
     cardB->setDeleted(true); // see the note above on setting this directly
 
-    // Get back to the master TOC. tableOfContents() gives the actual
-    // pointer directly (avoiding any assumption about its card number);
-    // 'u' (prevCard(), by absolute card number) is the ordinary public
-    // way there, walked one step at a time rather than assumed to be
-    // exactly one step away.
-    CardItem* toc = cardA->tableOfContents();
+    // Get back to the TOC. 'u' (prevCard(), by absolute card number) is
+    // the ordinary public way there, walked one step at a time rather
+    // than assumed to be exactly one step away.
     int guard = 0;
     while (cursor.currentCard() != toc && guard < static_cast<int>(cursor.lastCardNumber()) + 1)
     {
@@ -466,7 +539,6 @@ TEST_CASE("every non-deleted card added to the master TOC is reachable from it v
         sendCommand(cursor, U'k'); // nextLink(): advance to the next one
     }
 
-    CHECK(std::find(visited.begin(), visited.end(), helpCard) != visited.end());
     CHECK(std::find(visited.begin(), visited.end(), cardA) != visited.end());
     CHECK(std::find(visited.begin(), visited.end(), cardC) != visited.end());
     // Running this the first time found a real gap, not a test bug:
@@ -497,11 +569,23 @@ TEST_CASE("a thread continued into a new year's stack links back to the original
 {
     Cursor cursor;
     Year pastYear = 2020;
-    Year currentYear = 2026; // must come *after* pastYear -- setYear() refuses to move backward (see the test above)
+    // Deliberately far from any real calendar year -- setupInitialContent()
+    // links Master to currentCalendarYear()'s own stack, so a literal that
+    // happened to match today's real year would give that stack an extra
+    // "back to Master" link this test doesn't expect, making its outcome
+    // depend on which day it happened to run.
+    Year currentYear = 9999; // must come *after* pastYear -- setYear() refuses to move backward (see the test above)
 
     // setYear() lazily creates that year's own CardStack (and TOC) the
-    // first time it's used -- see cursor.cpp's comment on why.
+    // first time it's used -- see cursor.cpp's comment on why. A fresh
+    // Cursor starts on Master's own TOC in Link (Navigation) mode, which
+    // blocks 'c' (see cursor.cpp's exclusive-navigation-mode gate) --
+    // tapCmd steps up to general command mode first, the same one tap it
+    // always takes from a fresh Cursor now (see setupInitialContent()'s
+    // own comment on why the very first tap needs to actually do
+    // something).
     cursor.setYear(pastYear);
+    tapCmd(cursor);
     sendCommand(cursor, U'c'); // a new thread, in pastYear's stack
     CardItem* pastCard = cursor.currentCard();
     REQUIRE(pastCard->year() == pastYear);
@@ -549,7 +633,9 @@ TEST_CASE("editing a thread's title updates the TOC reference to it live, "
           "and propagates to every continuation card in the thread")
 {
     Cursor cursor;
-    CardItem* firstCard = cursor.currentCard(); // "Help" -- see Cursor's constructor
+    freshScratchCard(cursor);
+    CardItem* firstCard = cursor.currentCard();
+    firstCard->setText(0, U"Help"); // an explicit title for the propagation below to exercise
     CardItem* secondCard = createContinuationCard(cursor);
     REQUIRE(secondCard->text(0).substr(0, 4) == U"Help"); // copied once at creation time -- see CardStack::add's Continue branch
 

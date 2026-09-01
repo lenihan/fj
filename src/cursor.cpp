@@ -4,16 +4,41 @@
 #include "tocItem.h"
 
 #include <cassert>
+#include <chrono>
 
 namespace
 {
+
+// Fills a freshly-created help Content card's body (row 0, the title, is
+// set separately -- a brand-new page has one of its own, a continuation
+// page inherits its predecessor's automatically, see CardStack::add's
+// ThreadMode::Continue branch) and locks it read-only. Every help page
+// this is used for is fully written in one shot -- no case here ever
+// fills a page without immediately locking it -- so combining both into
+// one call rather than two separate ones removes a way to forget the
+// second half.
+void fillHelpPage(CardItem& card, std::initializer_list<std::u32string> lines)
+{
+    Row row = 1;
+    for (const std::u32string& line : lines)
+        card.setText(row++, line);
+    card.setReadOnly(true);
+}
+
 constexpr Pixel kCardColor = 0x00FDF9F0;       // Card::kColor "#fdf9f0"
 constexpr Pixel kTitleLineColor = 0x00C9A1AE;  // Title::kLineColor
 constexpr Pixel kBodyLineColor = 0x007D93EA;   // Body::kLineColor (alpha dropped -- was opaque anyway)
 constexpr Pixel kBlack = 0x00000000;
 constexpr Pixel kLightGray = 0x00A3A3A3;       // Colors::kLightGray
-constexpr Pixel kOrangishRed = 0x00E33B24;     // Colors::kOrangishRed
+constexpr Pixel kOrangishRed = 0x00E33B24;     // Colors::kOrangishRed -- typing mode's own cursor
 constexpr Pixel kDeletedRed = 0x00FF0000;
+
+// Bold/saturated, not the keyboard panel's own pale mode tints
+// (keyboardPanel.cpp's kCommandColor/kNavigationColor) -- a thin outline
+// or triangle needs real contrast against the cream card background
+// (kCardColor) to read clearly, unlike a whole key face's flat fill.
+constexpr Pixel kCommandGreen = 0x001E8E3E;   // general command mode's cursor
+constexpr Pixel kNavigationBlue = 0x001A73E8; // Link/Navigation mode's cursor
 
 // Cosmetic pen widths in the old Qt code (Pen::kDeletedWidth,
 // kTypingModeCursorWidth) were screen-pixel-fixed regardless of view
@@ -77,20 +102,19 @@ void drawCard(const CardItem& card, Canvas& canvas, const HackAtlas::Atlas& atla
 
 } // namespace
 
+Year currentCalendarYear()
+{
+    // std::chrono's calendar API (C++20/23), not the old C localtime/tm
+    // dance: std::chrono::year_month_day over a floor'd system_clock
+    // reading is the modern way to pull a real calendar year out of the
+    // system clock.
+    auto today = std::chrono::year_month_day{std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())};
+    return static_cast<Year>(static_cast<int>(today.year()));
+}
+
 Cursor::Cursor()
 {
-    m_year = Master::kYear;
-    auto masterStack = std::make_unique<CardStack>(m_year);
-    CardStack* masterCS = masterStack.get();
-    m_yearToCardStack.emplace(m_year, std::move(masterStack));
-
-    showCard(masterCS->tableOfContents());
-
-    addNewCard(CardItem::Type::Content);
-    masterCS->lastCardItem()->setText(0, U"Help");
-
-    m_row = 1;
-    enterTypingMode();
+    setupInitialContent();
 
     assert(m_currentCard);
 }
@@ -584,6 +608,14 @@ void Cursor::nextThreadCardCreateCard()
 
 void Cursor::addNewCard(CardItem::Type type)
 {
+    // A read-only stack (Master, once setupInitialContent() finishes --
+    // see its own comment) can't grow new content at all, not just
+    // reject edits to what's already there.
+    if (m_yearToCardStack.at(m_year)->readOnly())
+    {
+        shakeCardNo();
+        return;
+    }
     moveToTOCForNewCard();
     addCard(type, CardStack::ThreadMode::New);
     m_row = 0;
@@ -593,6 +625,11 @@ void Cursor::addNewCard(CardItem::Type type)
 
 void Cursor::addContinuationCard(CardItem::Type type)
 {
+    if (m_yearToCardStack.at(m_year)->readOnly())
+    {
+        shakeCardNo();
+        return;
+    }
     addCard(type, CardStack::ThreadMode::Continue);
 }
 
@@ -785,7 +822,7 @@ void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas, const HackAtlas
             int linkCellW = m_currentCard->cellWidth_px(link.row, atlas);
             int linkCellH = m_currentCard->cellHeight_px(link.row, atlas);
             Rect box{marginX + link.col * linkCellW, linkTop, link.charCount * linkCellW, linkCellH};
-            drawBoxOutline(canvas, box, kOrangishRed, kCursorOutlineWidth_px);
+            drawBoxOutline(canvas, box, kNavigationBlue, kCursorOutlineWidth_px);
         }
     }
     else if (tempMode == KeyboardMode::Typing) // hollow square
@@ -802,7 +839,7 @@ void Cursor::draw(Canvas& canvas, const HackAtlas::Atlas& atlas, const HackAtlas
         int apexY = rowTop + cellH * 3 / 4;
         int baseY = rowTop + cellH;
         canvas.fillTriangle({centerX, apexY}, {centerX - cellW / 2, baseY}, {centerX + cellW / 2, baseY},
-                             kOrangishRed);
+                             kCommandGreen);
     }
 }
 
@@ -833,4 +870,155 @@ void Cursor::shakeCardNo() const
 {
     // TODO: make the card shake left/right quickly like it's saying "no",
     // to give the user feedback they can't do something.
+}
+
+void Cursor::setupInitialContent()
+{
+    // Master's own stack -- everything starts here.
+    m_year = Master::kYear;
+    auto masterStack = std::make_unique<CardStack>(m_year);
+    CardStack* masterCS = masterStack.get();
+    m_yearToCardStack.emplace(m_year, std::move(masterStack));
+
+    TOCItem* masterToc = masterCS->tableOfContents();
+    showCard(masterToc);
+
+    // The current year's own stack -- empty, linking back to Master.
+    //
+    // Deliberately not Cursor::setYear(currentYear): that also reassigns
+    // m_year, which has to stay Master::kYear here -- this constructor
+    // ends with the cursor viewing Master's own TOC (year 0), and
+    // changing m_year out from under that would immediately corrupt
+    // u/o navigation there (Cursor::nextCard()/prevCard() paginate
+    // m_yearToCardStack.at(m_year), not whatever m_currentCard's own
+    // year() actually is). That mismatch -- m_year tracking which stack
+    // to operate on, never updated by simply navigating to a different
+    // card -- is a real, separate latent gap this sidesteps rather than
+    // fixes; see PLAN.md.
+    Year currentYear = currentCalendarYear();
+
+    auto yearStack = std::make_unique<CardStack>(currentYear);
+    TOCItem* yearToc = yearStack->tableOfContents();
+    yearToc->setThreadPrev(masterToc); // the "back to Master" up-arrow
+    m_yearToCardStack.emplace(currentYear, std::move(yearStack));
+    masterToc->addToTOC(yearToc);
+
+    // A nested Help TOC, listing individual help topics -- exactly the
+    // same "add a new TOC card" path 't' already exercises, just
+    // invoked directly instead of via a keypress, so it's automatically
+    // listed in Master's TOC with its own up-arrow back to Master.
+    addNewCard(CardItem::Type::TOC);
+    CardItem* helpToc = m_currentCard;
+    helpToc->setText(0, U"Help");
+    helpToc->setReadOnly(true);
+
+    showCard(helpToc);
+    addNewCard(CardItem::Type::Content);
+    CardItem* firstTopic = m_currentCard;
+    firstTopic->setText(0, U"What is fj");
+    fillHelpPage(*m_currentCard,
+                 {
+                     U"fj is a keyboard-only note system -- no mouse, no menus.",
+                     U"Every action is a key on the home row.",
+                     U"",
+                     U"Notes live on cards, like an index-card box. A card can",
+                     U"link to other cards, forming a thread (a running note",
+                     U"spanning several cards), or get listed in a table of",
+                     U"contents (TOC) alongside other cards.",
+                     U"",
+                     U"This card and the rest of Help are read-only.",
+                 });
+
+    showCard(helpToc);
+    addNewCard(CardItem::Type::Content);
+    m_currentCard->setText(0, U"Modes");
+    fillHelpPage(*m_currentCard, {
+                                     U"fj has three modes: typing, command, and Navigation.",
+                                     U"",
+                                     U"Typing mode is for writing -- every key types its own",
+                                     U"letter.",
+                                     U"",
+                                     U"Command mode (tap cmd) turns the keyboard into",
+                                     U"commands instead: i/k/j/l move around, e returns to",
+                                     U"typing.",
+                                 });
+    addContinuationCard(CardItem::Type::Content);
+    fillHelpPage(*m_currentCard, {
+                                     U"Navigation mode (from command mode, tap nav) narrows",
+                                     U"i/k/j/l to just following links: i/k pick a link,",
+                                     U"j goes back, l follows it.",
+                                     U"",
+                                     U"Tap cmd again to step back up one level at a time:",
+                                     U"Navigation -> command -> typing.",
+                                 });
+
+    showCard(helpToc);
+    addNewCard(CardItem::Type::Content);
+    m_currentCard->setText(0, U"Keys");
+    fillHelpPage(*m_currentCard,
+                 {
+                     U"i/k/j/l move -- up/down/left/right in command mode,",
+                     U"prev/next/back/go for links in Navigation mode.",
+                     U"",
+                     U"e enters typing mode. cmd enters command mode, and",
+                     U"steps back up one level each tap. nav enters",
+                     U"Navigation mode.",
+                     U"u/o move to the previous/next card by number.",
+                     U"c/t add a new card / a new TOC entry. d deletes it.",
+                     U"m/. jump to the previous/next card in this thread.",
+                 });
+
+    showCard(helpToc);
+    addNewCard(CardItem::Type::Content);
+    m_currentCard->setText(0, U"Finding your way");
+    fillHelpPage(*m_currentCard,
+                 {
+                     U"A TOC lists cards -- each row links to one. From a",
+                     U"TOC, i/k pick a row, l follows it.",
+                     U"",
+                     U"Every card also carries its own prev/next thread",
+                     U"links along its bottom row, for stepping through a",
+                     U"thread without returning to the TOC each time.",
+                     U"",
+                     U"However deep you go, following prev links (or a",
+                     U"TOC's own back-link) eventually leads back to Master.",
+                 });
+
+    // TOCItem::addToTOC() unconditionally resets the current-link index
+    // to 0 every time it's called (see tocItem.cpp), regardless of
+    // setupLinks()'s own more careful "skip the up-arrow if there is one"
+    // logic -- harmless for Master's own TOC (no up-arrow there, so index
+    // 0 already is the first real entry) but not for Help's, which
+    // ends up with its up-arrow back to Master sitting at index 0.
+    // Without this, landing on Help and immediately pressing 'l' would
+    // silently bounce straight back to Master instead of opening its
+    // first topic -- found live, not by inspection.
+    helpToc->setCurrentLink(firstTopic);
+
+    // Nothing can be added to Master from here on -- see
+    // addNewCard()/addContinuationCard()'s own read-only gate.
+    masterCS->setReadOnly(true);
+
+    showCard(masterToc);
+    // Off the title row (0), not wherever the last addNewCard() call
+    // above happened to leave it -- right()'s own dispatch checks
+    // m_row == 0 *before* it even looks at navigation mode (see its own
+    // title-editing special case), so leaving row 0 here would make 'l'
+    // just move within the (empty, read-only) title text instead of
+    // following Master's own current link -- found live, not by
+    // inspection: landing on Master and immediately pressing 'l' did
+    // nothing at all.
+    m_row = 1;
+    m_col = 0;
+    enterCommandMode();
+
+    // enterCommandMode() here is a direct call, not a real CapsLock tap
+    // -- handleKey()'s own tap-latch tracking (m_capsTapLatched) has no
+    // way to know we're landing in command mode "as if" a tap just
+    // latched it, so without this, the very first real tap after launch
+    // would fall into the "establish the latch, don't act yet" branch
+    // instead of actually stepping anywhere -- the same class of
+    // staleness bug enterTypingMode() already guards against for the
+    // opposite direction. Set true, not false: we ARE starting latched.
+    m_capsTapLatched = true;
 }
