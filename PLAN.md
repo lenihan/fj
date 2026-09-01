@@ -812,6 +812,35 @@ manually) rather than assuming emsdk's own env scripts handled it.
       while typing mode still types real QWERTY throughout (`q` itself
       creates a new card and then types literally); `f`/`j` show a
       visible dash under their legend/blank face in every mode.
+- [x] The panel's font was still too small even after the fifth round's
+      "largest that fits" fix -- because what it was fitting was wrong.
+      `kLongestSingleWidthLabel` (the string `pickPanelAtlas` sizes
+      every key's font to fit) was 11, sized for `KeyMessage`'s own
+      rare, brief disabled-key explanations ("No history" and friends)
+      -- so the font for every ordinary single-letter key was being
+      crushed down to fit an 11-character message that only ever shows
+      on one key, for a second, occasionally. The user was explicit,
+      found live: a real keyboard's keycap legend runs around a third of
+      the keycap's own height, and letters here were reading far
+      smaller than that. Fixed by shrinking the *target* string instead
+      of the algorithm: `kLongestSingleWidthLabel` now tracks the
+      longest string shown as a matter of course (`shift`/`enter`/
+      `+card`/`prevT`/`nextT`, 5 characters), not the longest string a
+      key can ever show -- the disabled-key messages now simply spill
+      past their key's own border into whichever neighbor is drawn
+      after them (that neighbor's own opaque face clips the overflow,
+      reading as a truncated "Read-O" rather than a garish overlap),
+      which is a fine trade for a message that's rare and brief on the
+      one key showing it, against a visibly bigger font on every key,
+      all the time.
+
+      613 tests passing (unchanged -- no test pins this exact string),
+      Windows/Linux/web builds clean. Verified live on Windows: every
+      ordinary legend (`cmd`/`+card`/`prev`/`next`/arrows/etc.) reads
+      noticeably larger, filling roughly a third of its key's height;
+      clicking a disabled key still shows its explanation, now visibly
+      clipped by the neighboring key rather than shrunk to fit --
+      confirmed as the intended trade-off, not a bug.
 - [x] (Superseded by the entry above, kept for history) `+card`/`+toc`/
       `del` (`c`/`t`/`d`) relocated to the left panel's row 2, keys
       2/3/4 -- another straight label swap in `keyboardPanel.cpp`'s

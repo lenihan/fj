@@ -106,16 +106,23 @@ void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
     canvas.line({r.x, r.y + r.h}, {r.x, r.y}, color, thickness);
 }
 
-// The longest single-width key label/legend -- pickPanelAtlas sizes text
-// to fit this within one key's pitch, not the double-wide spacebar's more
-// generous width. "No history" (11 codepoints, one of KeyMessage's own
-// disabled-key explanations -- see drawKeyboardPanel) is now the
-// longest -- past even "Read-Only" (9) -- well past "shift"/"enter"/
-// "prevT"/"nextT" (5-6) -- a real trade-off, since every other key's
-// text shrinks slightly to keep fitting a message that's shown rarely
-// and briefly, but truncating or abbreviating the user's exact
-// requested wording seemed worse.
-constexpr std::size_t kLongestSingleWidthLabel = 11;
+// The longest *regularly shown* single-width key label/legend --
+// pickPanelAtlas sizes text to fit this within one key's pitch, not the
+// double-wide spacebar's more generous width. Deliberately NOT the
+// longest string a key can ever show: KeyMessage's own disabled-key
+// explanations ("No history", "Read-Only", etc., up to 11 codepoints)
+// are longer than every one of these, but sizing the *whole panel's*
+// everyday font down to fit those was exactly backwards -- the user was
+// explicit, found live: real keyboard keycaps size their legend to the
+// keycap, around a third of its height, and letters were reading far
+// smaller than that (a single glyph squeezed down to fit an 11-
+// character message that only shows for a second, rarely, on one key at
+// a time). So this now tracks "shift"/"enter"/"+card"/"prevT"/"nextT"
+// (5, the longest strings shown as a matter of course) instead --
+// letting the rare disabled-key messages spill past their key's own
+// border into the surrounding gap if they need to, rather than
+// shrinking every letter on the panel to accommodate them.
+constexpr std::size_t kLongestSingleWidthLabel = 5;
 
 // What a key labeled `label` does -- see KeyRect::Action's comment.
 // "tab" has no corresponding Cursor::handleKey case at all today (PLAN.md's
