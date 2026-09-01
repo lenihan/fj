@@ -8,6 +8,20 @@ cmake_minimum_required(VERSION 3.20)
 
 project(fj LANGUAGES CXX)
 
+# MSVC's default source-file encoding is the current Windows ANSI code
+# page, not UTF-8 -- without this, a UTF-8-encoded .cpp containing a
+# non-ASCII char32_t literal (e.g. cardItem.cpp's U"↑"/U"→" link
+# arrows) gets decoded one *byte* at a time against that code page instead
+# of as UTF-8, silently splitting one intended codepoint into several wrong
+# ones (found live: Windows-1252 turned "↑"'s 3 UTF-8 bytes into
+# U+2020/U+2018, neither of which the font atlas has a glyph for, so the
+# link rendered as blank cells instead of an arrow). GCC/Clang (Linux, the
+# Emscripten/web build) already assume UTF-8 source by default, so this is
+# MSVC-only.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 # CTest bundles with CMake -- a test *runner* (invokes an executable, checks
 # its exit code, aggregates results for `ctest`/CI), not a testing framework
 # (no assertion macros, no test discovery). include(CTest) wires that up:

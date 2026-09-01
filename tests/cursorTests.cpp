@@ -222,6 +222,32 @@ TEST_CASE("a fresh cmd tap after 'e' latches command mode, not a stale release")
     CHECK(cursor.isCommandMode()); // ...should latch on, not bounce back to typing
 }
 
+TEST_CASE("'e' on a read-only TOC (Master's) is refused without corrupting row/mode")
+{
+    // enterTypingMode() used to set m_row = 0 (move to title) for *any*
+    // thread-start TOC before checking readOnly() -- so on Master's own
+    // TOC (permanently read-only, see setupInitialContent()), 'e' left
+    // the cursor silently parked on row 0 despite the mode switch itself
+    // being refused. toggleNavigationMode() branches on m_row == 0 for
+    // TOC cards, so the *next* key pressed ('n') then silently forced
+    // Cursor sub-mode instead of actually toggling -- found live, not by
+    // inspection: pressing 'e' then 'n' on Master's TOC looked like both
+    // keys had stopped doing anything at all.
+    Cursor cursor;
+    REQUIRE(cursor.isCommandMode());
+    REQUIRE(cursor.row() == 1);
+
+    tapCmd(cursor); // Link -> general command, one step (see cursor.cpp)
+    REQUIRE_FALSE(cursor.isLinkMode());
+
+    cursor.handleKey({KeyEvent::Kind::Char, U'e', true}); // refused: Master's TOC is read-only
+    CHECK(cursor.isCommandMode());                        // still command mode, not typing
+    CHECK(cursor.row() == 1);                              // row untouched, not silently moved to the title
+
+    cursor.handleKey({KeyEvent::Kind::Char, U'n', true}); // now this should actually toggle
+    CHECK(cursor.isLinkMode());
+}
+
 TEST_CASE("'e' returns to typing mode from a held command")
 {
     Cursor cursor;

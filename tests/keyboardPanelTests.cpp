@@ -401,14 +401,16 @@ TEST_CASE("typingLabelFor previews shift's effect: capitals and symbols, matchin
 
 TEST_CASE("commandLegendFor: general command mode describes every implemented key, blank otherwise")
 {
-    // i/k/j/l/u/o/n/m/./h/y/p live on the right panel, the rest of the
-    // command keys on the left -- see kLeftKeys/kRightKeys.
+    // i/k/j/l/u/o/m/./h/y/p live on the right panel, the rest of the
+    // command keys on the left -- see kLeftKeys/kRightKeys. n moved to
+    // the left panel (next to cmd) and w to the right in the mode-key
+    // relocation, so they're the two exceptions to that split.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& i = findKey(rightKeys, U"i");
     const KeyRect& c = findKey(leftKeys, U"c");
     const KeyRect& tab = findKey(leftKeys, U"tab");
-    const KeyRect& w = findKey(leftKeys, U"w"); // an ordinary, wholly unmapped letter
+    const KeyRect& w = findKey(rightKeys, U"w"); // an ordinary, wholly unmapped letter
 
     CHECK(commandLegendFor(i, /*isLinkMode=*/false) == U"up");
     CHECK(commandLegendFor(c, /*isLinkMode=*/false) == U"+card");
@@ -422,7 +424,7 @@ TEST_CASE("commandLegendFor: navigation mode only describes its own live keys")
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& i = findKey(rightKeys, U"i");
     const KeyRect& e = findKey(leftKeys, U"e");   // no longer live in navigation mode -- cmd is the only way out
-    const KeyRect& n = findKey(rightKeys, U"n");  // ditto
+    const KeyRect& n = findKey(leftKeys, U"n");   // ditto
     const KeyRect& c = findKey(leftKeys, U"c");   // live in general command mode, blocked in navigation mode
     const KeyRect& u = findKey(rightKeys, U"u");  // ditto
 
@@ -470,7 +472,7 @@ TEST_CASE("modeColorFor: typing mode colors every key Edit, cmd excepted -- n/e 
     const KeyRect& shift = findKey(keys, U"shift");
     const KeyRect& tab = findKey(keys, U"tab");
     auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
-    const KeyRect& n = findKey(rightKeys, U"n");
+    const KeyRect& n = findKey(keys, U"n");
     const KeyRect& enter = findKey(rightKeys, U"enter");
     const KeyRect& bs = findKey(rightKeys, U"bs");
 
@@ -490,9 +492,8 @@ TEST_CASE("modeColorFor: general command mode colors n/e their own permanent col
     // text -- this is where they show their permanent identity color
     // instead.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& e = findKey(leftKeys, U"e");
-    const KeyRect& n = findKey(rightKeys, U"n");
+    const KeyRect& n = findKey(leftKeys, U"n");
 
     CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Edit);
     CHECK(modeColorFor(n, /*isTypingMode=*/false, /*isLinkMode=*/false) == ModeColor::Navigation);
@@ -507,9 +508,8 @@ TEST_CASE("modeColorFor: navigation mode blocks n/e -- neither keeps its color w
     // a blank blue 'n' and a blank red 'e' both read as live when they
     // weren't.
     auto leftKeys = layoutKeys(/*leftSide=*/true, kPanelSize_px);
-    auto rightKeys = layoutKeys(/*leftSide=*/false, kPanelSize_px);
     const KeyRect& e = findKey(leftKeys, U"e");
-    const KeyRect& n = findKey(rightKeys, U"n");
+    const KeyRect& n = findKey(leftKeys, U"n");
 
     CHECK(modeColorFor(e, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);
     CHECK(modeColorFor(n, /*isTypingMode=*/false, /*isLinkMode=*/true) == ModeColor::None);

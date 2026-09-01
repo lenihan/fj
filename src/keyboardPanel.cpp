@@ -14,10 +14,20 @@ namespace
 // transcribed one row array per side. Row 4 (the spacebar) isn't in here --
 // it's handled separately in layoutKeys/drawKeyboardPanel since it spans
 // two columns instead of one.
+// e/n sit next to cmd (row 3's 2nd/3rd keys, same row as cmd itself),
+// not their original q/w/n spots -- the user wanted the mode keys
+// spatially clustered together given how important they are, rather
+// than edit two keys away and navigation on the other panel entirely.
+// a/s (still needed as literal typed letters) take over e's/n's old
+// row-2 spots instead -- a straight swap within this one table (unlike
+// the previous relocation, kRightKeys is untouched this time), so every
+// letter stays reachable somewhere. Cursor dispatches on codepoint,
+// never on physical position, so nothing outside this table needs to
+// change.
 const std::array<std::array<const char32_t*, KeyboardPanel::kCols>, KeyboardPanel::kKeyRows> kLeftKeys = {{
     {U";", U"1", U"2", U"3", U"4", U"5"},
-    {U"tab", U"q", U"w", U"e", U"r", U"t"},
-    {U"cmd", U"a", U"s", U"d", U"f", U"g"},
+    {U"tab", U"a", U"s", U"q", U"r", U"t"},
+    {U"cmd", U"e", U"n", U"d", U"f", U"g"},
     {U"shift", U"z", U"x", U"c", U"v", U"b"},
 }};
 
@@ -25,7 +35,7 @@ const std::array<std::array<const char32_t*, KeyboardPanel::kCols>, KeyboardPane
     {U"6", U"7", U"8", U"9", U"0", U"bs"},
     {U"y", U"u", U"i", U"o", U"p", U"-"},
     {U"h", U"j", U"k", U"l", U"'", U"enter"},
-    {U"n", U"m", U",", U".", U"/", U"shift"},
+    {U"w", U"m", U",", U".", U"/", U"shift"},
 }};
 
 constexpr Pixel kPanelColor = 0x00202020;

@@ -165,6 +165,21 @@ bool Cursor::isLinkMode() const { return m_navigationMode == NavigationMode::Lin
 
 void Cursor::enterTypingMode()
 {
+    // Checked first, before anything below touches m_row: every stack's
+    // own card-0 TOC (Master's, every year's) is permanently read-only,
+    // and used to hit this *after* the isTOC() branch below had already
+    // set m_row = 0 -- so pressing 'e' on one silently left the cursor on
+    // the title row despite the switch to typing mode being refused,
+    // corrupting later navigation mode is Cursor/Link decisions
+    // (Navigation mode) also branch on m_row == 0 for TOC cards. Found
+    // live, not by inspection: pressing 'e' then 'n' on Master's own TOC
+    // looked like both keys had stopped doing anything.
+    if (m_currentCard->readOnly() || m_currentCard->deleted())
+    {
+        shakeCardNo();
+        return;
+    }
+
     if (m_currentCard->isTOC())
     {
         if (m_currentCard != m_currentCard->threadStart())
@@ -175,11 +190,6 @@ void Cursor::enterTypingMode()
         m_row = 0; // move to title
     }
 
-    if (m_currentCard->readOnly() || m_currentCard->deleted())
-    {
-        shakeCardNo();
-        return;
-    }
     m_keyboardMode = KeyboardMode::Typing;
     m_navigationMode = NavigationMode::Cursor; // so you can use navigation keys
 
