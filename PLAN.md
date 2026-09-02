@@ -435,6 +435,28 @@ on this machine -- building from a fresh shell needs `emcc`/`ninja` on
 `%EMSDK%;%EMSDK%\upstream\emscripten;%EMSDK%\ninja\<ver>_64bit`
 manually) rather than assuming emsdk's own env scripts handled it.
 
+**Live demo**: the Release web build is published via GitHub Pages,
+serving straight from a `gh-pages` branch that holds nothing but the
+built `index.html`/`fj.js`/`fj.wasm` -- no source, no shared history
+with `main`. To update it after any change: `scripts/deploy-web.ps1`
+from the repo root -- builds `web-release`, copies the three files into
+a permanent sibling worktree at `../fj-gh-pages-worktree` (created
+automatically on first run), commits, and force-pushes. One-time setup
+this script doesn't do for you: GitHub repo Settings -> Pages (source:
+branch `gh-pages` / `(root)`).
+
+Currently reachable at the default <https://lenihan.github.io/fj/> --
+no DNS needed. The custom domain (`fj.davidlenihan.com`) is opt-in, not
+automatic: `deploy-web.ps1` only *maintains* a `CNAME` file in the
+published branch if one already exists there, since adding one before
+DNS is actually configured would break the default URL (GitHub Pages
+redirects to whatever domain a `CNAME` file names). To switch over
+later: create `../fj-gh-pages-worktree/CNAME` containing
+`fj.davidlenihan.com` once, set the custom domain in the same GitHub
+Pages settings screen, and add a CNAME record at the domain's own DNS
+provider (host `fj`, value `lenihan.github.io`) -- every deploy after
+that keeps the file current on its own.
+
 ## TODO
 
 ### Platform / architecture
