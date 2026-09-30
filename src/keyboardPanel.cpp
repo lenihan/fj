@@ -57,6 +57,16 @@ constexpr Pixel kKeyLabelColor = 0x00202020;
 constexpr Pixel kHoverBorderColor = 0x00FFD700; // gold
 constexpr int kHoverBorderWidth_px = 2;
 
+// Keycap corner rounding, as a percent of the key's own height -- a
+// fraction rather than a fixed pixel count so it scales with the panel
+// the same way key size itself does. Based on height, not width: every
+// key shares the same height (only the spacebar is wider), so this
+// keeps corner rounding visually consistent across every key rather
+// than the spacebar looking disproportionately more/less rounded.
+// Modeled on a real mechanical/laptop keycap's modest rounding (a
+// Surface Type Cover key, for instance), not a fully pill-shaped button.
+constexpr int kKeyCornerRadiusPercent = 18;
+
 // f/j's own home-row tactile-bump marker -- see its own comment in
 // drawKeyboardPanel.
 constexpr int kHomeMarkerThickness_px = 3;
@@ -98,12 +108,23 @@ Pixel modeColorPixel(ModeColor color)
     }
 }
 
-void drawBoxOutline(Canvas& canvas, Rect r, Pixel color, int thickness)
+Rect insetRect(Rect r, int amount_px)
 {
-    canvas.line({r.x, r.y}, {r.x + r.w, r.y}, color, thickness);
-    canvas.line({r.x + r.w, r.y}, {r.x + r.w, r.y + r.h}, color, thickness);
-    canvas.line({r.x + r.w, r.y + r.h}, {r.x, r.y + r.h}, color, thickness);
-    canvas.line({r.x, r.y + r.h}, {r.x, r.y}, color, thickness);
+    return {r.x + amount_px, r.y + amount_px, r.w - 2 * amount_px, r.h - 2 * amount_px};
+}
+
+// A rounded keycap with a border ring, built from two filled rounded
+// rects rather than a dedicated stroke primitive: paint the whole shape
+// in borderColor, then paint a slightly smaller, slightly-less-rounded
+// shape in faceColor on top, leaving exactly a ringWidth_px border
+// visible around the edge. radius_px is the outer shape's corner
+// radius; the inner shape's radius shrinks by ringWidth_px to keep the
+// ring's own width visually constant all the way around the corner,
+// not just along the straight edges.
+void fillRoundedKeycap(Canvas& canvas, Rect rect, int radius_px, Pixel borderColor, Pixel faceColor, int ringWidth_px)
+{
+    canvas.fillRoundedRect(rect, radius_px, borderColor);
+    canvas.fillRoundedRect(insetRect(rect, ringWidth_px), radius_px - ringWidth_px, faceColor);
 }
 
 // The longest *regularly shown* single-width key label/legend --
@@ -618,15 +639,19 @@ void drawKeyboardPanel(Canvas& canvas, bool leftSide, const HackAtlas::Atlas& at
         Pixel faceColor = inverted ? kKeyLabelColor : lightColor;
         Pixel textColor = inverted ? lightColor : kKeyLabelColor;
 
-        canvas.fillRect(key.rect, faceColor);
-        drawBoxOutline(canvas, key.rect, kKeyBorderColor, 1);
+        int cornerRadius_px = key.rect.h * kKeyCornerRadiusPercent / 100;
+        fillRoundedKeycap(canvas, key.rect, cornerRadius_px, kKeyBorderColor, faceColor, /*ringWidth_px=*/1);
 
         // Drawn on top of the face/border above regardless of whether this
         // key has any text below -- hover applies to every key uniformly,
         // dead ones included (see this function's own header comment), so
         // it has to happen before the early exit for a blank/dead key.
+        // Re-filling the interior back to faceColor (rather than a
+        // dedicated stroke) is safe here specifically because nothing but
+        // that same faceColor has been drawn inside it yet -- text is
+        // still to come, further down.
         if (hoveredKeyRect && sameRect(key.rect, *hoveredKeyRect))
-            drawBoxOutline(canvas, key.rect, kHoverBorderColor, kHoverBorderWidth_px);
+            fillRoundedKeycap(canvas, key.rect, cornerRadius_px, kHoverBorderColor, faceColor, kHoverBorderWidth_px);
 
         // Index-finger home markers -- f (left panel)/j (right panel),
         // matching the raised tactile bump a real keyboard puts on those

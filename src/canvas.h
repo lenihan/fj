@@ -76,6 +76,15 @@ class Canvas
     std::span<const Pixel> pixels() const { return m_pixels; }
 
     void fillRect(Rect rect, Pixel color);
+
+    // Same as fillRect, but the four corners are cut to a quarter-circle
+    // of radius_px (clamped to half the shorter side, so an oversized
+    // radius degenerates to a pill/capsule shape rather than an error).
+    // Hard-edged like every other primitive here (see this header's
+    // class comment) -- a pixel's either in or out, no anti-aliased
+    // corner fringe. keyboardPanel.cpp uses this for its keycaps.
+    void fillRoundedRect(Rect rect, int radius_px, Pixel color);
+
     void fillTriangle(Point p0, Point p1, Point p2, Pixel color);
 
     // Copies src's entire pixel buffer onto this canvas at `at`, clipped

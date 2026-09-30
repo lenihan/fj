@@ -61,6 +61,50 @@ void Canvas::fillRect(Rect rect, Pixel color)
             m_pixels[static_cast<std::size_t>(y) * m_width + x] = color;
 }
 
+void Canvas::fillRoundedRect(Rect rect, int radius_px, Pixel color)
+{
+    int x0 = std::max(0, rect.x);
+    int y0 = std::max(0, rect.y);
+    int x1 = std::min(m_width, rect.x + rect.w);
+    int y1 = std::min(m_height, rect.y + rect.h);
+    if (x0 >= x1 || y0 >= y1)
+        return;
+
+    int r = std::clamp(radius_px, 0, std::min(rect.w, rect.h) / 2);
+    int leftEdge = rect.x;
+    int rightEdge = rect.x + rect.w - 1;
+    int topEdge = rect.y;
+    int bottomEdge = rect.y + rect.h - 1;
+
+    for (int y = y0; y < y1; ++y)
+    {
+        bool nearTop = y < topEdge + r;
+        bool nearBottom = y > bottomEdge - r;
+        for (int x = x0; x < x1; ++x)
+        {
+            if (nearTop || nearBottom)
+            {
+                bool nearLeft = x < leftEdge + r;
+                bool nearRight = x > rightEdge - r;
+                if (nearLeft || nearRight)
+                {
+                    // In one of the four corner boxes -- only paint this
+                    // pixel if it also falls within that corner's own
+                    // quarter-circle, centered r pixels in from both
+                    // edges it's closest to.
+                    int cx = nearLeft ? leftEdge + r : rightEdge - r;
+                    int cy = nearTop ? topEdge + r : bottomEdge - r;
+                    long long dx = x - cx;
+                    long long dy = y - cy;
+                    if (dx * dx + dy * dy > static_cast<long long>(r) * r)
+                        continue;
+                }
+            }
+            m_pixels[static_cast<std::size_t>(y) * m_width + x] = color;
+        }
+    }
+}
+
 void Canvas::blit(const Canvas& src, Point at)
 {
     int x0 = std::max(0, at.x);
