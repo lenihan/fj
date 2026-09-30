@@ -403,6 +403,26 @@ keystroke workload in a way native `-O0` never is. Left `web-debug` at
 one to actually use/demo against day to day; `web-debug` is for when you
 specifically need to step through wasm in the browser's own debugger.
 
+**Fast typing was laggy specifically here, traced to three redundant
+full redraws per keystroke.** A single physical keypress fires
+`main.cpp`'s `onPhysicalKey` twice (keydown flash, keyup flash) and
+`onChar` once (the character itself) in between, and all three used to
+call the same full `redraw()` -- re-rendering every row of the card
+from scratch, rebuilding both keyboard panels, and re-presenting the
+whole device canvas through `presentFrame`'s bilinear `blitScaled` and
+the browser's own `putImageData`, three times, even though a key flash
+never touches the card at all. Cheap on Win32/Xlib's native raster
+paths, but expensive enough on the web's `ImageData`/`putImageData`
+round-trip that it was the actual source of the typing lag (confirmed
+live, not assumed). Fixed by splitting the render pipeline into
+`renderCard`/`renderPanels`/`compositeDevice` and adding a
+`redrawPanelsOnly` (skips `renderCard`, reuses whatever `monitorCanvas`
+the last full `redraw()` left behind) for `onPhysicalKey`'s two flashes
+and `onMouseMove`'s hover redraw -- neither ever changes the card, only
+which panel key is lit/hovered. `onClick`'s own redraw stays a full
+`redraw()`, since a released click can dispatch an actual command
+(e.g. `+card`) that does change the card.
+
 **Custom `--shell-file` (`src/webShell.html`).** emcc's default shell is
 a demo page (a spare `#canvas`, resize/pointer-lock checkboxes, a
 Fullscreen button, a status/progress readout) meant for apps that hand

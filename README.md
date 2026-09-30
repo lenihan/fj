@@ -6,6 +6,12 @@ browser -- no Qt or other third-party dependency on any of the three (see
 `PLAN.md`'s ARCHITECTURE section). Pick the section below for your
 platform.
 
+- [Windows](#windows)
+- [Linux](#linux)
+- [Web](#web)
+- [Live demo](#live-demo)
+- [Tests](#tests)
+
 ## Windows
 
 ### Prerequisites
@@ -139,6 +145,27 @@ python -m http.server 8000
 ```
 
 Then open `http://localhost:8000/fj.html` in a browser.
+
+## Live demo
+
+The current `web-release` build is published at
+**<https://lenihan.github.io/fj/>** -- open that directly in a browser,
+no local build or server needed.
+
+It's served via GitHub Pages from a `gh-pages` branch holding nothing
+but the three built files (no source, no shared history with `main`).
+To publish whatever's currently in your working tree:
+
+```pwsh
+./scripts/deploy-web.ps1
+```
+
+Builds `web-release`, copies the output into a permanent sibling git
+worktree (`../fj-gh-pages-worktree`, created automatically the first
+time), commits, and pushes -- safe to re-run any time you want the demo
+to reflect your latest work. See `PLAN.md`'s "Web (Emscripten) shell"
+section for the one-time GitHub Pages setup and the (opt-in) custom
+domain.
 
 ## Tests
 

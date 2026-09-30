@@ -345,20 +345,28 @@ int main()
     // right panel, left to right.
     Canvas deviceCanvas(monitorCanvas.width() * 3, monitorCanvas.height());
 
-    // Draws the card and composites it onto monitorCanvas, then composites
-    // all three regions onto deviceCanvas -- the "content changed" half of
-    // a frame, as opposed to presentFrame's "put it on screen" half below.
-    // Only needed when the card's own pixels actually changed
-    // (typing/navigation) or cardCanvas itself was just rebuilt at a new
-    // atlas (a resize settling); a live-resize tick's window-shape-only
-    // change never needs this, which is the whole reason it's split out
-    // rather than folded into presentFrame.
-    auto renderContent = [&]()
+    // Draws the card and composites it onto monitorCanvas -- the expensive
+    // part of a frame (redraws every row's glyphs from scratch), so it's
+    // its own function rather than folded into renderContent: physical-
+    // key press/release flashes (see onPhysicalKey below) need the panels
+    // refreshed but never touch the card itself, and used to pay this
+    // cost anyway for no visible difference. Only needed when the card's
+    // own pixels actually changed (typing/navigation) or cardCanvas
+    // itself was just rebuilt at a new atlas (a resize settling).
+    auto renderCard = [&]()
     {
         cursor.draw(cardCanvas, *atlas, *titleAtlas);
         monitorCanvas = Canvas(cardCanvas.width(), cardCanvas.width());
         monitorCanvas.blit(cardCanvas, {0, (monitorCanvas.height() - cardCanvas.height()) / 2});
+    };
 
+    // Rebuilds both keyboard panels from Cursor/press/hover/latch state --
+    // independent of renderCard() above (nothing here reads the card's
+    // own rendered pixels, only Cursor's state, which is why this can run
+    // on its own for a physical-key flash without renderCard() having
+    // just run too). Doesn't touch deviceCanvas -- see compositeDevice.
+    auto renderPanels = [&]()
+    {
         // Mouse takes precedence on the vanishingly unlikely chance both
         // are somehow set at once -- effectivePressedKey is just
         // "whichever press should currently flash," feeding the same
@@ -419,11 +427,32 @@ int main()
         drawKeyboardPanel(rightPanelCanvas, /*leftSide=*/false, *rightPanelAtlas, *rightPanelLargeAtlas,
                            rightPressedRect, rightHoveredRect, shiftEngaged, spacebarEngaged, isTypingModeForLegend,
                            isLinkModeForLegend, disabled, keyMessage);
+    };
 
+    // Composites whichever of leftPanelCanvas/monitorCanvas/
+    // rightPanelCanvas are currently valid into deviceCanvas -- cheap
+    // (three plain blits, no per-glyph work), so always re-run after
+    // either renderCard() or renderPanels() rather than trying to only
+    // re-composite the one region that actually changed.
+    auto compositeDevice = [&]()
+    {
         deviceCanvas = Canvas(monitorCanvas.width() * 3, monitorCanvas.height());
         deviceCanvas.blit(leftPanelCanvas, {0, 0});
         deviceCanvas.blit(monitorCanvas, {monitorCanvas.width(), 0});
         deviceCanvas.blit(rightPanelCanvas, {monitorCanvas.width() * 2, 0});
+    };
+
+    // The full "content changed" half of a frame -- both the card and
+    // both panels -- as opposed to presentFrame's "put it on screen"
+    // half below. A live-resize tick's window-shape-only change needs
+    // neither (see the onResize callback), and a physical-key flash
+    // needs only renderPanels() (see redrawPanelsOnly below); this is
+    // for everything else -- typing, navigation, a settled resize.
+    auto renderContent = [&]()
+    {
+        renderCard();
+        renderPanels();
+        compositeDevice();
     };
 
     // Where deviceCanvas lands within the window -- the largest centered
@@ -461,6 +490,28 @@ int main()
     auto redraw = [&]()
     {
         renderContent();
+        presentFrame(true);
+    };
+
+    // The cheap refresh for a physical-key press/release flash (see
+    // onPhysicalKey below) -- skips renderCard() entirely, reusing
+    // whatever monitorCanvas already holds from the last full redraw()
+    // (correct: a flash never changes the card, only which panel key is
+    // lit). Found live, not by inspection: a single physical keystroke
+    // fires this same panel-only visual change on both its keydown and
+    // keyup edges, plus a full redraw() again for the character itself
+    // in between -- three full redraws (each re-rendering all of the
+    // card's rows, not just the changed one) for one keystroke, on every
+    // platform, made fast typing visibly laggy on the web build
+    // specifically, where each of those redraws is far more expensive
+    // than on Win32/Xlib (bilinear-resampling and re-presenting the
+    // whole device canvas through the browser's canvas API every time --
+    // see presentFrame). This cuts two of those three back down to just
+    // the part that actually changed.
+    auto redrawPanelsOnly = [&]()
+    {
+        renderPanels();
+        compositeDevice();
         presentFrame(true);
     };
 
@@ -646,7 +697,7 @@ int main()
         if (sameHoveredSpot(hit, hoveredKey))
             return;
         hoveredKey = hit;
-        redraw();
+        redrawPanelsOnly();
     };
 
     // Flashes the on-screen key matching a physical keypress -- see
@@ -666,7 +717,7 @@ int main()
             if (physicalShiftHeld == event.pressed)
                 return;
             physicalShiftHeld = event.pressed;
-            redraw();
+            redrawPanelsOnly();
             return;
         }
 
@@ -686,7 +737,7 @@ int main()
                 return;
             physicalPressedKey.reset();
         }
-        redraw();
+        redrawPanelsOnly();
     };
 
     redraw();
